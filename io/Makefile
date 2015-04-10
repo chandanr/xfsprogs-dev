@@ -45,6 +45,14 @@ else
 LSRCFILES += sendfile.c
 endif
 
+# XXX devel hack, flip back to ifeq once libc has wrappers
+ifneq ($(HAVE_COPY_FILE_RANGE),yes)
+CFILES += copy_file_range.c
+LCFLAGS += -DHAVE_COPY_FILE_RANGE
+else
+LSRCFILES += copy_file_range.c
+endif
+
 ifeq ($(HAVE_FIEMAP),yes)
 CFILES += fiemap.c
 LCFLAGS += -DHAVE_FIEMAP

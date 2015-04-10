@@ -163,3 +163,10 @@ extern void		readdir_init(void);
 #endif
 
 extern void		reflink_init(void);
+
+#ifdef HAVE_COPY_FILE_RANGE
+extern void		copy_file_range_init(void);
+#else
+#define copy_file_range_init()		do { } while (0)
+#endif
+

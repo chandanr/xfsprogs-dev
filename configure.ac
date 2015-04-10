@@ -130,6 +130,8 @@ if test "$enable_blkid" = yes; then
 AC_HAVE_BLKID_TOPO
 fi
 
+AC_HAVE_COPY_FILE_RANGE
+
 AC_CHECK_SIZEOF([long])
 AC_CHECK_SIZEOF([char *])
 AC_TYPE_UMODE_T

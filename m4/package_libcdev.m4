@@ -247,4 +247,16 @@ AC_DEFUN([AC_HAVE_MREMAP],
         #include <sys/mman.h>]
        )
     AC_SUBST(have_mremap)
+    ])
+
+AC_DEFUN([AC_HAVE_COPY_FILE_RANGE],
+  [ AC_MSG_CHECKING([for copy_file_range])
+    AC_TRY_LINK([
+#include <unistd.h>
+    ], [
+         copy_file_range(0, 0, 0, 0, 0, 0);
+    ],	have_copy_file_range=yes
+	AC_MSG_RESULT(yes),
+	AC_MSG_RESULT(no))
+    AC_SUBST(have_copy_file_range)
   ])

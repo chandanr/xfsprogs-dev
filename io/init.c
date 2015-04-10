@@ -84,6 +84,7 @@ init_commands(void)
 	sync_range_init();
 	truncate_init();
 	reflink_init();
+	copy_file_range_init();
 }
 
 static int
