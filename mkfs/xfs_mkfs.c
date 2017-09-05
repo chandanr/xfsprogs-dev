@@ -2011,12 +2011,6 @@ _("Minimum block size for CRC enabled filesystems is %d bytes.\n"),
 					      XFS_MIN_SECTORSIZE;
 
 		if ((blocksize < sectorsize) && (blocksize >= ft.lsectorsize)) {
-			fprintf(stderr,
-_("specified blocksize %d is less than device physical sector size %d\n"),
-				blocksize, ft.psectorsize);
-			fprintf(stderr,
-_("switching to logical sector size %d\n"),
-				ft.lsectorsize);
 			sectorsize = ft.lsectorsize ? ft.lsectorsize :
 						      XFS_MIN_SECTORSIZE;
 		}
