@@ -2937,8 +2937,9 @@ _("log size %lld is not a multiple of the log stripe unit %d\n"),
 	tmp_logblocks = ((cfg->logblocks + (sunit - 1)) / sunit) * sunit;
 
 	/* If the log is too large, round down instead of round up */
-	if ((tmp_logblocks > XFS_MAX_LOG_BLOCKS) ||
-	    ((tmp_logblocks << cfg->blocklog) > XFS_MAX_LOG_BYTES)) {
+	if (tmp_logblocks > XFS_MAX_LOG_BLOCKS ||
+	    tmp_logblocks > cfg->logblocks ||
+	    (tmp_logblocks << cfg->blocklog) > XFS_MAX_LOG_BYTES) {
 		tmp_logblocks = (cfg->logblocks / sunit) * sunit;
 	}
 	cfg->logblocks = tmp_logblocks;
