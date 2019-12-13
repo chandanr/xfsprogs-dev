@@ -160,7 +160,7 @@ bmap_f(
 		dip = iocur_top->data;
 		if (be32_to_cpu(dip->di_nextents))
 			dfork = 1;
-		if (be16_to_cpu(dip->di_anextents))
+		if (XFS_DFORK_NEXTENTS(dip, XFS_ATTR_FORK))
 			afork = 1;
 		pop_cur();
 	}
