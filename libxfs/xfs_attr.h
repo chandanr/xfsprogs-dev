@@ -154,5 +154,8 @@ int xfs_attr_remove_args(struct xfs_da_args *args);
 int xfs_attr_list(struct xfs_inode *dp, char *buffer, int bufsize,
 		  int flags, struct attrlist_cursor_kern *cursor);
 bool xfs_attr_namecheck(const void *name, size_t length);
+void xfs_attr_calc_size(struct xfs_mount *mp, int namelen, int valuelen,
+			int *local, unsigned int *log_dablks,
+			unsigned int *rmt_blks, unsigned int *total_dablks);
 
 #endif	/* __XFS_ATTR_H__ */

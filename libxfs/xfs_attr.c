@@ -182,43 +182,6 @@ xfs_attr_get(
 	return 0;
 }
 
-/*
- * Calculate how many blocks we need for the new attribute,
- */
-STATIC int
-xfs_attr_calc_size(
-	struct xfs_da_args	*args,
-	int			*local)
-{
-	struct xfs_mount	*mp = args->dp->i_mount;
-	int			size;
-	int			nblks;
-
-	/*
-	 * Determine space new attribute will use, and if it would be
-	 * "local" or "remote" (note: local != inline).
-	 */
-	size = xfs_attr_leaf_newentsize(mp, args->namelen, args->valuelen,
-					local);
-	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
-	if (*local) {
-		if (size > (args->geo->blksize / 2)) {
-			/* Double split possible */
-			nblks *= 2;
-		}
-	} else {
-		/*
-		 * Out of line attribute, cannot double split, but
-		 * make room for the attribute value itself.
-		 */
-		uint	dblocks = xfs_attr3_rmt_blocks(mp, args->valuelen);
-		nblks += dblocks;
-		nblks += XFS_NEXTENTADD_SPACE_RES(mp, dblocks, XFS_ATTR_FORK);
-	}
-
-	return nblks;
-}
-
 STATIC int
 xfs_attr_try_sf_addname(
 	struct xfs_inode	*dp,
@@ -245,6 +208,64 @@ xfs_attr_try_sf_addname(
 	error2 = xfs_trans_commit(args->trans);
 	args->trans = NULL;
 	return error ? error : error2;
+}
+
+STATIC uint
+xfs_calc_attr_blocks(
+	struct xfs_mount	*mp,
+	unsigned int		total_dablks,
+	unsigned int		rmt_blks)
+{
+	unsigned int bmbt_blks;
+
+	bmbt_blks = XFS_NEXTENTADD_SPACE_RES(mp, total_dablks + rmt_blks,
+					XFS_ATTR_FORK);
+	return total_dablks + rmt_blks + bmbt_blks;
+}
+
+/*
+ * Calculate how many blocks we need for the new attribute,
+ */
+void
+xfs_attr_calc_size(
+	struct xfs_mount	*mp,
+	int			namelen,
+	int			valuelen,
+	int			*local,
+	unsigned int		*log_dablks,
+	unsigned int		*rmt_blks,
+	unsigned int		*total_dablks)
+{
+	unsigned int		blksize;
+	int			size;
+
+	blksize = mp->m_dir_geo->blksize;
+	*log_dablks = 0;
+	*rmt_blks = 0;
+	*total_dablks = 0;
+
+	/*
+	 * Determine space new attribute will use, and if it would be
+	 * "local" or "remote" (note: local != inline).
+	 */
+	size = xfs_attr_leaf_newentsize(mp, namelen, valuelen, local);
+
+	*total_dablks = XFS_DAENTER_BLOCKS(mp, XFS_ATTR_FORK);
+	*log_dablks = 2 * *total_dablks;
+
+	if (*local) {
+		if (size > (blksize / 2)) {
+			/* Double split possible */
+			*log_dablks += *total_dablks;
+			*total_dablks *= 2;
+		}
+	} else {
+		/*
+		 * Out of line attribute, cannot double split, but
+		 * make room for the attribute value itself.
+		 */
+		*rmt_blks = xfs_attr3_rmt_blocks(mp, valuelen);
+	}
 }
 
 /*
@@ -345,6 +366,9 @@ xfs_attr_set(
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_da_args	args;
 	struct xfs_trans_res	tres;
+	unsigned int		log_dablks;
+	unsigned int		rmt_blks;
+	unsigned int		total_dablks;
 	int			rsvd = (flags & ATTR_ROOT) != 0;
 	int			error, local;
 
@@ -360,7 +384,11 @@ xfs_attr_set(
 	args.value = value;
 	args.valuelen = valuelen;
 	args.op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
-	args.total = xfs_attr_calc_size(&args, &local);
+
+	xfs_attr_calc_size(mp, args.namelen, args.valuelen, &local,
+			&log_dablks, &rmt_blks, &total_dablks);
+
+	args.total = xfs_calc_attr_blocks(mp, total_dablks, rmt_blks);
 
 	error = xfs_qm_dqattach(dp);
 	if (error)
@@ -379,8 +407,8 @@ xfs_attr_set(
 			return error;
 	}
 
-	tres.tr_logres = M_RES(mp)->tr_attrsetm.tr_logres +
-			 M_RES(mp)->tr_attrsetrt.tr_logres * args.total;
+	tres.tr_logres = xfs_calc_attr_res(mp, log_dablks, rmt_blks,
+					total_dablks);
 	tres.tr_logcount = XFS_ATTRSET_LOG_COUNT;
 	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
 
