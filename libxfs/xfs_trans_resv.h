@@ -7,6 +7,7 @@
 #define	__XFS_TRANS_RESV_H__
 
 struct xfs_mount;
+struct xfs_attr_set_resv;
 
 /*
  * structure for maintaining pre-calculated transaction reservations.
@@ -91,6 +92,7 @@ struct xfs_trans_resv {
 #define	XFS_ATTRSET_LOG_COUNT		3
 #define	XFS_ATTRRM_LOG_COUNT		3
 
+uint xfs_calc_attr_res(struct xfs_mount *mp, struct xfs_attr_set_resv *resv);
 void xfs_trans_resv_calc(struct xfs_mount *mp, struct xfs_trans_resv *resp);
 uint xfs_allocfree_log_count(struct xfs_mount *mp, uint num_ops);
 

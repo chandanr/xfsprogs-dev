@@ -131,6 +131,22 @@ typedef struct xfs_attr_list_context {
 	int				index;		/* index into output buffer */
 } xfs_attr_list_context_t;
 
+struct xfs_attr_set_resv {
+	/* Number of blocks in the da btree that we might need to log. */
+	unsigned int		log_dablks;
+
+	/* Number of unlogged blocks needed to store the remote attr value. */
+	unsigned int		rmt_blks;
+
+	/* Number of blocks to allocate for the da btree. */
+	unsigned int		total_dablks;
+
+	/* Blocks we might need to create all the new attr fork mappings. */
+	unsigned int		bmbt_blks;
+
+	/* Total number of blocks we might have to allocate. */
+	unsigned int		alloc_blks;
+};
 
 /*========================================================================
  * Function prototypes for the kernel.
@@ -154,5 +170,7 @@ int xfs_attr_remove_args(struct xfs_da_args *args);
 int xfs_attr_list(struct xfs_inode *dp, char *buffer, int bufsize,
 		  int flags, struct attrlist_cursor_kern *cursor);
 bool xfs_attr_namecheck(const void *name, size_t length);
-
+void xfs_attr_calc_size(struct xfs_mount *mp,
+			struct xfs_attr_set_resv *resv,
+			int namelen, int valuelen, int *local);
 #endif	/* __XFS_ATTR_H__ */
