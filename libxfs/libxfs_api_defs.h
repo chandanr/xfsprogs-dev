@@ -47,7 +47,6 @@
 #define xfs_log_get_max_trans_res	libxfs_log_get_max_trans_res
 #define xfs_attr_get			libxfs_attr_get
 #define xfs_attr_set			libxfs_attr_set
-#define xfs_attr_remove			libxfs_attr_remove
 #define xfs_attr_leaf_newentsize	libxfs_attr_leaf_newentsize
 
 #define xfs_agfl_walk			libxfs_agfl_walk
