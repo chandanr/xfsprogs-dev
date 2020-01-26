@@ -589,17 +589,27 @@ typedef struct xfs_fsop_setdm_handlereq {
 	struct fsdmidata		__user *data;	/* DMAPI data	*/
 } xfs_fsop_setdm_handlereq_t;
 
+/*
+ * Flags passed in xfs_attr_multiop.am_flags for the attr ioctl interface.
+ * NOTE: Must match the values declared in libattr without the XFS_IOC_ prefix.
+ */
+#define XFS_IOC_ATTR_ROOT	0x0002	/* use attrs in root namespace */
+#define XFS_IOC_ATTR_SECURE	0x0008	/* use attrs in security namespace */
+#define XFS_IOC_ATTR_CREATE	0x0010	/* fail if attr already exists */
+#define XFS_IOC_ATTR_REPLACE	0x0020	/* fail if attr does not exist */
+
 typedef struct xfs_attrlist_cursor {
 	__u32		opaque[4];
 } xfs_attrlist_cursor_t;
 
 /*
- * Define how lists of attribute names are returned to the user from
- * the attr_list() call.  A large, 32bit aligned, buffer is passed in
- * along with its size.  We put an array of offsets at the top that each
- * reference an attrlist_ent_t and pack the attrlist_ent_t's at the bottom.
+ * Define how lists of attribute names are returned to userspace from the
+ * XFS_IOC_ATTRLIST_BY_HANDLE ioctl.  struct xfs_attrlist is the header at the
+ * beginning of the returned buffer, and a each entry in al_offset contains the
+ * relative offset of an xfs_attrlist_ent containing the actual entry.
  *
- * NOTE: struct xfs_attrlist must match struct attrlist defined in libattr.
+ * NOTE: struct xfs_attrlist must match struct attrlist defined in libattr, and
+ * struct xfs_attrlist_ent must match struct attrlist_ent defined in libattr.
  */
 struct xfs_attrlist {
 	__s32	al_count;	/* number of entries in attrlist */
@@ -607,13 +617,6 @@ struct xfs_attrlist {
 	__s32	al_offset[1];	/* byte offsets of attrs [var-sized] */
 };
 
-/*
- * Show the interesting info about one attribute.  This is what the
- * al_offset[i] entry points to.
- *
- * NOTE: struct xfs_attrlist_ent must match struct attrlist_ent defined in
- * libattr.
- */
 struct xfs_attrlist_ent {	/* data from attr_list() */
 	__u32	a_valuelen;	/* number bytes in value of attr */
 	char	a_name[1];	/* attr name (NULL terminated) */
@@ -624,7 +627,7 @@ typedef struct xfs_fsop_attrlist_handlereq {
 	struct xfs_attrlist_cursor	pos; /* opaque cookie, list offset */
 	__u32				flags;	/* which namespace to use */
 	__u32				buflen;	/* length of buffer supplied */
-	void				__user *buffer;	/* returned names */
+	struct xfs_attrlist __user	*buffer;/* returned names */
 } xfs_fsop_attrlist_handlereq_t;
 
 typedef struct xfs_attr_multiop {
@@ -636,7 +639,7 @@ typedef struct xfs_attr_multiop {
 	void		__user *am_attrname;
 	void		__user *am_attrvalue;
 	__u32		am_length;
-	__u32		am_flags;
+	__u32		am_flags; /* XFS_IOC_ATTR_* */
 } xfs_attr_multiop_t;
 
 typedef struct xfs_fsop_attrmulti_handlereq {

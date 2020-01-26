@@ -83,23 +83,26 @@ attr_set_f(
 		switch (c) {
 		/* namespaces */
 		case 'r':
-			args.flags |= LIBXFS_ATTR_ROOT;
-			args.flags &= ~LIBXFS_ATTR_SECURE;
+			args.attr_namespace |= XFS_ATTR_ROOT;
+			args.attr_namespace &= ~XFS_ATTR_SECURE;
 			break;
 		case 'u':
-			args.flags &= ~(LIBXFS_ATTR_ROOT | LIBXFS_ATTR_SECURE);
+			args.attr_namespace &= ~XFS_ATTR_ROOT;
+			args.attr_namespace &= ~XFS_ATTR_SECURE;
 			break;
 		case 's':
-			args.flags |= LIBXFS_ATTR_SECURE;
-			args.flags &= ~LIBXFS_ATTR_ROOT;
+			args.attr_namespace |= XFS_ATTR_SECURE;
+			args.attr_namespace &= ~XFS_ATTR_ROOT;
 			break;
 
 		/* modifiers */
 		case 'C':
-			args.flags |= LIBXFS_ATTR_CREATE;
+			args.attr_flags |= XATTR_CREATE;
+			args.attr_flags &= ~XATTR_REPLACE;
 			break;
 		case 'R':
-			args.flags |= LIBXFS_ATTR_REPLACE;
+			args.attr_flags |= XATTR_REPLACE;
+			args.attr_flags &= ~XATTR_CREATE;
 			break;
 
 		case 'n':
@@ -197,15 +200,16 @@ attr_remove_f(
 		switch (c) {
 		/* namespaces */
 		case 'r':
-			args.flags |= LIBXFS_ATTR_ROOT;
-			args.flags &= ~LIBXFS_ATTR_SECURE;
+			args.attr_namespace |= XFS_ATTR_ROOT;
+			args.attr_namespace &= ~XFS_ATTR_SECURE;
 			break;
 		case 'u':
-			args.flags &= ~(LIBXFS_ATTR_ROOT | LIBXFS_ATTR_SECURE);
+			args.attr_namespace &= ~XFS_ATTR_ROOT;
+			args.attr_namespace &= ~XFS_ATTR_SECURE;
 			break;
 		case 's':
-			args.flags |= LIBXFS_ATTR_SECURE;
-			args.flags &= ~LIBXFS_ATTR_ROOT;
+			args.attr_namespace |= XFS_ATTR_SECURE;
+			args.attr_namespace &= ~XFS_ATTR_ROOT;
 			break;
 
 		case 'n':

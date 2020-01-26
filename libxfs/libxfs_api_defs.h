@@ -164,11 +164,6 @@
 #define xfs_init_local_fork		libxfs_init_local_fork
 #define xfs_attr_namecheck		libxfs_attr_namecheck
 
-#define LIBXFS_ATTR_ROOT		ATTR_ROOT
-#define LIBXFS_ATTR_SECURE		ATTR_SECURE
-#define LIBXFS_ATTR_CREATE		ATTR_CREATE
-#define LIBXFS_ATTR_REPLACE		ATTR_REPLACE
-
 #define xfs_ag_init_headers		libxfs_ag_init_headers
 #define xfs_buf_delwri_submit		libxfs_buf_delwri_submit
 
