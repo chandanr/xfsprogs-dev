@@ -127,6 +127,10 @@ attr_set_f(
 	}
 
 	name = argv[optind];
+	if (!name) {
+		dbprintf(_("invalid name\n"));
+		return 0;
+	}
 
 	if (valuelen) {
 		value = (char *)memalign(getpagesize(), valuelen);
@@ -214,6 +218,10 @@ attr_remove_f(
 	}
 
 	name = argv[optind];
+	if (!name) {
+		dbprintf(_("invalid name\n"));
+		return 0;
+	}
 
 	if (libxfs_iget(mp, NULL, iocur_top->ino, 0, &ip,
 			&xfs_default_ifork_ops)) {
