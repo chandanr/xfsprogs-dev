@@ -69,6 +69,7 @@ attr_set_f(
 	xfs_inode_t	*ip = NULL;
 	char		*name, *value, *sp;
 	int		c, valuelen = 0, flags = 0;
+	size_t		namelen;
 
 	if (cur_typ == NULL) {
 		dbprintf(_("no current type\n"));
@@ -132,6 +133,12 @@ attr_set_f(
 		return 0;
 	}
 
+	namelen = strlen(name);
+	if (namelen >= MAXNAMELEN) {
+		dbprintf(_("name too long\n"));
+		return 0;
+	}
+
 	if (valuelen) {
 		value = (char *)memalign(getpagesize(), valuelen);
 		if (!value) {
@@ -150,7 +157,7 @@ attr_set_f(
 		goto out;
 	}
 
-	if (libxfs_attr_set(ip, (unsigned char *)name, strlen(name),
+	if (libxfs_attr_set(ip, (unsigned char *)name, namelen,
 			(unsigned char *)value, valuelen, flags)) {
 		dbprintf(_("failed to set attr %s on inode %llu\n"),
 			name, (unsigned long long)iocur_top->ino);
@@ -177,6 +184,7 @@ attr_remove_f(
 	xfs_inode_t	*ip = NULL;
 	char		*name;
 	int		c, flags = 0;
+	size_t		namelen;
 
 	if (cur_typ == NULL) {
 		dbprintf(_("no current type\n"));
@@ -223,6 +231,12 @@ attr_remove_f(
 		return 0;
 	}
 
+	namelen = strlen(name);
+	if (namelen >= MAXNAMELEN) {
+		dbprintf(_("name too long\n"));
+		return 0;
+	}
+
 	if (libxfs_iget(mp, NULL, iocur_top->ino, 0, &ip,
 			&xfs_default_ifork_ops)) {
 		dbprintf(_("failed to iget inode %llu\n"),
@@ -230,7 +244,7 @@ attr_remove_f(
 		goto out;
 	}
 
-	if (libxfs_attr_set(ip, (unsigned char *)name, strlen(name),
+	if (libxfs_attr_set(ip, (unsigned char *)name, namelen,
 			NULL, 0, flags)) {
 		dbprintf(_("failed to remove attr %s from inode %llu\n"),
 			name, (unsigned long long)iocur_top->ino);
