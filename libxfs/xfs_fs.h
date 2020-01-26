@@ -593,6 +593,32 @@ typedef struct xfs_attrlist_cursor {
 	__u32		opaque[4];
 } xfs_attrlist_cursor_t;
 
+/*
+ * Define how lists of attribute names are returned to the user from
+ * the attr_list() call.  A large, 32bit aligned, buffer is passed in
+ * along with its size.  We put an array of offsets at the top that each
+ * reference an attrlist_ent_t and pack the attrlist_ent_t's at the bottom.
+ *
+ * NOTE: struct xfs_attrlist must match struct attrlist defined in libattr.
+ */
+struct xfs_attrlist {
+	__s32	al_count;	/* number of entries in attrlist */
+	__s32	al_more;	/* T/F: more attrs (do call again) */
+	__s32	al_offset[1];	/* byte offsets of attrs [var-sized] */
+};
+
+/*
+ * Show the interesting info about one attribute.  This is what the
+ * al_offset[i] entry points to.
+ *
+ * NOTE: struct xfs_attrlist_ent must match struct attrlist_ent defined in
+ * libattr.
+ */
+struct xfs_attrlist_ent {	/* data from attr_list() */
+	__u32	a_valuelen;	/* number bytes in value of attr */
+	char	a_name[1];	/* attr name (NULL terminated) */
+};
+
 typedef struct xfs_fsop_attrlist_handlereq {
 	struct xfs_fsop_handlereq	hreq; /* handle interface structure */
 	struct xfs_attrlist_cursor	pos; /* opaque cookie, list offset */
