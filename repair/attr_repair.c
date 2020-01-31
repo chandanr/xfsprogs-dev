@@ -983,7 +983,7 @@ process_longform_attr(
 
 	if ( bno == NULLFSBLOCK ) {
 		if (dip->di_aformat == XFS_DINODE_FMT_EXTENTS &&
-				be16_to_cpu(dip->di_anextents) == 0)
+			XFS_DFORK_NEXTENTS(dip, XFS_ATTR_FORK, mp->m_32bit_naextents) == 0)
 			return(0); /* the kernel can handle this state */
 		do_warn(
 	_("block 0 of inode %" PRIu64 " attribute fork is missing\n"),

@@ -2643,7 +2643,7 @@ process_exinode(
 	xfs_bmbt_rec_t		*rp;
 
 	rp = (xfs_bmbt_rec_t *)XFS_DFORK_PTR(dip, whichfork);
-	*nex = XFS_DFORK_NEXTENTS(dip, whichfork);
+	*nex = XFS_DFORK_NEXTENTS(dip, whichfork, mp->m_32bit_naextents);
 	if (*nex < 0 || *nex > XFS_DFORK_SIZE(dip, mp, whichfork) /
 						sizeof(xfs_bmbt_rec_t)) {
 		if (!sflag || id->ilist)
@@ -2708,6 +2708,7 @@ process_inode(
 		"dev", "local", "extents", "btree", "uuid"
 	};
 
+	xino.i_mount = mp;
 	libxfs_inode_from_disk(&xino, dip);
 
 	ino = XFS_AGINO_TO_INO(mp, be32_to_cpu(agf->agf_seqno), agino);

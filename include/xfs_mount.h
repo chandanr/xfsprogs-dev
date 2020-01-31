@@ -105,6 +105,8 @@ typedef struct xfs_mount {
 	 * if warranted.
 	 */
 	struct xlog		*m_log;		/* log specific stuff */
+
+	bool			m_32bit_naextents;
 } xfs_mount_t;
 
 #define M_IGEO(mp)		(&(mp)->m_ino_geo)
