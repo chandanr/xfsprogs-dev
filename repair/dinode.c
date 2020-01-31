@@ -68,10 +68,12 @@ _("clearing inode %" PRIu64 " attributes\n"), ino_num);
 		fprintf(stderr,
 _("would have cleared inode %" PRIu64 " attributes\n"), ino_num);
 
-	if (be16_to_cpu(dino->di_anextents) != 0)  {
+	if (XFS_DFORK_NEXTENTS(&mp->m_sb, dino, XFS_ATTR_FORK) != 0)  {
 		if (no_modify)
 			return(1);
-		dino->di_anextents = cpu_to_be16(0);
+		dino->di_anextents_lo = cpu_to_be16(0);
+		if (dino->di_version == 3)
+			dino->di_anextents_hi = cpu_to_be16(0);
 	}
 
 	if (dino->di_aformat != XFS_DINODE_FMT_EXTENTS)  {
@@ -999,7 +1001,7 @@ process_exinode(
 	lino = XFS_AGINO_TO_INO(mp, agno, ino);
 	rp = (xfs_bmbt_rec_t *)XFS_DFORK_PTR(dip, whichfork);
 	*tot = 0;
-	numrecs = XFS_DFORK_NEXTENTS(dip, whichfork);
+	numrecs = XFS_DFORK_NEXTENTS(&mp->m_sb, dip, whichfork);
 
 	/*
 	 * We've already decided on the maximum number of extents on the inode,
@@ -1836,6 +1838,7 @@ _("bad attr fork offset %d in inode %" PRIu64 ", max=%d\n"),
  */
 static int
 process_inode_blocks_and_extents(
+	xfs_mount_t	*mp,
 	xfs_dinode_t	*dino,
 	xfs_rfsblock_t	nblocks,
 	uint64_t	nextents,
@@ -1843,6 +1846,8 @@ process_inode_blocks_and_extents(
 	xfs_ino_t	lino,
 	int		*dirty)
 {
+	int32_t		anextents_disk;
+
 	if (nblocks != be64_to_cpu(dino->di_nblocks))  {
 		if (!no_modify)  {
 			do_warn(
@@ -1888,19 +1893,21 @@ _("too many attr fork extents (%" PRIu64 ") in inode %" PRIu64 "\n"),
 			anextents, lino);
 		return 1;
 	}
-	if (anextents != be16_to_cpu(dino->di_anextents))  {
+
+	anextents_disk = XFS_DFORK_NEXTENTS(&mp->m_sb, dino, XFS_ATTR_FORK);
+	if (anextents != anextents_disk)  {
 		if (!no_modify)  {
 			do_warn(
 _("correcting anextents for inode %" PRIu64 ", was %d - counted %" PRIu64 "\n"),
-				lino,
-				be16_to_cpu(dino->di_anextents), anextents);
-			dino->di_anextents = cpu_to_be16(anextents);
+				lino, anextents_disk, anextents);
+			dino->di_anextents_lo = cpu_to_be16(anextents & 0xffff);
+			if (dino->di_version == 3)
+				dino->di_anextents_hi = cpu_to_be16(anextents >> 16);
 			*dirty = 1;
 		} else  {
 			do_warn(
 _("bad anextents %d for inode %" PRIu64 ", would reset to %" PRIu64 "\n"),
-				be16_to_cpu(dino->di_anextents),
-				lino, anextents);
+				anextents_disk, lino, anextents);
 		}
 	}
 
@@ -2063,7 +2070,7 @@ process_inode_attr_fork(
 		return 0;
 	}
 
-	*anextents = be16_to_cpu(dino->di_anextents);
+	*anextents = XFS_DFORK_NEXTENTS(&mp->m_sb, dino, XFS_ATTR_FORK);
 	if (*anextents > be64_to_cpu(dino->di_nblocks))
 		*anextents = 1;
 
@@ -2803,7 +2810,7 @@ _("Bad CoW extent size %u on inode %" PRIu64 ", "),
 	/*
 	 * correct space counters if required
 	 */
-	if (process_inode_blocks_and_extents(dino, totblocks + atotblocks,
+	if (process_inode_blocks_and_extents(mp, dino, totblocks + atotblocks,
 			nextents, anextents, lino, dirty) != 0)
 		goto clear_bad_out;
 

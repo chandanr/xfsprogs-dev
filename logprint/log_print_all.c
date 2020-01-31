@@ -240,6 +240,8 @@ STATIC void
 xlog_recover_print_inode_core(
 	struct xfs_log_dinode	*di)
 {
+	uint32_t anextents;
+
 	printf(_("	CORE inode:\n"));
 	if (!print_inode)
 		return;
@@ -252,10 +254,15 @@ xlog_recover_print_inode_core(
 	printf(_("		atime:%d  mtime:%d  ctime:%d\n"),
 	       di->di_atime.t_sec, di->di_mtime.t_sec, di->di_ctime.t_sec);
 	printf(_("		flushiter:%d\n"), di->di_flushiter);
+
+	anextents = di->di_anextents_lo;
+	if (di->di_version == 3)
+		anextents |= ((uint32_t)(di->di_anextents_hi) << 16);
+
 	printf(_("		size:0x%llx  nblks:0x%llx  exsize:%d  "
 	     "nextents:%d  anextents:%d\n"), (unsigned long long)
 	       di->di_size, (unsigned long long)di->di_nblocks,
-	       di->di_extsize, di->di_nextents, (int)di->di_anextents);
+		di->di_extsize, di->di_nextents, (int)anextents);
 	printf(_("		forkoff:%d  dmevmask:0x%x  dmstate:%d  flags:0x%x  "
 	     "gen:%u\n"),
 	       (int)di->di_forkoff, di->di_dmevmask, (int)di->di_dmstate,

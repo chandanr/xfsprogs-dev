@@ -3018,6 +3018,7 @@ sb_set_features(
 		sbp->sb_features_incompat |= XFS_SB_FEAT_INCOMPAT_SPINODES;
 	}
 
+	sbp->sb_features_incompat |= XFS_SB_FEAT_INCOMPAT_32BIT_AEXT_CNTR;
 }
 
 /*
