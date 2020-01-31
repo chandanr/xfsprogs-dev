@@ -778,6 +778,8 @@ libxfs_mount(
 		exit(1);
 	}
 
+	mp->m_32bit_naextents = xfs_sb_version_has32bitnaextents(sbp);
+
 	return mp;
 }
 
