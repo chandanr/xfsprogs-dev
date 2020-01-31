@@ -241,7 +241,7 @@ xfs_inode_from_disk(
 	to->di_nblocks = be64_to_cpu(from->di_nblocks);
 	to->di_extsize = be32_to_cpu(from->di_extsize);
 	to->di_nextents = be32_to_cpu(from->di_nextents);
-	to->di_anextents = be16_to_cpu(from->di_anextents);
+	to->di_anextents = XFS_DFORK_NEXTENTS(&ip->i_mount->m_sb, from, XFS_ATTR_FORK);
 	to->di_forkoff = from->di_forkoff;
 	to->di_aformat	= from->di_aformat;
 	to->di_dmevmask	= be32_to_cpu(from->di_dmevmask);
@@ -292,7 +292,7 @@ xfs_inode_to_disk(
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);
 	to->di_extsize = cpu_to_be32(from->di_extsize);
 	to->di_nextents = cpu_to_be32(from->di_nextents);
-	to->di_anextents = cpu_to_be16(from->di_anextents);
+	to->di_anextents_lo = cpu_to_be16((uint32_t)(from->di_anextents) & 0xffff);
 	to->di_forkoff = from->di_forkoff;
 	to->di_aformat = from->di_aformat;
 	to->di_dmevmask = cpu_to_be32(from->di_dmevmask);
@@ -310,6 +310,7 @@ xfs_inode_to_disk(
 		memset(to->di_pad2, 0, sizeof(to->di_pad2));
 		uuid_copy(&to->di_uuid, &ip->i_mount->m_sb.sb_meta_uuid);
 		to->di_flushiter = 0;
+		to->di_anextents_hi = cpu_to_be16((uint32_t)(from->di_anextents) >> 16);
 	} else {
 		to->di_flushiter = cpu_to_be16(from->di_flushiter);
 	}
@@ -343,7 +344,7 @@ xfs_log_dinode_to_disk(
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);
 	to->di_extsize = cpu_to_be32(from->di_extsize);
 	to->di_nextents = cpu_to_be32(from->di_nextents);
-	to->di_anextents = cpu_to_be16(from->di_anextents);
+	to->di_anextents_lo = cpu_to_be16(from->di_anextents_lo);
 	to->di_forkoff = from->di_forkoff;
 	to->di_aformat = from->di_aformat;
 	to->di_dmevmask = cpu_to_be32(from->di_dmevmask);
@@ -362,6 +363,7 @@ xfs_log_dinode_to_disk(
 		memcpy(to->di_pad2, from->di_pad2, sizeof(to->di_pad2));
 		uuid_copy(&to->di_uuid, &from->di_uuid);
 		to->di_flushiter = 0;
+		to->di_anextents_hi = cpu_to_be16(from->di_anextents_hi);
 	} else {
 		to->di_flushiter = cpu_to_be16(from->di_flushiter);
 	}
@@ -373,7 +375,7 @@ xfs_dinode_verify_fork(
 	struct xfs_mount	*mp,
 	int			whichfork)
 {
-	uint32_t		di_nextents = XFS_DFORK_NEXTENTS(dip, whichfork);
+	uint32_t		di_nextents = XFS_DFORK_NEXTENTS(&mp->m_sb, dip, whichfork);
 
 	switch (XFS_DFORK_FORMAT(dip, whichfork)) {
 	case XFS_DINODE_FMT_LOCAL:
@@ -476,7 +478,7 @@ xfs_dinode_verify(
 
 	/* Fork checks carried over from xfs_iformat_fork */
 	if (mode &&
-	    be32_to_cpu(dip->di_nextents) + be16_to_cpu(dip->di_anextents) >
+		XFS_DFORK_NEXTENTS(&mp->m_sb, dip, XFS_DATA_FORK) + XFS_DFORK_NEXTENTS(&mp->m_sb, dip, XFS_ATTR_FORK) >
 			be64_to_cpu(dip->di_nblocks))
 		return __this_address;
 
@@ -534,7 +536,7 @@ xfs_dinode_verify(
 		default:
 			return __this_address;
 		}
-		if (dip->di_anextents)
+		if (XFS_DFORK_NEXTENTS(&mp->m_sb, dip, XFS_ATTR_FORK))
 			return __this_address;
 	}
 

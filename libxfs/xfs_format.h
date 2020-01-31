@@ -465,10 +465,13 @@ xfs_sb_has_ro_compat_feature(
 #define XFS_SB_FEAT_INCOMPAT_FTYPE	(1 << 0)	/* filetype in dirent */
 #define XFS_SB_FEAT_INCOMPAT_SPINODES	(1 << 1)	/* sparse inode chunks */
 #define XFS_SB_FEAT_INCOMPAT_META_UUID	(1 << 2)	/* metadata UUID */
-#define XFS_SB_FEAT_INCOMPAT_ALL \
+#define XFS_SB_FEAT_INCOMPAT_32BIT_NAEXTENTS	(1 << 3)
+
+#define XFS_SB_FEAT_INCOMPAT_ALL		\
 		(XFS_SB_FEAT_INCOMPAT_FTYPE|	\
 		 XFS_SB_FEAT_INCOMPAT_SPINODES|	\
-		 XFS_SB_FEAT_INCOMPAT_META_UUID)
+		 XFS_SB_FEAT_INCOMPAT_META_UUID | \
+			XFS_SB_FEAT_INCOMPAT_32BIT_NAEXTENTS)
 
 #define XFS_SB_FEAT_INCOMPAT_UNKNOWN	~XFS_SB_FEAT_INCOMPAT_ALL
 static inline bool
@@ -866,7 +869,7 @@ typedef struct xfs_dinode {
 	__be64		di_nblocks;	/* # of direct & btree blocks used */
 	__be32		di_extsize;	/* basic/minimum extent size for file */
 	__be32		di_nextents;	/* number of extents in data fork */
-	__be16		di_anextents;	/* number of extents in attribute fork*/
+	__be16		di_anextents_lo;	/* number of extents in attribute fork*/
 	__u8		di_forkoff;	/* attr fork offs, <<3 for 64b align */
 	__s8		di_aformat;	/* format of attr fork's data */
 	__be32		di_dmevmask;	/* DMIG event mask */
@@ -883,7 +886,8 @@ typedef struct xfs_dinode {
 	__be64		di_lsn;		/* flush sequence */
 	__be64		di_flags2;	/* more random flags */
 	__be32		di_cowextsize;	/* basic cow extent size for file */
-	__u8		di_pad2[12];	/* more padding for future expansion */
+	__be16		di_anextents_hi;
+	__u8		di_pad2[10];	/* more padding for future expansion */
 
 	/* fields only written to during inode creation */
 	xfs_timestamp_t	di_crtime;	/* time created */
@@ -985,10 +989,46 @@ enum xfs_dinode_fmt {
 	((w) == XFS_DATA_FORK ? \
 		(dip)->di_format : \
 		(dip)->di_aformat)
-#define XFS_DFORK_NEXTENTS(dip,w) \
-	((w) == XFS_DATA_FORK ? \
-		be32_to_cpu((dip)->di_nextents) : \
-		be16_to_cpu((dip)->di_anextents))
+
+/*
+ * #define XFS_DFORK_NEXTENTS(dip,w) \
+ * 	((w) == XFS_DATA_FORK ? \
+ * 		be32_to_cpu((dip)->di_nextents) : \
+ * 		((u32)(be16_to_cpu((dip)->di_anextents_hi)) << 16 | be16_to_cpu((dip)->di_anextents_lo)))
+ */
+
+/*
+ * static inline int32_t XFS_DFORK_NEXTENTS(struct xfs_dinode *dip,
+ * 					int fork, int large_naextents)
+ * {
+ * 	int32_t nextents;
+ * 
+ * 	if (fork == XFS_DATA_FORK) {
+ * 		nextents = be32_to_cpu(dip->di_nextents);
+ * 	} else {
+ * 		nextents = be16_to_cpu(dip->di_anextents_lo);
+ * 		if (large_naextents)
+ * 			nextents |= (uint32_t)(be16_to_cpu(dip->di_anextents_hi)) << 16;
+ * 	}
+ * 
+ * 	return nextents;
+ * }
+ */
+
+static inline int32_t XFS_DFORK_NEXTENTS(struct xfs_sb *sbp, struct xfs_dinode *dip, int whichfork)
+{
+        int32_t anextents;
+
+        if (whichfork == XFS_DATA_FORK)
+                return be32_to_cpu((dip)->di_nextents);
+
+        anextents = be16_to_cpu((dip)->di_anextents_lo);
+	/* chandan: Add additional condition checking for the presence of incompat flag */
+        if (xfs_sb_version_hascrc(sbp))
+                anextents |= ((uint32_t)(be16_to_cpu((dip)->di_anextents_hi)) << 16);
+
+        return anextents;
+}
 
 /*
  * For block and character special files the 32bit dev_t is stored at the
