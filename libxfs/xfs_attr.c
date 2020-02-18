@@ -142,8 +142,10 @@ xfs_attr_calc_size(
 	int			*local)
 {
 	struct xfs_mount	*mp = args->dp->i_mount;
+	unsigned int		total_dablks;
+	unsigned int		bmbt_blks;
+	unsigned int		rmt_blks;
 	int			size;
-	int			nblks;
 
 	/*
 	 * Determine space new attribute will use, and if it would be
@@ -151,23 +153,26 @@ xfs_attr_calc_size(
 	 */
 	size = xfs_attr_leaf_newentsize(args->geo, args->namelen,
 			args->valuelen, local);
-	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
+	total_dablks = XFS_DAENTER_BLOCKS(mp, XFS_ATTR_FORK);
+	bmbt_blks = XFS_DAENTER_BMAPS(mp, XFS_ATTR_FORK);
 	if (*local) {
 		if (size > (args->geo->blksize / 2)) {
 			/* Double split possible */
-			nblks *= 2;
+			total_dablks *= 2;
+			bmbt_blks *= 2;
 		}
+		rmt_blks = 0;
 	} else {
 		/*
 		 * Out of line attribute, cannot double split, but
 		 * make room for the attribute value itself.
 		 */
-		uint	dblocks = xfs_attr3_rmt_blocks(mp, args->valuelen);
-		nblks += dblocks;
-		nblks += XFS_NEXTENTADD_SPACE_RES(mp, dblocks, XFS_ATTR_FORK);
+		rmt_blks = xfs_attr3_rmt_blocks(mp, args->valuelen);
+		bmbt_blks += XFS_NEXTENTADD_SPACE_RES(mp, rmt_blks,
+				XFS_ATTR_FORK);
 	}
 
-	return nblks;
+	return total_dablks + rmt_blks + bmbt_blks;
 }
 
 STATIC int
