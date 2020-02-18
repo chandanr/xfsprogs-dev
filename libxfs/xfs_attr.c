@@ -231,9 +231,11 @@ xfs_attr_calc_size(
         size = xfs_attr_leaf_newentsize(mp->m_attr_geo, namelen, valuelen,
                         local);
 	resv->total_dablks = XFS_DAENTER_BLOCKS(mp, XFS_ATTR_FORK);
+	resv->log_dablks = 2 * resv->total_dablks;
 	if (*local) {
 		if (size > (blksize / 2)) {
 			/* Double split possible */
+			resv->log_dablks += resv->total_dablks;
 			resv->total_dablks *= 2;
 		}
                 resv->rmt_blks = 0;
@@ -387,8 +389,7 @@ xfs_attr_set(
 			return error;
 	}
 
-	tres.tr_logres = M_RES(mp)->tr_attrsetm.tr_logres +
-			 M_RES(mp)->tr_attrsetrt.tr_logres * args.total;
+	tres.tr_logres = xfs_calc_attr_res(mp, &resv);
 	tres.tr_logcount = XFS_ATTRSET_LOG_COUNT;
 	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
 
