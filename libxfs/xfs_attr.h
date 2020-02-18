@@ -131,6 +131,19 @@ typedef struct xfs_attr_list_context {
 	int				index;		/* index into output buffer */
 } xfs_attr_list_context_t;
 
+struct xfs_attr_set_resv {
+	/* Number of unlogged blocks needed to store the remote attr value. */
+	unsigned int		rmt_blks;
+
+	/* Number of filesystem blocks to allocate for the da btree. */
+	unsigned int		total_dablks;
+
+	/* Blocks we might need to create all the new attr fork mappings. */
+	unsigned int		bmbt_blks;
+
+	/* Total number of blocks we might have to allocate. */
+	unsigned int		alloc_blks;
+};
 
 /*========================================================================
  * Function prototypes for the kernel.

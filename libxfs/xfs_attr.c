@@ -185,16 +185,14 @@ xfs_attr_get(
 /*
  * Calculate how many blocks we need for the new attribute,
  */
-STATIC int
+STATIC void
 xfs_attr_calc_size(
-	struct xfs_da_args	*args,
-	int			*local)
+	struct xfs_da_args		*args,
+	struct xfs_attr_set_resv	*resv,
+	int				*local)
 {
-	struct xfs_mount	*mp = args->dp->i_mount;
-        unsigned int		total_dablks;
-        unsigned int		bmbt_blks;
-        unsigned int		rmt_blks;
-	int			size;
+        struct xfs_mount		*mp = args->dp->i_mount;
+        int				size;
 
 	/*
 	 * Determine space new attribute will use, and if it would be
@@ -202,25 +200,27 @@ xfs_attr_calc_size(
 	 */
 	size = xfs_attr_leaf_newentsize(args->geo, args->namelen, args->valuelen,
 			local);
-	total_dablks = XFS_DAENTER_BLOCKS(mp, XFS_ATTR_FORK);
+	resv->total_dablks = XFS_DAENTER_BLOCKS(mp, XFS_ATTR_FORK);
 	if (*local) {
 		if (size > (args->geo->blksize / 2)) {
 			/* Double split possible */
-                        total_dablks *= 2;
-                 }
-                rmt_blks = 0;
+			resv->total_dablks *= 2;
+		}
+                resv->rmt_blks = 0;
 	} else {
 		/*
 		 * Out of line attribute, cannot double split, but
 		 * make room for the attribute value itself.
 		 */
-                rmt_blks = xfs_attr3_rmt_blocks(mp, args->valuelen);
+                resv->rmt_blks = xfs_attr3_rmt_blocks(mp, args->valuelen);
 	}
 
-	bmbt_blks = XFS_NEXTENTADD_SPACE_RES(mp, total_dablks + rmt_blks,
-			XFS_ATTR_FORK);
+        resv->bmbt_blks = XFS_NEXTENTADD_SPACE_RES(mp,
+				resv->total_dablks + resv->rmt_blks,
+				XFS_ATTR_FORK);
 
-	return total_dablks + rmt_blks + bmbt_blks;
+	resv->alloc_blks = resv->total_dablks + resv->rmt_blks +
+		resv->bmbt_blks;
 }
 
 STATIC int
@@ -346,11 +346,12 @@ xfs_attr_set(
 	int			valuelen,
 	int			flags)
 {
-	struct xfs_mount	*mp = dp->i_mount;
-	struct xfs_da_args	args;
-	struct xfs_trans_res	tres;
-	int			rsvd = (flags & ATTR_ROOT) != 0;
-	int			error, local;
+        struct xfs_mount		*mp = dp->i_mount;
+        struct xfs_attr_set_resv	resv;
+        struct xfs_da_args		args;
+        struct xfs_trans_res		tres;
+        int				rsvd = (flags & ATTR_ROOT) != 0;
+        int				error, local;
 
 	XFS_STATS_INC(mp, xs_attr_set);
 
@@ -364,7 +365,8 @@ xfs_attr_set(
 	args.value = value;
 	args.valuelen = valuelen;
 	args.op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
-	args.total = xfs_attr_calc_size(&args, &local);
+        xfs_attr_calc_size(&args, &resv, &local);
+        args.total = resv.alloc_blks;
 
 	error = xfs_qm_dqattach(dp);
 	if (error)
