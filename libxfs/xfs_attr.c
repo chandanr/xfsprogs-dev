@@ -136,16 +136,16 @@ xfs_attr_get(
 /*
  * Calculate how many blocks we need for the new attribute,
  */
-STATIC int
+STATIC void
 xfs_attr_calc_size(
-	struct xfs_da_args	*args,
-	int			*local)
+	struct xfs_da_args		*args,
+	struct xfs_attr_set_resv	*resv,
+	int				*local)
 {
-	struct xfs_mount	*mp = args->dp->i_mount;
-	unsigned int		total_dablks;
-	unsigned int		bmbt_blks;
-	unsigned int		rmt_blks = 0;
-	int			size;
+	struct xfs_mount		*mp = args->dp->i_mount;
+	int				size;
+
+	resv->rmt_blks = 0;
 
 	/*
 	 * Determine space new attribute will use, and if it would be
@@ -153,25 +153,24 @@ xfs_attr_calc_size(
 	 */
 	size = xfs_attr_leaf_newentsize(args->geo, args->namelen,
 			args->valuelen, local);
-	total_dablks = XFS_DAENTER_BLOCKS(mp, XFS_ATTR_FORK);
-	bmbt_blks = XFS_DAENTER_BMAPS(mp, XFS_ATTR_FORK);
+
+	resv->total_dablks = XFS_DAENTER_BLOCKS(mp, XFS_ATTR_FORK);
+	resv->bmbt_blks = XFS_DAENTER_BMAPS(mp, XFS_ATTR_FORK);
 	if (*local) {
 		if (size > (args->geo->blksize / 2)) {
 			/* Double split possible */
-			total_dablks *= 2;
-			bmbt_blks *= 2;
+			resv->total_dablks *= 2;
+			resv->bmbt_blks *= 2;
 		}
 	} else {
 		/*
 		 * Out of line attribute, cannot double split, but
 		 * make room for the attribute value itself.
 		 */
-		rmt_blks = xfs_attr3_rmt_blocks(mp, args->valuelen);
-		bmbt_blks += XFS_NEXTENTADD_SPACE_RES(mp, rmt_blks,
-				XFS_ATTR_FORK);
+		resv->rmt_blks = xfs_attr3_rmt_blocks(mp, args->valuelen);
+		resv->bmbt_blks += XFS_NEXTENTADD_SPACE_RES(mp, resv->rmt_blks,
+					XFS_ATTR_FORK);
 	}
-
-	return total_dablks + rmt_blks + bmbt_blks;
 }
 
 STATIC int
@@ -295,14 +294,17 @@ xfs_attr_remove_args(
  */
 int
 xfs_attr_set(
-	struct xfs_da_args	*args)
+	struct xfs_da_args		*args)
 {
-	struct xfs_inode	*dp = args->dp;
-	struct xfs_mount	*mp = dp->i_mount;
-	struct xfs_trans_res	tres;
-	bool			rsvd = (args->attr_namespace & XFS_ATTR_ROOT);
-	int			error, local;
-	unsigned int		total;
+	struct xfs_inode		*dp = args->dp;
+	struct xfs_mount		*mp = dp->i_mount;
+	struct xfs_attr_set_resv	resv;
+	struct xfs_trans_res		tres;
+	bool				rsvd;
+	int				error, local;
+	unsigned int			total;
+
+	rsvd = (args->attr_namespace & XFS_ATTR_ROOT);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return -EIO;
@@ -326,7 +328,9 @@ xfs_attr_set(
 		XFS_STATS_INC(mp, xs_attr_set);
 
 		args->op_flags |= XFS_DA_OP_ADDNAME;
-		args->total = xfs_attr_calc_size(args, &local);
+		xfs_attr_calc_size(args, &resv, &local);
+		args->total = resv.total_dablks + resv.rmt_blks +
+			resv.bmbt_blks;
 
 		/*
 		 * If the inode doesn't have an attribute fork, add one.
