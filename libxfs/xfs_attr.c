@@ -187,22 +187,24 @@ xfs_attr_get(
  */
 STATIC void
 xfs_attr_calc_size(
-	struct xfs_da_args		*args,
+	struct xfs_mount		*mp,
 	struct xfs_attr_set_resv	*resv,
+	int				namelen,
+	int				valuelen,
 	int				*local)
 {
-        struct xfs_mount		*mp = args->dp->i_mount;
+	unsigned int			blksize = mp->m_attr_geo->blksize;
         int				size;
 
 	/*
 	 * Determine space new attribute will use, and if it would be
 	 * "local" or "remote" (note: local != inline).
 	 */
-	size = xfs_attr_leaf_newentsize(args->geo, args->namelen, args->valuelen,
-			local);
+        size = xfs_attr_leaf_newentsize(mp->m_attr_geo, namelen, valuelen,
+                        local);
 	resv->total_dablks = XFS_DAENTER_BLOCKS(mp, XFS_ATTR_FORK);
 	if (*local) {
-		if (size > (args->geo->blksize / 2)) {
+		if (size > (blksize / 2)) {
 			/* Double split possible */
 			resv->total_dablks *= 2;
 		}
@@ -212,7 +214,7 @@ xfs_attr_calc_size(
 		 * Out of line attribute, cannot double split, but
 		 * make room for the attribute value itself.
 		 */
-                resv->rmt_blks = xfs_attr3_rmt_blocks(mp, args->valuelen);
+                resv->rmt_blks = xfs_attr3_rmt_blocks(mp, valuelen);
 	}
 
         resv->bmbt_blks = XFS_NEXTENTADD_SPACE_RES(mp,
@@ -365,7 +367,7 @@ xfs_attr_set(
 	args.value = value;
 	args.valuelen = valuelen;
 	args.op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
-        xfs_attr_calc_size(&args, &resv, &local);
+        xfs_attr_calc_size(mp, &resv, args.namelen, args.valuelen, &local);
         args.total = resv.alloc_blks;
 
 	error = xfs_qm_dqattach(dp);
