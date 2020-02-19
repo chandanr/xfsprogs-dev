@@ -101,5 +101,7 @@ int xfs_attr_set(struct xfs_da_args *args);
 int xfs_attr_set_args(struct xfs_da_args *args);
 int xfs_attr_remove_args(struct xfs_da_args *args);
 bool xfs_attr_namecheck(const void *name, size_t length);
+void xfs_attr_calc_size(struct xfs_mount *mp, struct xfs_attr_set_resv *resv,
+		int namelen, int valuelen, int *local);
 
 #endif	/* __XFS_ATTR_H__ */
