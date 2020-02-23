@@ -1,0 +1,100 @@
+From c41d499b7b3ff01b54daed1070a7096331a22b16 Mon Sep 17 00:00:00 2001
+From: Chandan Rajendra <chandanrlinux@gmail.com>
+Date: Mon, 24 Feb 2020 09:26:55 +0530
+Subject: [PATCH V4 RESEND 0/7] xfsprogs: Fix log reservation calculation for xattr insert operation
+To: linux-xfs@vger.kernel.org
+Cc: david@fromorbit.com,
+    chandan@linux.ibm.com,
+    darrick.wong@oracle.com,
+    bfoster@redhat.com,
+    amir73il@gmail.com
+
+Log space reservation for xattr insert operation can be divided into two
+parts,
+1. Mount time
+   - Inode
+   - Superblock for accounting space allocations
+   - AGF for accounting space used by count, block number, rmap and refcnt
+     btrees.
+
+2. The remaining log space can only be calculated at run time because,
+   - A local xattr can be large enough to cause a double split of the dabtree.
+   - The value of the xattr can be large enough to be stored in remote
+     blocks. The contents of the remote blocks are not logged.
+
+   The log space reservation could be,
+   - 2 * XFS_DA_NODE_MAXDEPTH number of blocks. Additional XFS_DA_NODE_MAXDEPTH
+     number of blocks are required if xattr is large enough to cause another
+     split of the dabtree path from root to leaf block.
+   - BMBT blocks for storing (2 * XFS_DA_NODE_MAXDEPTH) record
+     entries. Additional XFS_DA_NODE_MAXDEPTH number of blocks are required in
+     case of a double split of the dabtree path from root to leaf blocks.
+   - Space for logging blocks of count, block number, rmap and refcnt btrees.
+
+At present mount time log reservation includes block count required for a
+single split of the dabtree. The dabtree block count is also taken into
+account by xfs_attr_calc_size().
+
+Also, AGF log space reservation isn't accounted for.
+
+Due to the reasons mentioned above, log reservation calculation for xattr
+insert operation gives an incorrect value.
+
+Apart from the above, xfs_log_calc_max_attrsetm_res() passes byte count as
+an argument to XFS_NEXTENTADD_SPACE_RES() instead of block count.
+
+This patchset aims to fix this log space reservation calcuation bug.
+
+Patches 1-2 and 4-6 refactor the existing code around
+xfs_attr_calc_size(). Patches 3 and 7 change the logic to fix log
+reservation calculation.
+
+The patchset can also be obtained from
+https://github.com/chandanr/xfsprogs-dev/tree/xfs-fix-attr-resv-calc-v4.
+
+Changelog:
+V1 -> V2:
+1. Use convenience variables to reduce indentation of code.
+
+V2 -> V3:
+1. Introduce 'struct xfs_attr_set_resv' to collect various block size
+   reservations when inserting an xattr.
+2. Add xfs_calc_attr_res() to calculate the total log reservation to
+   required when inserting an xattr.
+
+V3 -> V4:
+1. Rebase the patchset on top of Christoph's "Clean attr interface"
+   patchset. 
+2. Split the patchset into
+   - Patches which refactor the existing calculation in
+     xfs_attr_calc_size().
+   - One patch which fixes the calculation inside
+     xfs_attr_calc_size().
+3. Fix indentation issues.
+4. Pass attribute geometry pointer to xfs_attr_leaf_newentsize()
+   instead of a pointer to 'struct xfs_mount'.
+
+Chandan Rajendra (7):
+  xfsprogs: Pass xattr name and value length explicitly to
+    xfs_attr_leaf_newentsize
+  xfsprogs: xfs_attr_calc_size: Use local variables to track individual
+    space components
+  xfsprogs: xfs_attr_calc_size: Calculate Bmbt blks only once
+  xfsprogs: Introduce struct xfs_attr_set_resv
+  xfsprogs: xfs_attr_calc_size: Explicitly pass mp, namelen and valuelen
+    args
+  xfsprogs: Make xfs_attr_calc_size() non-static
+  xfsprogs: Fix log reservation calculation for xattr insert operation
+
+ libxfs/xfs_attr.c       | 104 ++++++++++++++++++++++------------------
+ libxfs/xfs_attr.h       |  18 +++++++
+ libxfs/xfs_attr_leaf.c  |  39 ++++++++++-----
+ libxfs/xfs_attr_leaf.h  |   3 +-
+ libxfs/xfs_log_rlimit.c |  16 +++----
+ libxfs/xfs_trans_resv.c |  50 ++++++++++---------
+ libxfs/xfs_trans_resv.h |   2 +
+ 7 files changed, 138 insertions(+), 94 deletions(-)
+
+-- 
+2.19.1
+
