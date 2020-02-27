@@ -38,8 +38,6 @@ struct xfs_trans_resv {
 						 * invalidation */
 	struct xfs_trans_res	tr_attrsetm;	/* set/create an attribute at
 						 * mount time */
-	struct xfs_trans_res	tr_attrsetrt;	/* set/create an attribute at
-						 * runtime */
 	struct xfs_trans_res	tr_attrrm;	/* remove an attribute */
 	struct xfs_trans_res	tr_clearagi;	/* clear agi unlinked bucket */
 	struct xfs_trans_res	tr_growrtalloc;	/* grow realtime allocations */

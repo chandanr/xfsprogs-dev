@@ -175,6 +175,8 @@ xfs_attr_calc_size(
 	unsigned int			blksize = mp->m_attr_geo->blksize;
 	int				size;
 
+	resv->rmt_blks = 0;
+
 	/*
 	 * Determine space new attribute will use, and if it would be
 	 * "local" or "remote" (note: local != inline).
@@ -182,28 +184,25 @@ xfs_attr_calc_size(
 	size = xfs_attr_leaf_newentsize(mp->m_attr_geo, namelen, valuelen,
 			local);
 	resv->total_dablks = XFS_DAENTER_BLOCKS(mp, XFS_ATTR_FORK);
+	resv->bmbt_blks = XFS_DAENTER_BMAPS(mp, XFS_ATTR_FORK);
 	resv->log_dablks = 2 * resv->total_dablks;
 	if (*local) {
 		if (size > (blksize / 2)) {
 			/* Double split possible */
-			resv->log_dablks += resv->total_dablks;
+			resv->log_dablks += XFS_DAENTER_BLOCKS(mp,
+							XFS_ATTR_FORK);
 			resv->total_dablks *= 2;
+			resv->bmbt_blks *= 2;
 		}
-		resv->rmt_blks = 0;
 	} else {
 		/*
 		 * Out of line attribute, cannot double split, but
 		 * make room for the attribute value itself.
 		 */
 		resv->rmt_blks = xfs_attr3_rmt_blocks(mp, valuelen);
+		resv->bmbt_blks += XFS_NEXTENTADD_SPACE_RES(mp, resv->rmt_blks,
+						XFS_ATTR_FORK);
 	}
-
-	resv->bmbt_blks = XFS_NEXTENTADD_SPACE_RES(mp,
-				resv->total_dablks + resv->rmt_blks,
-				XFS_ATTR_FORK);
-
-	resv->alloc_blks = resv->total_dablks + resv->rmt_blks +
-		resv->bmbt_blks;
 }
 
 /*
@@ -335,7 +334,8 @@ xfs_attr_set(
 		args->op_flags |= XFS_DA_OP_ADDNAME;
 		xfs_attr_calc_size(mp, &resv, args->namelen, args->valuelen,
 				&local);
-		args->total = resv.alloc_blks;
+		args->total = resv.total_dablks + resv.rmt_blks +
+			resv.bmbt_blks;
 
 		/*
 		 * If the inode doesn't have an attribute fork, add one.

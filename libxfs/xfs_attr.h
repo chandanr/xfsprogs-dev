@@ -85,9 +85,6 @@ struct xfs_attr_set_resv {
 
 	/* Blocks we might need to create all the new attr fork mappings. */
 	unsigned int		bmbt_blks;
-
-	/* Total number of blocks we might have to allocate. */
-	unsigned int		alloc_blks;
 };
 
 /*========================================================================
