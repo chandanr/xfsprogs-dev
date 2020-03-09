@@ -32,8 +32,7 @@ xfs_log_calc_max_attrsetm_res(
 	nblks += XFS_B_TO_FSB(mp, size);
 	nblks += XFS_NEXTENTADD_SPACE_RES(mp, size, XFS_ATTR_FORK);
 
-	return  M_RES(mp)->tr_attrsetm.tr_logres +
-		M_RES(mp)->tr_attrsetrt.tr_logres * nblks;
+	return xfs_calc_attr_res(mp, nblks);
 }
 
 /*
