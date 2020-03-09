@@ -10,6 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "xfs_attr.h"
 #include "xfs_da_format.h"
 #include "xfs_trans_space.h"
 #include "xfs_da_btree.h"
@@ -21,16 +22,19 @@
  */
 STATIC int
 xfs_log_calc_max_attrsetm_res(
-	struct xfs_mount	*mp)
+	struct xfs_mount		*mp)
 {
-	int			size;
-	int			nblks;
+	struct xfs_attr_set_resv	resv;
+	unsigned int			nblks;
+	int				size;
+	int				local;
 
 	size = xfs_attr_leaf_entsize_local_max(mp->m_attr_geo->blksize) -
 	       MAXNAMELEN - 1;
-	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
-	nblks += XFS_B_TO_FSB(mp, size);
-	nblks += XFS_NEXTENTADD_SPACE_RES(mp, size, XFS_ATTR_FORK);
+	xfs_attr_calc_size(mp, &resv, size, 0, &local);
+	ASSERT(local == 1);
+
+	nblks = resv.total_dablks + resv.bmbt_blks + resv.rmt_blks;
 
 	return xfs_calc_attr_res(mp, nblks);
 }
