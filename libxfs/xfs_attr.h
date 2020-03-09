@@ -74,6 +74,9 @@ struct xfs_attr_list_context {
 };
 
 struct xfs_attr_set_resv {
+	/* Number of blocks in the da btree that we might need to log. */
+	unsigned int		log_dablks;
+
 	/* Number of unlogged blocks needed to store the remote attr value. */
 	unsigned int		rmt_blks;
 

@@ -186,9 +186,13 @@ xfs_attr_calc_size(
 
 	resv->total_dablks = XFS_DAENTER_BLOCKS(mp, XFS_ATTR_FORK);
 	resv->bmbt_blks = XFS_DAENTER_BMAPS(mp, XFS_ATTR_FORK);
+	resv->log_dablks = 2 * resv->total_dablks;
+
 	if (*local) {
 		if (size > (blksize / 2)) {
 			/* Double split possible */
+			resv->log_dablks += XFS_DAENTER_BLOCKS(mp,
+							XFS_ATTR_FORK);
 			resv->total_dablks *= 2;
 			resv->bmbt_blks *= 2;
 		}
