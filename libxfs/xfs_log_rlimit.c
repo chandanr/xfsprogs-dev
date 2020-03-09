@@ -25,7 +25,6 @@ xfs_log_calc_max_attrsetm_res(
 	struct xfs_mount		*mp)
 {
 	struct xfs_attr_set_resv	resv;
-	unsigned int			nblks;
 	int				size;
 	int				local;
 
@@ -34,9 +33,7 @@ xfs_log_calc_max_attrsetm_res(
 	xfs_attr_calc_size(mp, &resv, size, 0, &local);
 	ASSERT(local == 1);
 
-	nblks = resv.total_dablks + resv.bmbt_blks + resv.rmt_blks;
-
-	return xfs_calc_attr_res(mp, nblks);
+	return xfs_calc_attr_res(mp, &resv);
 }
 
 /*

@@ -17,6 +17,7 @@
 #include "xfs_trans.h"
 #include "xfs_trans_space.h"
 #include "xfs_quota_defs.h"
+#include "xfs_attr.h"
 
 #define _ALLOC	true
 #define _FREE	false
@@ -699,12 +700,10 @@ xfs_calc_attrinval_reservation(
  * Setting an attribute at mount time.
  *	the inode getting the attribute
  *	the superblock for allocations
- *	the agfs extents are allocated from
- *	the attribute btree * max depth
- *	the inode allocation btree
+ *	the agf extents are allocated from
  * Since attribute transaction space is dependent on the size of the attribute,
  * the calculation is done partially at mount time and partially at runtime(see
- * below).
+ * xfs_attr_calc_size()).
  */
 STATIC uint
 xfs_calc_attrsetm_reservation(
@@ -712,8 +711,7 @@ xfs_calc_attrsetm_reservation(
 {
 	return XFS_DQUOT_LOGRES(mp) +
 		xfs_calc_inode_res(mp, 1) +
-		xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
-		xfs_calc_buf_res(XFS_DA_NODE_MAXDEPTH, XFS_FSB_TO_B(mp, 1));
+		xfs_calc_buf_res(2, mp->m_sb.sb_sectsize);
 }
 
 /*
@@ -813,27 +811,21 @@ xfs_calc_sb_reservation(
 
 uint
 xfs_calc_attr_res(
-	struct xfs_mount	*mp,
-	unsigned int		nr_blks)
+	struct xfs_mount		*mp,
+	struct xfs_attr_set_resv	*resv)
 {
-	uint attrsetrt;
+	unsigned int			space_blks;
+	unsigned int			attr_res;
 
-	/*
-	 * Setting an attribute at runtime, transaction space unit per block.
-	 * 	the superblock for allocations: sector size
-	 *	the inode bmap btree could join or split: max depth * block size
-	 * Since the runtime attribute transaction space is dependent on the total
-	 * blocks needed for the 1st bmap, here we calculate out the space unit for
-	 * one block so that the caller could figure out the total space according
-	 * to the attibute extent length in blocks by:
-	 *	ext * M_RES(mp)->tr_attrsetrt.tr_logres
-	 */
-	attrsetrt = xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
-		xfs_calc_buf_res(XFS_BM_MAXLEVELS(mp, XFS_ATTR_FORK),
-				XFS_FSB_TO_B(mp, 1));
-	attrsetrt *= nr_blks;
+	space_blks = xfs_allocfree_log_count(mp,
+		resv->total_dablks + resv->bmbt_blks);
 
-	return M_RES(mp)->tr_attrsetm.tr_logres + attrsetrt;
+	attr_res = M_RES(mp)->tr_attrsetm.tr_logres +
+		xfs_calc_buf_res(resv->log_dablks, mp->m_attr_geo->blksize) +
+		xfs_calc_buf_res(resv->bmbt_blks, mp->m_sb.sb_blocksize) +
+		xfs_calc_buf_res(space_blks, mp->m_sb.sb_blocksize);
+
+	return attr_res;
 }
 
 
