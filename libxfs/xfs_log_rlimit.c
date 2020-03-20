@@ -16,27 +16,6 @@
 #include "xfs_bmap_btree.h"
 
 /*
- * Calculate the maximum length in bytes that would be required for a local
- * attribute value as large attributes out of line are not logged.
- */
-STATIC int
-xfs_log_calc_max_attrsetm_res(
-	struct xfs_mount	*mp)
-{
-	int			size;
-	int			nblks;
-
-	size = xfs_attr_leaf_entsize_local_max(mp->m_attr_geo->blksize) -
-	       MAXNAMELEN - 1;
-	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
-	nblks += XFS_B_TO_FSB(mp, size);
-	nblks += XFS_NEXTENTADD_SPACE_RES(mp, size, XFS_ATTR_FORK);
-
-	return  M_RES(mp)->tr_attrsetm.tr_logres +
-		M_RES(mp)->tr_attrsetrt.tr_logres * nblks;
-}
-
-/*
  * Iterate over the log space reservation table to figure out and return
  * the maximum one in terms of the pre-calculated values which were done
  * at mount time.
@@ -49,9 +28,6 @@ xfs_log_get_max_trans_res(
 	struct xfs_trans_res	*resp;
 	struct xfs_trans_res	*end_resp;
 	int			log_space = 0;
-	int			attr_space;
-
-	attr_space = xfs_log_calc_max_attrsetm_res(mp);
 
 	resp = (struct xfs_trans_res *)M_RES(mp);
 	end_resp = (struct xfs_trans_res *)(M_RES(mp) + 1);
@@ -63,11 +39,6 @@ xfs_log_get_max_trans_res(
 			log_space = tmp;
 			*max_resp = *resp;		/* struct copy */
 		}
-	}
-
-	if (attr_space > log_space) {
-		*max_resp = M_RES(mp)->tr_attrsetm;	/* struct copy */
-		max_resp->tr_logres = attr_space;
 	}
 }
 
