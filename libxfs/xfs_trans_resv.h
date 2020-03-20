@@ -35,10 +35,7 @@ struct xfs_trans_resv {
 	struct xfs_trans_res	tr_writeid;	/* write setuid/setgid file */
 	struct xfs_trans_res	tr_attrinval;	/* attr fork buffer
 						 * invalidation */
-	struct xfs_trans_res	tr_attrsetm;	/* set/create an attribute at
-						 * mount time */
-	struct xfs_trans_res	tr_attrsetrt;	/* set/create an attribute at
-						 * runtime */
+	struct xfs_trans_res	tr_attrset;	/* set/create an attribute */
 	struct xfs_trans_res	tr_attrrm;	/* remove an attribute */
 	struct xfs_trans_res	tr_clearagi;	/* clear agi unlinked bucket */
 	struct xfs_trans_res	tr_growrtalloc;	/* grow realtime allocations */

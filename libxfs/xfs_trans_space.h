@@ -39,7 +39,7 @@
 #define	XFS_DAENTER_1B(mp,w)	\
 	((w) == XFS_DATA_FORK ? (mp)->m_dir_geo->fsbcount : 1)
 #define	XFS_DAENTER_DBS(mp,w)	\
-	(XFS_DA_NODE_MAXDEPTH + (((w) == XFS_DATA_FORK) ? 2 : 0))
+	(XFS_DA_NODE_MAXDEPTH + (((w) == XFS_DATA_FORK) ? 2 : 1))
 #define	XFS_DAENTER_BLOCKS(mp,w)	\
 	(XFS_DAENTER_1B(mp,w) * XFS_DAENTER_DBS(mp,w))
 #define	XFS_DAENTER_BMAP1B(mp,w)	\
