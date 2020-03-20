@@ -337,11 +337,7 @@ xfs_attr_set(
 				return error;
 		}
 
-		tres.tr_logres = M_RES(mp)->tr_attrsetm.tr_logres +
-				 M_RES(mp)->tr_attrsetrt.tr_logres *
-					args->total;
-		tres.tr_logcount = XFS_ATTRSET_LOG_COUNT;
-		tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
+		tres = M_RES(mp)->tr_attrset;
 		total = args->total;
 	} else {
 		XFS_STATS_INC(mp, xs_attr_remove);
