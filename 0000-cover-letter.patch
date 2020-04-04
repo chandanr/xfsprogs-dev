@@ -1,0 +1,69 @@
+From 479992703519f5ca47e5e0900590b22956d5f967 Mon Sep 17 00:00:00 2001
+From: Chandan Rajendra <chandanrlinux@gmail.com>
+Date: Sat, 4 Apr 2020 14:07:16 +0530
+Subject: [PATCH 0/2] Extend xattr extent counter to 32-bits
+To: linux-xfs@vger.kernel.org
+Cc: david@fromorbit.com,
+    chandan@linux.ibm.com,
+    darrick.wong@oracle.com,
+    bfoster@redhat.com
+
+XFS has a per-inode xattr extent counter which is 16 bits wide. A workload
+which
+1. Creates 1,000,000 255-byte sized xattrs,
+2. Deletes 50% of these xattrs in an alternating manner,
+3. Tries to create 400,000 new 255-byte sized xattrs
+causes the following message to be printed on the console,
+
+XFS (loop0): xfs_iflush_int: detected corrupt incore inode 131, total extents = -19916, nblocks = 102937, ptr ffff9ce33b098c00
+XFS (loop0): xfs_do_force_shutdown(0x8) called from line 3739 of file fs/xfs/xfs_inode.c. Return address = ffffffffa4a94173
+
+This indicates that we overflowed the 16-bits wide xattr extent counter.
+
+I have been informed that there are instances where a single file has > 100
+million hardlinks. With parent pointers being stored in xattr, we will
+overflow the 16-bits wide xattr extent counter when large number of
+hardlinks are created.
+
+This patchset also includes the previously posted "Fix log reservation
+calculation for xattr insert operation" patch as a bug fix. It now
+replaces the xattr set "mount" and "runtime" reservations with just
+one static reservation. Hence we don't need the funcationality to
+calculate maximum sized 'xattr set' reservation separately anymore.
+
+The patches can also be obtained from
+https://github.com/chandanr/xfsprogs-dev.git at branch
+32bit-anextents-v0.
+
+Chandan Rajendra (2):
+  xfsprogs: Fix log reservation calculation for xattr insert operation
+  xfsprogs: Extend attr extent counter to 32-bits
+
+ db/bmap.c                |  4 +--
+ db/btdump.c              |  2 +-
+ db/check.c               |  3 +-
+ db/field.c               |  2 --
+ db/field.h               |  1 -
+ db/frag.c                |  6 ++--
+ db/inode.c               | 10 ++++---
+ db/metadump.c            |  4 +--
+ libxfs/xfs_attr.c        |  6 +---
+ libxfs/xfs_format.h      | 32 +++++++++++++++------
+ libxfs/xfs_inode_buf.c   | 28 +++++++++++++------
+ libxfs/xfs_inode_fork.c  |  3 +-
+ libxfs/xfs_log_format.h  |  5 ++--
+ libxfs/xfs_log_rlimit.c  | 29 -------------------
+ libxfs/xfs_trans_resv.c  | 60 ++++++++++++++++++----------------------
+ libxfs/xfs_trans_resv.h  |  5 +---
+ libxfs/xfs_trans_space.h |  8 +++++-
+ libxfs/xfs_types.h       |  4 +--
+ logprint/log_misc.c      |  9 +++++-
+ logprint/log_print_all.c |  9 +++++-
+ mkfs/xfs_mkfs.c          |  1 +
+ repair/attr_repair.c     |  2 +-
+ repair/dinode.c          | 29 +++++++++++--------
+ 23 files changed, 140 insertions(+), 122 deletions(-)
+
+-- 
+2.19.1
+
