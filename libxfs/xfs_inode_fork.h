@@ -86,6 +86,23 @@ struct xfs_ifork {
 	(XFS_IFORK_FORMAT((ip), (w)) == XFS_DINODE_FMT_EXTENTS || \
 	 XFS_IFORK_FORMAT((ip), (w)) == XFS_DINODE_FMT_BTREE)
 
+static inline xfs_extnum_t xfs_imax_extents(struct xfs_sb *sbp, int whichfork)
+{
+	ASSERT(whichfork == XFS_DATA_FORK || whichfork == XFS_ATTR_FORK);
+
+	if (whichfork == XFS_DATA_FORK) {
+		if (xfs_sb_version_hasextenthi(sbp))
+			return MAXEXTNUM_HI;
+		else
+			return MAXEXTNUM;
+	} else {
+		if (xfs_sb_version_hasextenthi(sbp))
+			return MAXAEXTNUM_HI;
+		else
+			return MAXAEXTNUM;
+	}
+}
+
 struct xfs_ifork *xfs_iext_state_to_fork(struct xfs_inode *ip, int state);
 
 int		xfs_iformat_fork(struct xfs_inode *, struct xfs_dinode *);

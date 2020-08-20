@@ -37,6 +37,7 @@ static int	inode_u_muuid_count(void *obj, int startoff);
 static int	inode_u_sfdir2_count(void *obj, int startoff);
 static int	inode_u_sfdir3_count(void *obj, int startoff);
 static int	inode_u_symlink_count(void *obj, int startoff);
+static int	inode_v3_extenthi_count(void *obj, int startoff);
 
 static const cmdinfo_t	inode_cmd =
 	{ "inode", NULL, inode_f, 0, 1, 1, "[inode#]",
@@ -100,8 +101,8 @@ const field_t	inode_core_flds[] = {
 	{ "size", FLDT_FSIZE, OI(COFF(size)), C1, 0, TYP_NONE },
 	{ "nblocks", FLDT_DRFSBNO, OI(COFF(nblocks)), C1, 0, TYP_NONE },
 	{ "extsize", FLDT_EXTLEN, OI(COFF(extsize)), C1, 0, TYP_NONE },
-	{ "nextents", FLDT_EXTNUM, OI(COFF(nextents)), C1, 0, TYP_NONE },
-	{ "naextents", FLDT_AEXTNUM, OI(COFF(anextents)), C1, 0, TYP_NONE },
+	{ "nextents_lo", FLDT_UINT32D, OI(COFF(nextents_lo)), C1, 0, TYP_NONE },
+	{ "naextents_lo", FLDT_UINT16D, OI(COFF(anextents_lo)), C1, 0, TYP_NONE },
 	{ "forkoff", FLDT_UINT8D, OI(COFF(forkoff)), C1, 0, TYP_NONE },
 	{ "aformat", FLDT_DINODE_FMT, OI(COFF(aformat)), C1, 0, TYP_NONE },
 	{ "dmevmask", FLDT_UINT32X, OI(COFF(dmevmask)), C1, 0, TYP_NONE },
@@ -162,6 +163,10 @@ const field_t	inode_v3_flds[] = {
 	{ "lsn", FLDT_UINT64X, OI(COFF(lsn)), C1, 0, TYP_NONE },
 	{ "flags2", FLDT_UINT64X, OI(COFF(flags2)), C1, 0, TYP_NONE },
 	{ "cowextsize", FLDT_EXTLEN, OI(COFF(cowextsize)), C1, 0, TYP_NONE },
+	{ "nextents_hi", FLDT_UINT32D, OI(COFF(nextents_hi)),
+	  inode_v3_extenthi_count, FLD_COUNT, TYP_NONE },
+	{ "naextents_hi", FLDT_UINT16D, OI(COFF(anextents_hi)),
+	  inode_v3_extenthi_count, FLD_COUNT, TYP_NONE },
 	{ "pad2", FLDT_UINT8X, OI(OFF(pad2)), CI(12), FLD_ARRAY|FLD_SKIPALL, TYP_NONE },
 	{ "crtime", FLDT_TIMESTAMP, OI(COFF(crtime)), C1, 0, TYP_NONE },
 	{ "inumber", FLDT_INO, OI(COFF(ino)), C1, 0, TYP_NONE },
@@ -271,7 +276,7 @@ inode_a_bmx_count(
 		return 0;
 	ASSERT((char *)XFS_DFORK_APTR(dip) - (char *)dip == byteize(startoff));
 	return dip->di_aformat == XFS_DINODE_FMT_EXTENTS ?
-		be16_to_cpu(dip->di_anextents) : 0;
+		xfs_dfork_nextents(&mp->m_sb, dip, XFS_ATTR_FORK) : 0;
 }
 
 static int
@@ -325,6 +330,7 @@ inode_a_size(
 {
 	xfs_attr_shortform_t	*asf;
 	xfs_dinode_t		*dip;
+	xfs_extnum_t		nextents;
 
 	ASSERT(startoff == 0);
 	ASSERT(idx == 0);
@@ -334,8 +340,8 @@ inode_a_size(
 		asf = (xfs_attr_shortform_t *)XFS_DFORK_APTR(dip);
 		return bitize(be16_to_cpu(asf->hdr.totsize));
 	case XFS_DINODE_FMT_EXTENTS:
-		return (int)be16_to_cpu(dip->di_anextents) *
-							bitsz(xfs_bmbt_rec_t);
+		nextents = xfs_dfork_nextents(&mp->m_sb, dip, XFS_ATTR_FORK);
+		return (int)(nextents * bitsz(xfs_bmbt_rec_t));
 	case XFS_DINODE_FMT_BTREE:
 		return bitize((int)XFS_DFORK_ASIZE(dip, mp));
 	default:
@@ -393,6 +399,14 @@ inode_core_projid_count(
 	ASSERT(obj == iocur_top->data);
 	dic = obj;
 	return dic->di_version >= 2;
+}
+
+static int
+inode_v3_extenthi_count(
+	void		*obj,
+	int		startoff)
+{
+	return xfs_sb_version_hasextenthi(&mp->m_sb);
 }
 
 static int
@@ -496,7 +510,7 @@ inode_u_bmx_count(
 	dip = obj;
 	ASSERT((char *)XFS_DFORK_DPTR(dip) - (char *)dip == byteize(startoff));
 	return dip->di_format == XFS_DINODE_FMT_EXTENTS ?
-		be32_to_cpu(dip->di_nextents) : 0;
+		xfs_dfork_nextents(&mp->m_sb, dip, XFS_DATA_FORK) : 0;
 }
 
 static int
@@ -582,6 +596,7 @@ inode_u_size(
 	int		idx)
 {
 	xfs_dinode_t	*dip;
+	xfs_extnum_t	nextents;
 
 	ASSERT(startoff == 0);
 	ASSERT(idx == 0);
@@ -592,8 +607,8 @@ inode_u_size(
 	case XFS_DINODE_FMT_LOCAL:
 		return bitize((int)be64_to_cpu(dip->di_size));
 	case XFS_DINODE_FMT_EXTENTS:
-		return (int)be32_to_cpu(dip->di_nextents) *
-						bitsz(xfs_bmbt_rec_t);
+		nextents = xfs_dfork_nextents(&mp->m_sb, dip, XFS_DATA_FORK);
+		return (int)(nextents * bitsz(xfs_bmbt_rec_t));
 	case XFS_DINODE_FMT_BTREE:
 		return bitize((int)XFS_DFORK_DSIZE(dip, mp));
 	case XFS_DINODE_FMT_UUID:
