@@ -165,9 +165,9 @@ static int
 pf_read_bmbt_reclist(
 	prefetch_args_t		*args,
 	xfs_bmbt_rec_t		*rp,
-	int			numrecs)
+	xfs_extnum_t		numrecs)
 {
-	int			i;
+	xfs_extnum_t		i;
 	xfs_bmbt_irec_t		irec;
 	xfs_filblks_t		cp = 0;		/* prev count */
 	xfs_fileoff_t		op = 0;		/* prev offset */
@@ -393,7 +393,7 @@ pf_read_exinode(
 	xfs_dinode_t		*dino)
 {
 	pf_read_bmbt_reclist(args, (xfs_bmbt_rec_t *)XFS_DFORK_DPTR(dino),
-			be32_to_cpu(dino->di_nextents));
+			xfs_dfork_nextents(&mp->m_sb, dino, XFS_DATA_FORK));
 }
 
 static void

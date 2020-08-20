@@ -47,7 +47,7 @@ xfs_bmap_compute_maxlevels(
 {
 	int		level;		/* btree level */
 	uint		maxblocks;	/* max blocks at this level */
-	uint		maxleafents;	/* max leaf entries possible */
+	uint64_t	maxleafents;	/* max leaf entries possible */
 	int		maxrootrecs;	/* max records in root block */
 	int		minleafrecs;	/* min records in leaf block */
 	int		minnoderecs;	/* min records in node block */
@@ -68,10 +68,16 @@ xfs_bmap_compute_maxlevels(
 	 * of a minimum size available.
 	 */
 	if (whichfork == XFS_DATA_FORK) {
-		maxleafents = MAXEXTNUM;
+		if (xfs_sb_version_hasextenthi(&mp->m_sb))
+			maxleafents = MAXEXTNUM_HI;
+		else
+			maxleafents = MAXEXTNUM;
 		sz = XFS_BMDR_SPACE_CALC(MINDBTPTRS);
 	} else {
-		maxleafents = MAXAEXTNUM;
+		if (xfs_sb_version_hasextenthi(&mp->m_sb))
+			maxleafents = MAXAEXTNUM_HI;
+		else
+			maxleafents = MAXAEXTNUM;
 		sz = XFS_BMDR_SPACE_CALC(MINABTPTRS);
 	}
 	maxrootrecs = xfs_bmdr_maxrecs(sz, 0);
