@@ -71,6 +71,7 @@ enum {
 	I_ATTR,
 	I_PROJID32BIT,
 	I_SPINODES,
+	I_WIDEEXTCNT,
 	I_MAX_OPTS,
 };
 
@@ -383,6 +384,7 @@ static struct opt_params iopts = {
 		[I_ATTR] = "attr",
 		[I_PROJID32BIT] = "projid32bit",
 		[I_SPINODES] = "sparse",
+		[I_WIDEEXTCNT] = "wideextcnt",
 	},
 	.subopt_params = {
 		{ .index = I_ALIGN,
@@ -431,6 +433,12 @@ static struct opt_params iopts = {
 		  .maxval = 1,
 		  .defaultval = 1,
 		},
+		{ .index = I_WIDEEXTCNT,
+		  .conflicts = { { NULL, LAST_CONFLICT } },
+		  .minval = 0,
+		  .maxval = 1,
+		  .defaultval = 1,
+		}
 	},
 };
 
@@ -734,6 +742,7 @@ struct sb_feat_args {
 	bool	reflink;		/* XFS_SB_FEAT_RO_COMPAT_REFLINK */
 	bool	nodalign;
 	bool	nortalign;
+	bool	wideextcnt;
 };
 
 struct cli_params {
@@ -1469,6 +1478,9 @@ inode_opts_parser(
 	case I_SPINODES:
 		cli->sb_feat.spinodes = getnum(value, opts, subopt);
 		break;
+	case I_WIDEEXTCNT:
+		cli->sb_feat.wideextcnt = getnum(value, opts, subopt);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1972,6 +1984,14 @@ _("reflink not supported without CRC support\n"));
 			usage();
 		}
 		cli->sb_feat.reflink = false;
+
+		if (cli->sb_feat.wideextcnt &&
+			cli_opt_set(&iopts, I_WIDEEXTCNT)) {
+			fprintf(stderr,
+_("wideextcnt inodes not supported without CRC support\n"));
+			usage();
+		}
+		cli->sb_feat.wideextcnt = false;
 	}
 
 	if ((cli->fsx.fsx_xflags & FS_XFLAG_COWEXTSIZE) &&
@@ -2953,6 +2973,8 @@ sb_set_features(
 		sbp->sb_features_incompat |= XFS_SB_FEAT_INCOMPAT_SPINODES;
 	}
 
+	if (fp->wideextcnt)
+		sbp->sb_features_incompat |= XFS_SB_FEAT_INCOMPAT_WIDEEXTCNT;
 }
 
 /*
@@ -3608,6 +3630,7 @@ main(
 			.parent_pointers = false,
 			.nodalign = false,
 			.nortalign = false,
+			.wideextcnt = false,
 		},
 	};
 
