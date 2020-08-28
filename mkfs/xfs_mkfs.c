@@ -71,6 +71,7 @@ enum {
 	I_ATTR,
 	I_PROJID32BIT,
 	I_SPINODES,
+	I_EXTCNT_64BIT,
 	I_MAX_OPTS,
 };
 
@@ -383,6 +384,7 @@ static struct opt_params iopts = {
 		[I_ATTR] = "attr",
 		[I_PROJID32BIT] = "projid32bit",
 		[I_SPINODES] = "sparse",
+		[I_EXTCNT_64BIT] = "extcnt64bit",
 	},
 	.subopt_params = {
 		{ .index = I_ALIGN,
@@ -431,6 +433,12 @@ static struct opt_params iopts = {
 		  .maxval = 1,
 		  .defaultval = 1,
 		},
+		{ .index = I_EXTCNT_64BIT,
+		  .conflicts = { { NULL, LAST_CONFLICT } },
+		  .minval = 0,
+		  .maxval = 1,
+		  .defaultval = 1,
+		}
 	},
 };
 
@@ -734,6 +742,7 @@ struct sb_feat_args {
 	bool	reflink;		/* XFS_SB_FEAT_RO_COMPAT_REFLINK */
 	bool	nodalign;
 	bool	nortalign;
+	bool	extcnt64bit;
 };
 
 struct cli_params {
@@ -1469,6 +1478,9 @@ inode_opts_parser(
 	case I_SPINODES:
 		cli->sb_feat.spinodes = getnum(value, opts, subopt);
 		break;
+	case I_EXTCNT_64BIT:
+		cli->sb_feat.extcnt64bit = getnum(value, opts, subopt);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1972,6 +1984,14 @@ _("reflink not supported without CRC support\n"));
 			usage();
 		}
 		cli->sb_feat.reflink = false;
+
+		if (cli->sb_feat.extcnt64bit &&
+			cli_opt_set(&iopts, I_EXTCNT_64BIT)) {
+			fprintf(stderr,
+_("64 bit extent count not supported without CRC support\n"));
+			usage();
+		}
+		cli->sb_feat.extcnt64bit = false;
 	}
 
 	if ((cli->fsx.fsx_xflags & FS_XFLAG_COWEXTSIZE) &&
@@ -2953,6 +2973,8 @@ sb_set_features(
 		sbp->sb_features_incompat |= XFS_SB_FEAT_INCOMPAT_SPINODES;
 	}
 
+	if (fp->extcnt64bit)
+		sbp->sb_features_incompat |= XFS_SB_FEAT_INCOMPAT_EXTCOUNT_64BIT;
 }
 
 /*
@@ -3608,6 +3630,7 @@ main(
 			.parent_pointers = false,
 			.nodalign = false,
 			.nortalign = false,
+			.extcnt64bit = false,
 		},
 	};
 
