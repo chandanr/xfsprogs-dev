@@ -188,6 +188,7 @@ xfs_inode_from_disk(
 	struct xfs_inode	*ip,
 	struct xfs_dinode	*from)
 {
+	struct xfs_sb 		*sbp = &ip->i_mount->m_sb;
 	struct xfs_icdinode	*to = &ip->i_d;
 	struct inode		*inode = VFS_I(ip);
 
@@ -228,8 +229,8 @@ xfs_inode_from_disk(
 	to->di_size = be64_to_cpu(from->di_size);
 	to->di_nblocks = be64_to_cpu(from->di_nblocks);
 	to->di_extsize = be32_to_cpu(from->di_extsize);
-	to->di_nextents = be32_to_cpu(from->di_nextents);
-	to->di_anextents = be16_to_cpu(from->di_anextents);
+	to->di_nextents = be32_to_cpu(from->di_nextents_lo);
+	to->di_anextents = be16_to_cpu(from->di_anextents_lo);
 	to->di_forkoff = from->di_forkoff;
 	to->di_aformat	= from->di_aformat;
 	to->di_dmevmask	= be32_to_cpu(from->di_dmevmask);
@@ -243,6 +244,13 @@ xfs_inode_from_disk(
 		to->di_crtime.tv_nsec = be32_to_cpu(from->di_crtime.t_nsec);
 		to->di_flags2 = be64_to_cpu(from->di_flags2);
 		to->di_cowextsize = be32_to_cpu(from->di_cowextsize);
+
+		if (xfs_sb_version_hasextenthi(sbp)) {
+			to->di_nextents |=
+				((uint64_t)(be32_to_cpu(from->di_nextents_hi)) << 32);
+			to->di_anextents |=
+				((uint32_t)(be16_to_cpu(from->di_anextents_hi)) << 16);
+		}
 	}
 }
 
@@ -252,6 +260,7 @@ xfs_inode_to_disk(
 	struct xfs_dinode	*to,
 	xfs_lsn_t		lsn)
 {
+	struct xfs_sb 		*sbp = &ip->i_mount->m_sb;
 	struct xfs_icdinode	*from = &ip->i_d;
 	struct inode		*inode = VFS_I(ip);
 
@@ -278,8 +287,8 @@ xfs_inode_to_disk(
 	to->di_size = cpu_to_be64(from->di_size);
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);
 	to->di_extsize = cpu_to_be32(from->di_extsize);
-	to->di_nextents = cpu_to_be32(from->di_nextents);
-	to->di_anextents = cpu_to_be16(from->di_anextents);
+	to->di_nextents_lo = cpu_to_be32(from->di_nextents);
+	to->di_anextents_lo = cpu_to_be16(from->di_anextents);
 	to->di_forkoff = from->di_forkoff;
 	to->di_aformat = from->di_aformat;
 	to->di_dmevmask = cpu_to_be32(from->di_dmevmask);
@@ -293,6 +302,12 @@ xfs_inode_to_disk(
 		to->di_crtime.t_nsec = cpu_to_be32(from->di_crtime.tv_nsec);
 		to->di_flags2 = cpu_to_be64(from->di_flags2);
 		to->di_cowextsize = cpu_to_be32(from->di_cowextsize);
+		if (xfs_sb_version_hasextenthi(sbp)) {
+			to->di_nextents_hi
+				= cpu_to_be32(from->di_nextents >> 32);
+			to->di_anextents_hi
+				= cpu_to_be16(from->di_nextents >> 16);
+		}
 		to->di_ino = cpu_to_be64(ip->i_ino);
 		to->di_lsn = cpu_to_be64(lsn);
 		memset(to->di_pad2, 0, sizeof(to->di_pad2));
@@ -306,9 +321,12 @@ xfs_inode_to_disk(
 
 void
 xfs_log_dinode_to_disk(
+	struct xfs_mount	*mp,
 	struct xfs_log_dinode	*from,
 	struct xfs_dinode	*to)
 {
+	struct xfs_sb		*sbp = &mp->m_sb;
+
 	to->di_magic = cpu_to_be16(from->di_magic);
 	to->di_mode = cpu_to_be16(from->di_mode);
 	to->di_version = from->di_version;
@@ -331,8 +349,8 @@ xfs_log_dinode_to_disk(
 	to->di_size = cpu_to_be64(from->di_size);
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);
 	to->di_extsize = cpu_to_be32(from->di_extsize);
-	to->di_nextents = cpu_to_be32(from->di_nextents);
-	to->di_anextents = cpu_to_be16(from->di_anextents);
+	to->di_nextents_lo = cpu_to_be32(from->di_nextents_lo);
+	to->di_anextents_lo = cpu_to_be16(from->di_anextents_lo);
 	to->di_forkoff = from->di_forkoff;
 	to->di_aformat = from->di_aformat;
 	to->di_dmevmask = cpu_to_be32(from->di_dmevmask);
@@ -346,6 +364,10 @@ xfs_log_dinode_to_disk(
 		to->di_crtime.t_nsec = cpu_to_be32(from->di_crtime.t_nsec);
 		to->di_flags2 = cpu_to_be64(from->di_flags2);
 		to->di_cowextsize = cpu_to_be32(from->di_cowextsize);
+		if (xfs_sb_version_hasextenthi(sbp)) {
+			to->di_nextents_hi = cpu_to_be32(from->di_nextents_hi);
+			to->di_anextents_hi = cpu_to_be16(from->di_anextents_hi);
+		}
 		to->di_ino = cpu_to_be64(from->di_ino);
 		to->di_lsn = cpu_to_be64(from->di_lsn);
 		memcpy(to->di_pad2, from->di_pad2, sizeof(to->di_pad2));
@@ -363,7 +385,7 @@ xfs_dinode_verify_fork(
 	int			whichfork)
 {
 	xfs_extnum_t 		max_extents;
-	uint32_t		di_nextents;
+	xfs_extnum_t		di_nextents;
 
 	di_nextents = xfs_dfork_nextents(&mp->m_sb, dip, whichfork);
 
@@ -400,10 +422,19 @@ xfs_dinode_verify_fork(
 xfs_extnum_t
 xfs_dfork_nextents(struct xfs_sb *sbp, struct xfs_dinode *dip, int whichfork)
 {
-	if (whichfork == XFS_DATA_FORK)
-		return be32_to_cpu(dip->di_nextents);
-	else
-		return be16_to_cpu(dip->di_anextents);
+	xfs_extnum_t nextents;
+
+	if (whichfork == XFS_DATA_FORK) {
+		nextents = be32_to_cpu(dip->di_nextents_lo);
+		if (xfs_sb_version_hasextenthi(sbp))
+			nextents |= ((uint64_t)be32_to_cpu(dip->di_nextents_hi) << 32);
+	} else {
+		nextents = be16_to_cpu(dip->di_anextents_lo);
+		if (xfs_sb_version_hasextenthi(sbp))
+			nextents |= ((uint32_t)be16_to_cpu(dip->di_anextents_hi) << 16);
+	}
+
+	return nextents;
 }
 
 static xfs_failaddr_t
