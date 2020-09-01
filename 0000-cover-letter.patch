@@ -1,0 +1,79 @@
+From 0ffae6f1bccd1f1644eba97ce99fceb7acb5f953 Mon Sep 17 00:00:00 2001
+From: Chandan Babu R <chandanrlinux@gmail.com>
+Date: Mon, 31 Aug 2020 18:07:07 +0530
+Subject: [PATCH 0/4] xfsprogs: Extend per-inode extent counters
+To: linux-xfs@vger.kernel.org
+Cc: david@fromorbit.com,
+    darrick.wong@oracle.com,
+    bfoster@redhat.com
+
+The kernel commit xfs: fix inode fork extent count overflow
+(3f8a4f1d876d3e3e49e50b0396eaffcc4ba71b08) mentions that 10 billion
+data fork extents should be possible to create. However the
+corresponding on-disk field has a signed 32-bit type. Hence this
+patchset extends the per-inode data extent counter to 47 bits. The
+length of 47-bits was chosen because,
+Maximum file size = 2^63.
+Maximum extent count when using 64k block size = 2^63 / 2^16 = 2^47.
+
+Also, XFS has a per-inode xattr extent counter which is 16 bits
+wide. A workload which
+1. Creates 1 million 255-byte sized xattrs,
+2. Deletes 50% of these xattrs in an alternating manner,
+3. Tries to insert 400,000 new 255-byte sized xattrs
+   causes the xattr extent counter to overflow.
+
+Dave tells me that there are instances where a single file has more
+than 100 million hardlinks. With parent pointers being stored in
+xattrs, we will overflow the signed 16-bits wide xattr extent counter
+when large number of hardlinks are created. Hence this patchset
+extends the on-disk field to 32-bits.
+
+The following changes are made to accomplish this,
+1. A new incompat superblock flag to prevent older kernels from mounting
+   the filesystem. This flag has to be set during mkfs time.
+2. Carve out a new 32-bit field from xfs_dinode->di_pad2[]. This field
+   holds the most significant 15 bits of the data extent counter.
+3. Carve out a new 16-bit field from xfs_dinode->di_pad2[]. This field
+   holds the most significant 16 bits of the attr extent counter.
+
+This patchset can also be obtained from
+https://github.com/chandanr/xfsprogs-dev.git at branch
+xfs-incompat-extend-extcnt-v1.
+
+Chandan Babu R (4):
+  xfsprogs: Introduce xfs_iext_max() helper
+  xfsprogs: Introduce xfs_dfork_nextents() helper
+  xfsprogs: Extend data/attr fork extent counter width
+  xfsprogs: Add wideextcnt mkfs option
+
+ db/bmap.c                  |  8 +--
+ db/btdump.c                |  4 +-
+ db/check.c                 |  2 +-
+ db/field.c                 |  4 --
+ db/field.h                 |  2 -
+ db/frag.c                  |  8 +--
+ db/inode.c                 | 31 +++++++++---
+ db/metadump.c              |  4 +-
+ include/libxlog.h          |  6 ++-
+ libxfs/xfs_bmap.c          | 21 ++++----
+ libxfs/xfs_format.h        | 24 +++++----
+ libxfs/xfs_inode_buf.c     | 78 +++++++++++++++++++++++-------
+ libxfs/xfs_inode_buf.h     |  6 ++-
+ libxfs/xfs_inode_fork.c    |  7 +--
+ libxfs/xfs_inode_fork.h    | 17 +++++++
+ libxfs/xfs_log_format.h    |  8 +--
+ libxfs/xfs_types.h         |  6 ++-
+ logprint/log_misc.c        | 21 ++++++--
+ logprint/log_print_all.c   | 30 +++++++++---
+ logprint/log_print_trans.c |  2 +-
+ man/man8/mkfs.xfs.8        |  7 +++
+ mkfs/xfs_mkfs.c            | 23 +++++++++
+ repair/attr_repair.c       |  2 +-
+ repair/dinode.c            | 99 ++++++++++++++++++++++----------------
+ repair/prefetch.c          |  2 +-
+ 25 files changed, 292 insertions(+), 130 deletions(-)
+
+-- 
+2.28.0
+
