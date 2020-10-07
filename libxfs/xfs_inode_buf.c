@@ -365,6 +365,7 @@ xfs_dinode_verify_fork(
 	struct xfs_mount	*mp,
 	int			whichfork)
 {
+	xfs_extnum_t		max_extents;
 	uint32_t		di_nextents = XFS_DFORK_NEXTENTS(dip, whichfork);
 
 	switch (XFS_DFORK_FORMAT(dip, whichfork)) {
@@ -387,12 +388,9 @@ xfs_dinode_verify_fork(
 			return __this_address;
 		break;
 	case XFS_DINODE_FMT_BTREE:
-		if (whichfork == XFS_ATTR_FORK) {
-			if (di_nextents > XFS_IFORK_EXTCNT_MAXS16)
-				return __this_address;
-		} else if (di_nextents > XFS_IFORK_EXTCNT_MAXS32) {
+		max_extents = xfs_iext_max(&mp->m_sb, whichfork);
+		if (di_nextents > max_extents)
 			return __this_address;
-		}
 		break;
 	default:
 		return __this_address;
