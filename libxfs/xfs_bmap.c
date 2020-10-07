@@ -68,10 +68,10 @@ xfs_bmap_compute_maxlevels(
 	 * of a minimum size available.
 	 */
 	if (whichfork == XFS_DATA_FORK) {
-		maxleafents = MAXEXTNUM;
+		maxleafents = XFS_IFORK_EXTCNT_MAXS32;
 		sz = XFS_BMDR_SPACE_CALC(MINDBTPTRS);
 	} else {
-		maxleafents = MAXAEXTNUM;
+		maxleafents = XFS_IFORK_EXTCNT_MAXS16;
 		sz = XFS_BMDR_SPACE_CALC(MINABTPTRS);
 	}
 	maxrootrecs = xfs_bmdr_maxrecs(sz, 0);
