@@ -1110,6 +1110,13 @@ enum xfs_dinode_fmt {
 	{ XFS_DINODE_FMT_UUID,		"uuid" }
 
 /*
+ * Max values for extlen, extnum, aextnum.
+ */
+#define	MAXEXTLEN	((uint32_t)0x001fffff)	/* 21 bits */
+#define	MAXEXTNUM	((int32_t)0x7fffffff)	/* signed int */
+#define	MAXAEXTNUM	((int16_t)0x7fff)	/* signed short */
+
+/*
  * Inode minimum and maximum sizes.
  */
 #define	XFS_DINODE_MIN_LOG	8
