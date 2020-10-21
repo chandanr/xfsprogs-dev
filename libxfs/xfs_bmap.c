@@ -54,10 +54,12 @@ xfs_bmap_compute_maxlevels(
 	int		sz;		/* root block size */
 
 	/*
-	 * The maximum number of extents in a file, hence the maximum
-	 * number of leaf entries, is controlled by the type of di_nextents
-	 * (a signed 32-bit number, xfs_extnum_t), or by di_anextents
-	 * (a signed 16-bit number, xfs_aextnum_t).
+	 * The maximum number of extents in a file, hence the maximum number of
+	 * leaf entries, is controlled by the size of the on-disk extent count,
+	 * either a signed 32-bit number for the data fork, or a signed 16-bit
+	 * number for the attr fork. With mkfs.xfs' wide-extcount option
+	 * enabled, the data fork extent count is unsigned 47-bits wide, while
+	 * the corresponding attr fork extent count is unsigned 32-bits wide.
 	 *
 	 * Note that we can no longer assume that if we are in ATTR1 that
 	 * the fork offset of all the inodes will be

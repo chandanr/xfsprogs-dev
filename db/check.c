@@ -2684,10 +2684,17 @@ process_exinode(
 	int			whichfork)
 {
 	xfs_bmbt_rec_t		*rp;
+	int			ret;
 
 	rp = (xfs_bmbt_rec_t *)XFS_DFORK_PTR(dip, whichfork);
-	*nex = xfs_dfork_nextents(mp, dip, whichfork);
-	if (*nex < 0 || *nex > XFS_DFORK_SIZE(dip, mp, whichfork) /
+	ret = xfs_dfork_nextents(mp, dip, whichfork, nex);
+	if (ret) {
+		if (!sflag || id->ilist)
+			dbprintf(_("Corrupt extent count for inode %lld\n"),
+				id->ino);
+		error++;
+		return;
+	} else if (*nex < 0 || *nex > XFS_DFORK_SIZE(dip, mp, whichfork) /
 						sizeof(xfs_bmbt_rec_t)) {
 		if (!sflag || id->ilist)
 			dbprintf(_("bad number of extents %d for inode %lld\n"),
