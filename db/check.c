@@ -2718,10 +2718,17 @@ process_exinode(
 	int			whichfork)
 {
 	xfs_bmbt_rec_t		*rp;
+	int			ret;
 
 	rp = (xfs_bmbt_rec_t *)XFS_DFORK_PTR(dip, whichfork);
-	*nex = xfs_dfork_nextents(mp, dip, whichfork);
-	if (*nex < 0 || *nex > XFS_DFORK_SIZE(dip, mp, whichfork) /
+	ret = xfs_dfork_nextents(mp, dip, whichfork, nex);
+	if (ret) {
+		if (!sflag || id->ilist)
+			dbprintf(_("Corrupt extent count for inode %lld\n"),
+				id->ino);
+		error++;
+		return;
+	} else if (*nex < 0 || *nex > XFS_DFORK_SIZE(dip, mp, whichfork) /
 						sizeof(xfs_bmbt_rec_t)) {
 		if (!sflag || id->ilist)
 			dbprintf(_("bad number of extents %d for inode %lld\n"),
@@ -2743,13 +2750,13 @@ process_inode(
 	xfs_fsblock_t		bno = 0;
 	inodata_t		*id = NULL;
 	xfs_ino_t		ino;
-	xfs_extnum_t		nextents = 0;
+	xfs_extnum_t		nextents, anextents;
+	xfs_extnum_t		counted_nextents, counted_anextents;
 	int			security;
 	xfs_rfsblock_t		totblocks;
 	xfs_rfsblock_t		totdblocks = 0;
 	xfs_rfsblock_t		totiblocks = 0;
 	dbm_t			type;
-	xfs_extnum_t		anextents = 0;
 	xfs_rfsblock_t		atotdblocks = 0;
 	xfs_rfsblock_t		atotiblocks = 0;
 	xfs_qcnt_t		bc = 0;
@@ -2878,14 +2885,25 @@ process_inode(
 		error++;
 		return;
 	}
-	if (verbose || (id && id->ilist) || CHECK_BLIST(bno))
+
+	if (xfs_dfork_nextents(mp, dip, XFS_DATA_FORK, &nextents)) {
+		if (v)
+			dbprintf(_("Corrupt extent count for inode %lld\n"),
+				id->ino);
+		error++;
+		return;
+	}
+
+	if (xfs_dfork_nextents(mp, dip, XFS_ATTR_FORK, &anextents))
+		ASSERT(0);
+
+        if (verbose || (id && id->ilist) || CHECK_BLIST(bno))
 		dbprintf(_("inode %lld mode %#o fmt %s "
 			 "afmt %s "
 			 "nex %d anex %d nblk %lld sz %lld%s%s%s%s%s%s%s\n"),
 			id->ino, mode, fmtnames[(int)dip->di_format],
 			fmtnames[(int)dip->di_aformat],
-			be32_to_cpu(dip->di_nextents),
-			be16_to_cpu(dip->di_anextents),
+			nextents, anextents,
 			be64_to_cpu(dip->di_nblocks), be64_to_cpu(dip->di_size),
 			diflags & XFS_DIFLAG_REALTIME ? " rt" : "",
 			diflags & XFS_DIFLAG_PREALLOC ? " pre" : "",
@@ -2900,22 +2918,24 @@ process_inode(
 		type = DBM_DIR;
 		if (dip->di_format == XFS_DINODE_FMT_LOCAL)
 			break;
+
 		if (xfs_sb_version_hasmetadir(&mp->m_sb) &&
 		    id->ino == mp->m_sb.sb_metadirino)
 			addlink_inode(id);
-		blkmap = blkmap_alloc(be32_to_cpu(dip->di_nextents));
-		break;
+		blkmap = blkmap_alloc(nextents);
+
+                break;
 	case S_IFREG:
 		if (diflags & XFS_DIFLAG_REALTIME)
 			type = DBM_RTDATA;
 		else if (id->ino == mp->m_sb.sb_rbmino) {
 			type = DBM_RTBITMAP;
-			blkmap = blkmap_alloc(be32_to_cpu(dip->di_nextents));
+			blkmap = blkmap_alloc(nextents);
 			if (!xfs_sb_version_hasmetadir(&mp->m_sb))
 				addlink_inode(id);
 		} else if (id->ino == mp->m_sb.sb_rsumino) {
 			type = DBM_RTSUM;
-			blkmap = blkmap_alloc(be32_to_cpu(dip->di_nextents));
+			blkmap = blkmap_alloc(nextents);
 			if (!xfs_sb_version_hasmetadir(&mp->m_sb))
 				addlink_inode(id);
 		}
@@ -2923,7 +2943,7 @@ process_inode(
 			 id->ino == mp->m_sb.sb_gquotino ||
 			 id->ino == mp->m_sb.sb_pquotino) {
 			type = DBM_QUOTA;
-			blkmap = blkmap_alloc(be32_to_cpu(dip->di_nextents));
+			blkmap = blkmap_alloc(nextents);
 			if (!xfs_sb_version_hasmetadir(&mp->m_sb))
 				addlink_inode(id);
 		}
@@ -2943,19 +2963,20 @@ process_inode(
 
 	id->isreflink = !!(diflags2 & XFS_DIFLAG2_REFLINK);
 	setlink_inode(id, nlink, type == DBM_DIR, security);
+	counted_nextents = counted_anextents = 0;
 
 	switch (dip->di_format) {
 	case XFS_DINODE_FMT_LOCAL:
 		process_lclinode(id, dip, type, &totdblocks, &totiblocks,
-			&nextents, &blkmap, XFS_DATA_FORK);
+			&counted_nextents, &blkmap, XFS_DATA_FORK);
 		break;
 	case XFS_DINODE_FMT_EXTENTS:
 		process_exinode(id, dip, type, &totdblocks, &totiblocks,
-			&nextents, &blkmap, XFS_DATA_FORK);
+			&counted_nextents, &blkmap, XFS_DATA_FORK);
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		process_btinode(id, dip, type, &totdblocks, &totiblocks,
-			&nextents, &blkmap, XFS_DATA_FORK);
+			&counted_nextents, &blkmap, XFS_DATA_FORK);
 		break;
 	}
 	if (dip->di_forkoff) {
@@ -2963,15 +2984,15 @@ process_inode(
 		switch (dip->di_aformat) {
 		case XFS_DINODE_FMT_LOCAL:
 			process_lclinode(id, dip, DBM_ATTR, &atotdblocks,
-				&atotiblocks, &anextents, NULL, XFS_ATTR_FORK);
+				&atotiblocks, &counted_anextents, NULL, XFS_ATTR_FORK);
 			break;
 		case XFS_DINODE_FMT_EXTENTS:
 			process_exinode(id, dip, DBM_ATTR, &atotdblocks,
-				&atotiblocks, &anextents, NULL, XFS_ATTR_FORK);
+				&atotiblocks, &counted_anextents, NULL, XFS_ATTR_FORK);
 			break;
 		case XFS_DINODE_FMT_BTREE:
 			process_btinode(id, dip, DBM_ATTR, &atotdblocks,
-				&atotiblocks, &anextents, NULL, XFS_ATTR_FORK);
+				&atotiblocks, &counted_anextents, NULL, XFS_ATTR_FORK);
 			break;
 		}
 	}
@@ -3006,17 +3027,17 @@ process_inode(
 				be64_to_cpu(dip->di_nblocks), id->ino, totblocks);
 		error++;
 	}
-	if (nextents != be32_to_cpu(dip->di_nextents)) {
+	if (nextents != counted_nextents) {
 		if (v)
 			dbprintf(_("bad nextents %d for inode %lld, counted %d\n"),
-				be32_to_cpu(dip->di_nextents), id->ino, nextents);
+				nextents, id->ino, counted_nextents);
 		error++;
 	}
-	if (anextents != be16_to_cpu(dip->di_anextents)) {
+	if (anextents != counted_anextents) {
 		if (v)
 			dbprintf(_("bad anextents %d for inode %lld, counted "
 				 "%d\n"),
-				be16_to_cpu(dip->di_anextents), id->ino, anextents);
+				anextents, id->ino, counted_anextents);
 		error++;
 	}
 	if (type == DBM_DIR)
