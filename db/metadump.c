@@ -2282,7 +2282,13 @@ process_exinode(
 
 	whichfork = (itype == TYP_ATTR) ? XFS_ATTR_FORK : XFS_DATA_FORK;
 
-	nex = xfs_dfork_nextents(mp, dip, whichfork);
+	if (xfs_dfork_nextents(mp, dip, whichfork, &nex)) {
+		if (show_warnings)
+			print_warning("Corrupt extent count for inode %lld\n",
+				(long long)cur_ino);
+		return 1;
+	}
+
 	used = nex * sizeof(xfs_bmbt_rec_t);
 	if (nex < 0 || used > XFS_DFORK_SIZE(dip, mp, whichfork)) {
 		if (show_warnings)
@@ -2335,7 +2341,9 @@ static int
 process_dev_inode(
 	xfs_dinode_t		*dip)
 {
-	if (xfs_dfork_nextents(mp, dip, XFS_DATA_FORK)) {
+	xfs_extnum_t		nextents;
+
+	if (xfs_dfork_nextents(mp, dip, XFS_DATA_FORK, &nextents) || nextents) {
 		if (show_warnings)
 			print_warning("inode %llu has unexpected extents",
 				      (unsigned long long)cur_ino);
