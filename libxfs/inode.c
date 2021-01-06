@@ -31,7 +31,7 @@
 
 /* Propagate di_flags from a parent inode to a child inode. */
 static void
-xfs_inode_propagate_flags(
+xfs_inode_inherit_flags(
 	struct xfs_inode	*ip,
 	const struct xfs_inode	*pip)
 {
@@ -88,6 +88,7 @@ xfs_inode_init(
 	VFS_I(ip)->i_mode = args->mode;
 	set_nlink(VFS_I(ip), args->nlink);
 	VFS_I(ip)->i_uid = args->uid;
+	VFS_I(ip)->i_rdev = args->rdev;
 	ip->i_d.di_projid = args->prid;
 
 	if (pip && (VFS_I(pip)->i_mode & S_ISGID)) {
@@ -100,6 +101,7 @@ xfs_inode_init(
 	ip->i_d.di_size = 0;
 	ip->i_df.if_nextents = 0;
 	ASSERT(ip->i_d.di_nblocks == 0);
+
 	ip->i_d.di_extsize = 0;
 	ip->i_d.di_dmevmask = 0;
 	ip->i_d.di_dmstate = 0;
@@ -123,13 +125,13 @@ xfs_inode_init(
 	case S_IFCHR:
 	case S_IFBLK:
 		ip->i_df.if_format = XFS_DINODE_FMT_DEV;
+		ip->i_df.if_flags = 0;
 		flags |= XFS_ILOG_DEV;
-		VFS_I(ip)->i_rdev = args->rdev;
 		break;
 	case S_IFREG:
 	case S_IFDIR:
 		if (pip && (pip->i_d.di_flags & XFS_DIFLAG_ANY))
-			xfs_inode_propagate_flags(ip, pip);
+			xfs_inode_inherit_flags(ip, pip);
 		if (pip && (pip->i_d.di_flags2 & XFS_DIFLAG2_ANY))
 			xfs_inode_inherit_flags2(ip, pip);
 		/* FALLTHROUGH */
