@@ -73,6 +73,7 @@ libxfs_init_new_inode(
 	struct xfs_inode	*pip = args->pip;
 	struct xfs_inode	*ip;
 	unsigned int		flags;
+	int			times = XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG;
 	int			error;
 
 	error = libxfs_iget(tp->t_mountp, tp, ino, 0, &ip);
@@ -84,7 +85,6 @@ libxfs_init_new_inode(
 	set_nlink(VFS_I(ip), args->nlink);
 	VFS_I(ip)->i_uid = args->uid;
 	ip->i_d.di_projid = args->prid;
-	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG | XFS_ICHGTIME_MOD);
 
 	if (pip && (VFS_I(pip)->i_mode & S_ISGID)) {
 		VFS_I(ip)->i_gid = VFS_I(pip)->i_gid;
@@ -106,9 +106,11 @@ libxfs_init_new_inode(
 		ASSERT(uuid_equal(&ip->i_d.di_uuid, &mp->m_sb.sb_meta_uuid));
 		VFS_I(ip)->i_version = 1;
 		ip->i_d.di_flags2 = ip->i_mount->m_ino_geo.new_diflags2;
-		ip->i_d.di_crtime = VFS_I(ip)->i_mtime;
 		ip->i_d.di_cowextsize = 0;
+		times |= XFS_ICHGTIME_CREATE;
 	}
+
+	xfs_trans_ichgtime(tp, ip, times);
 
 	flags = XFS_ILOG_CORE;
 	switch (args->mode & S_IFMT) {
