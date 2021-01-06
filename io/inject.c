@@ -57,6 +57,7 @@ error_tag(char *name)
 		{ XFS_ERRTAG_BUF_IOERROR,		"buf_ioerror" },
 		{ XFS_ERRTAG_REDUCE_MAX_IEXTENTS,	"max_iextents" },
 		{ XFS_ERRTAG_BMAP_ALLOC_MINLEN_EXTENT,	"bmap_alloc_minlen" },
+		{ XFS_ERRTAG_SWAPEXT_FINISH_ONE,	"swapext_finish_one" },
 		{ XFS_ERRTAG_MAX,			NULL }
 	};
 	int	count;
