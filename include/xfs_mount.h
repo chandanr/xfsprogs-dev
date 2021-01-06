@@ -165,6 +165,9 @@ typedef struct xfs_perag {
 
 	/* reference count */
 	uint8_t		pagf_refcount_level;
+
+	/* unlinked inodes */
+	uint32_t	pagi_unlinked_count;
 } xfs_perag_t;
 
 static inline struct xfs_ag_resv *

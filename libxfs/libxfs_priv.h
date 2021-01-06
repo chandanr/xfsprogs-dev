@@ -490,6 +490,9 @@ void __xfs_buf_mark_corrupt(struct xfs_buf *bp, xfs_failaddr_t fa);
 })
 #define xfs_lock_two_inodes(ip1, mode1, ip2, mode2)	((void) 0)
 
+#define mutex_lock(l)					((void) 0)
+#define mutex_unlock(l)					((void) 0)
+
 /* space allocation */
 #define XFS_EXTENT_BUSY_DISCARDED	0x01	/* undergoing a discard op. */
 #define XFS_EXTENT_BUSY_SKIP_DISCARD	0x02	/* do not discard */
@@ -512,6 +515,8 @@ void __xfs_buf_mark_corrupt(struct xfs_buf *bp, xfs_failaddr_t fa);
 #define xfs_inode_is_filestream(ip)		(0)
 #define xfs_filestream_lookup_ag(ip)		(0)
 #define xfs_filestream_new_ag(ip,ag)		(0)
+
+#define xfs_trans_inode_buf(tp, bp)		((void) 0)
 
 /* quota bits */
 #define xfs_trans_mod_dquot_byino(t,i,f,d)		((void) 0)
