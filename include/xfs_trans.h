@@ -177,5 +177,7 @@ static inline xfs_lsn_t _lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 int libxfs_trans_alloc_inode(struct xfs_inode *ip, struct xfs_trans_res *resv,
 		unsigned int dblocks, unsigned int rblocks, bool force,
 		struct xfs_trans **tpp);
+int libxfs_trans_reserve_more(struct xfs_trans *tp, uint blocks,
+			uint rtextents);
 
 #endif	/* __XFS_TRANS_H__ */
