@@ -3605,20 +3605,20 @@ phase6(xfs_mount_t *mp)
 		}
 	}
 
-	if (need_metadir_inode) {
-		if (!no_modify)  {
+	if (!no_modify && xfs_sb_version_hasmetadir(&mp->m_sb))  {
+		if (need_metadir_inode)
 			do_warn(_("reinitializing metadata directory\n"));
-			mk_metadir(mp);
-			need_metadir_inode = 0;
-			need_metadir_dotdot = 0;
-		} else  {
-			do_warn(_("would reinitialize metadata directory\n"));
-		}
+		mk_metadir(mp);
+		need_metadir_inode = 0;
+		need_metadir_dotdot = 0;
+	} else if (need_metadir_inode) {
+		do_warn(_("would reinitialize metadata directory\n"));
 	}
 
 	if (need_rbmino)  {
 		if (!no_modify)  {
-			do_warn(_("reinitializing realtime bitmap inode\n"));
+			if (need_rbmino > 0)
+				do_warn(_("reinitializing realtime bitmap inode\n"));
 			mk_rbmino(mp);
 			need_rbmino = 0;
 		} else  {
@@ -3628,7 +3628,8 @@ phase6(xfs_mount_t *mp)
 
 	if (need_rsumino)  {
 		if (!no_modify)  {
-			do_warn(_("reinitializing realtime summary inode\n"));
+			if (need_rsumino > 0)
+				do_warn(_("reinitializing realtime summary inode\n"));
 			mk_rsumino(mp);
 			need_rsumino = 0;
 		} else  {
