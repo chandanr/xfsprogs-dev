@@ -256,10 +256,41 @@ process_rmap_data(
 	destroy_work_queue(&wq);
 }
 
+/* Make sure a fs root directory is present. */
+static void
+check_fs_root_dir(
+	struct xfs_mount	*mp,
+	const char		*tag,
+	xfs_ino_t		ino,
+	int			*need_ino)
+{
+	struct ino_tree_node	*irec;
+	int			irec_offset = 0;
+
+	irec = find_inode_rec(mp, XFS_INO_TO_AGNO(mp, ino),
+			XFS_INO_TO_AGINO(mp, ino));
+
+	if (irec)
+		irec_offset = XFS_INO_TO_AGINO(mp, ino) - irec->ino_startnum;
+
+	/*
+	 * we always have a root inode, even if it's free...
+	 * if the root is free, forget it, lost+found is already gone
+	 */
+	if (!irec ||
+	    is_inode_free(irec, irec_offset) ||
+	    !inode_isadir(irec, irec_offset)) {
+		*need_ino = 1;
+		if (no_modify)
+			do_warn(_("%s would be lost\n"), tag);
+		else
+			do_warn(_("%s lost\n"), tag);
+	}
+}
+
 void
 phase4(xfs_mount_t *mp)
 {
-	ino_tree_node_t		*irec;
 	xfs_rtblock_t		bno;
 	xfs_rtblock_t		rt_start;
 	xfs_extlen_t		rt_len;
@@ -280,20 +311,8 @@ phase4(xfs_mount_t *mp)
 
 	set_progress_msg(PROG_FMT_DUP_EXTENT, (uint64_t) glob_agcount);
 
-	irec = find_inode_rec(mp, XFS_INO_TO_AGNO(mp, mp->m_sb.sb_rootino),
-				XFS_INO_TO_AGINO(mp, mp->m_sb.sb_rootino));
-
-	/*
-	 * we always have a root inode, even if it's free...
-	 * if the root is free, forget it, lost+found is already gone
-	 */
-	if (is_inode_free(irec, 0) || !inode_isadir(irec, 0))  {
-		need_root_inode = 1;
-		if (no_modify)
-			do_warn(_("root inode would be lost\n"));
-		else
-			do_warn(_("root inode lost\n"));
-	}
+	check_fs_root_dir(mp, _("root inode"), mp->m_sb.sb_rootino,
+			&need_root_inode);
 
 	for (i = 0; i < mp->m_sb.sb_agcount; i++)  {
 		ag_end = (i < mp->m_sb.sb_agcount - 1) ? mp->m_sb.sb_agblocks :
