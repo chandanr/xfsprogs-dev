@@ -59,6 +59,20 @@ xfs_inode_propagate_flags(
 	ip->i_d.di_flags |= di_flags;
 }
 
+/* Propagate di_flags2 from a parent inode to a child inode. */
+static void
+xfs_inode_inherit_flags2(
+	struct xfs_inode	*ip,
+	const struct xfs_inode	*pip)
+{
+	if (pip->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE) {
+		ip->i_d.di_flags2 |= XFS_DIFLAG2_COWEXTSIZE;
+		ip->i_d.di_cowextsize = pip->i_d.di_cowextsize;
+	}
+	if (pip->i_d.di_flags2 & XFS_DIFLAG2_DAX)
+		ip->i_d.di_flags2 |= XFS_DIFLAG2_DAX;
+}
+
 /*
  * Initialise a newly allocated inode and return the in-core inode to the
  * caller locked exclusively.
@@ -127,6 +141,8 @@ libxfs_init_new_inode(
 	case S_IFDIR:
 		if (pip && (pip->i_d.di_flags & XFS_DIFLAG_ANY))
 			xfs_inode_propagate_flags(ip, pip);
+		if (pip && (pip->i_d.di_flags2 & XFS_DIFLAG2_ANY))
+			xfs_inode_inherit_flags2(ip, pip);
 		/* FALLTHROUGH */
 	case S_IFLNK:
 		ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
