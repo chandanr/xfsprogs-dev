@@ -12,6 +12,7 @@ enum check_outcome {
 	CHECK_REPAIR,	/* schedule this for repairs */
 	CHECK_ABORT,	/* end program */
 	CHECK_RETRY,	/* repair failed, try again later */
+	CHECK_TOOSLOW,	/* skipped because freezes are not allowed */
 };
 
 struct action_item;

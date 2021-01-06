@@ -56,7 +56,7 @@ report_to_kernel(
 
 	if (!ctx->scrub_setup_succeeded || ctx->corruptions_found ||
 	    ctx->runtime_errors || ctx->unfixable_errors ||
-	    ctx->warnings_found)
+	    ctx->warnings_found || ctx->slow_ops_skipped)
 		return 0;
 
 	action_list_init(&alist);
