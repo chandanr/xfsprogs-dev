@@ -731,5 +731,7 @@ int xfs_bmap_last_extent(struct xfs_trans *tp, struct xfs_inode *ip,
 
 /* xfs_inode.h */
 #define xfs_iflags_set(ip, flags)	do { } while (0)
+#define xfs_iflags_test(ip, flag)	(false)
+#define xfs_iflags_clear(ip, flag)	do { } while (0)
 
 #endif	/* __LIBXFS_INTERNAL_XFS_H__ */
