@@ -50,6 +50,7 @@ struct scrub_ctx {
 
 	/* What does the user want us to do? */
 	enum scrub_mode		mode;
+	bool			freeze_ok;
 
 	/* How does the user want us to react to errors? */
 	enum error_action	error_action;
@@ -81,6 +82,7 @@ struct scrub_ctx {
 	unsigned long long	naming_warnings;
 	unsigned long long	repairs;
 	unsigned long long	preens;
+	unsigned long long	slow_ops_skipped;
 	bool			scrub_setup_succeeded;
 	bool			preen_triggers[XFS_SCRUB_TYPE_NR];
 };

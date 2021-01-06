@@ -4,7 +4,7 @@ xfs_scrub \- check and repair the contents of a mounted XFS filesystem
 .SH SYNOPSIS
 .B xfs_scrub
 [
-.B \-abCemnTvx
+.B \-abCemqnTvx
 ]
 .I mount-point
 .br
@@ -86,6 +86,10 @@ Search this file for mounted filesystems instead of /etc/mtab.
 Only check filesystem metadata.
 Do not repair or optimize anything.
 .TP
+.BI \-q
+Only perform check and repair operations that can be done quickly.
+Operations requiring filesystem freezes will be skipped.
+.TP
 .BI \-T
 Print timing and memory usage information for each phase.
 .TP
@@ -160,6 +164,8 @@ is the sum of the following conditions:
 \	4\	\-\ Operational error
 .br
 \	8\	\-\ Usage or syntax error
+.br
+\	16\	\-\ Scrub did not run completely
 .br
 .SH CAVEATS
 .B xfs_scrub
