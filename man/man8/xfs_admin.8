@@ -116,6 +116,13 @@ If this is a V5 filesystem, flag the filesystem as needing repairs.
 Until
 .BR xfs_repair (8)
 is run, the filesystem will not be mountable.
+.TP
+.B inobtcount
+Upgrade a V5 filesystem to support the inode btree counters feature.
+This reduces mount time by caching the size of the inode btrees in the
+allocation group metadata.
+Once enabled, the filesystem will not be writable by older kernels.
+The filesystem cannot be downgraded after this feature is enabled.
 .RE
 .TP
 .BI \-U " uuid"
