@@ -113,6 +113,10 @@ ifeq ($(HAVE_STATFS_FLAGS),yes)
 LCFLAGS += -DHAVE_STATFS_FLAGS
 endif
 
+ifeq ($(HAVE_FIEXCHANGE),yes)
+LCFLAGS += -DHAVE_FIEXCHANGE
+endif
+
 default: depend $(LTCOMMAND)
 
 include $(BUILDRULES)
