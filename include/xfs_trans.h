@@ -174,4 +174,7 @@ static inline xfs_lsn_t _lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 
 #define XFS_LSN_CMP(a, b)			_lsn_cmp(a, b)
 
+int libxfs_trans_reserve_more(struct xfs_trans *tp, uint blocks,
+			uint rtextents);
+
 #endif	/* __XFS_TRANS_H__ */
