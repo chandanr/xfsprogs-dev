@@ -29,136 +29,11 @@
 #include "xfs_da_btree.h"
 #include "xfs_dir2_priv.h"
 
-/* Propagate di_flags from a parent inode to a child inode. */
-static void
-xfs_inode_inherit_flags(
-	struct xfs_inode	*ip,
-	const struct xfs_inode	*pip)
-{
-	unsigned int		di_flags = 0;
-	umode_t			mode = VFS_I(ip)->i_mode;
-
-	if ((mode & S_IFMT) == S_IFDIR) {
-		if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT)
-			di_flags |= XFS_DIFLAG_RTINHERIT;
-		if (pip->i_d.di_flags & XFS_DIFLAG_EXTSZINHERIT) {
-			di_flags |= XFS_DIFLAG_EXTSZINHERIT;
-			ip->i_d.di_extsize = pip->i_d.di_extsize;
-		}
-	} else {
-		if ((pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT) &&
-		    xfs_sb_version_hasrealtime(&ip->i_mount->m_sb))
-			di_flags |= XFS_DIFLAG_REALTIME;
-		if (pip->i_d.di_flags & XFS_DIFLAG_EXTSZINHERIT) {
-			di_flags |= XFS_DIFLAG_EXTSIZE;
-			ip->i_d.di_extsize = pip->i_d.di_extsize;
-		}
-	}
-	if (pip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
-		di_flags |= XFS_DIFLAG_PROJINHERIT;
-	ip->i_d.di_flags |= di_flags;
-}
-
-/* Propagate di_flags2 from a parent inode to a child inode. */
-static void
-xfs_inode_inherit_flags2(
-	struct xfs_inode	*ip,
-	const struct xfs_inode	*pip)
-{
-	if (pip->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE) {
-		ip->i_d.di_flags2 |= XFS_DIFLAG2_COWEXTSIZE;
-		ip->i_d.di_cowextsize = pip->i_d.di_cowextsize;
-	}
-	if (pip->i_d.di_flags2 & XFS_DIFLAG2_DAX)
-		ip->i_d.di_flags2 |= XFS_DIFLAG2_DAX;
-}
-
-/* Initialise an inode's attributes. */
-static void
-xfs_inode_init(
-	struct xfs_trans	*tp,
-	const struct xfs_ialloc_args *args,
+void
+xfs_setup_inode(
 	struct xfs_inode	*ip)
 {
-	struct xfs_inode	*pip = args->pip;
-	struct inode		*dir = pip ? VFS_I(pip) : NULL;
-	struct xfs_mount	*mp = tp->t_mountp;
-	struct inode		*inode = VFS_I(ip);
-	unsigned int		flags;
-	int			times = XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG |
-					XFS_ICHGTIME_ACCESS;
-
-	set_nlink(inode, args->nlink);
-	inode->i_rdev = args->rdev;
-	ip->i_d.di_projid = args->prid;
-
-	if (dir && !(dir->i_mode & S_ISGID) &&
-	    (mp->m_flags & XFS_MOUNT_GRPID)) {
-		inode->i_uid = args->uid;
-		inode->i_gid = dir->i_gid;
-		inode->i_mode = args->mode;
-	} else {
-		inode_init_owner(inode, dir, args->mode);
-	}
-
-	/* struct copies */
-	if (args->flags & XFS_IALLOC_ARGS_FORCE_UID)
-		inode->i_uid = args->uid;
-	if (args->flags & XFS_IALLOC_ARGS_FORCE_GID)
-		inode->i_gid = args->gid;
-
-	ip->i_d.di_size = 0;
-	ip->i_df.if_nextents = 0;
-	ASSERT(ip->i_d.di_nblocks == 0);
-
-	ip->i_d.di_extsize = 0;
-	ip->i_d.di_dmevmask = 0;
-	ip->i_d.di_dmstate = 0;
-	ip->i_d.di_flags = 0;
-
-	if (xfs_sb_version_has_v3inode(&ip->i_mount->m_sb)) {
-		ASSERT(ip->i_d.di_ino == ino);
-		ASSERT(uuid_equal(&ip->i_d.di_uuid, &mp->m_sb.sb_meta_uuid));
-		VFS_I(ip)->i_version = 1;
-		ip->i_d.di_flags2 = ip->i_mount->m_ino_geo.new_diflags2;
-		ip->i_d.di_cowextsize = 0;
-		times |= XFS_ICHGTIME_CREATE;
-	}
-
-	xfs_trans_ichgtime(tp, ip, times);
-
-	flags = XFS_ILOG_CORE;
-	switch (args->mode & S_IFMT) {
-	case S_IFIFO:
-	case S_IFSOCK:
-	case S_IFCHR:
-	case S_IFBLK:
-		ip->i_df.if_format = XFS_DINODE_FMT_DEV;
-		ip->i_df.if_flags = 0;
-		flags |= XFS_ILOG_DEV;
-		break;
-	case S_IFREG:
-	case S_IFDIR:
-		if (pip && (pip->i_d.di_flags & XFS_DIFLAG_ANY))
-			xfs_inode_inherit_flags(ip, pip);
-		if (pip && (pip->i_d.di_flags2 & XFS_DIFLAG2_ANY))
-			xfs_inode_inherit_flags2(ip, pip);
-		/* FALLTHROUGH */
-	case S_IFLNK:
-		ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
-		ip->i_df.if_flags = XFS_IFEXTENTS;
-		ip->i_df.if_bytes = 0;
-		ip->i_df.if_u1.if_root = NULL;
-		break;
-	default:
-		ASSERT(0);
-	}
-
-	/*
-	 * Log the new values stuffed into the inode.
-	 */
-	xfs_trans_ijoin(tp, ip, 0);
-	xfs_trans_log_inode(tp, ip, flags);
+	/* empty */
 }
 
 /*
@@ -398,11 +273,12 @@ libxfs_irele(
 
 void
 inode_init_owner(
+	struct user_namespace	*mnt_userns,
 	struct inode		*inode,
 	const struct inode	*dir,
 	umode_t			mode)
 {
-	inode->i_uid = current_fsuid();
+	inode->i_uid = make_kuid(0);
 	if (dir && dir->i_mode & S_ISGID) {
 		inode->i_gid = dir->i_gid;
 
@@ -412,7 +288,7 @@ inode_init_owner(
 		else if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP))
 			mode &= ~S_ISGID;
 	} else
-		inode->i_gid = current_fsgid();
+		inode->i_gid = make_kgid(0);
 	inode->i_mode = mode;
 }
 
