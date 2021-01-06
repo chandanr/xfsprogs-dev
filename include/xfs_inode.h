@@ -32,6 +32,16 @@ static inline kgid_t make_kgid(gid_t gid)
 	return v;
 }
 
+static inline kuid_t current_fsuid(void)
+{
+	return make_kuid(0);
+}
+
+static inline kgid_t current_fsgid(void)
+{
+	return make_kgid(0);
+}
+
 /* These match kernel side includes */
 #include "xfs_inode_buf.h"
 #include "xfs_inode_fork.h"
