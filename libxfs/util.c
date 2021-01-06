@@ -465,9 +465,6 @@ libxfs_imeta_mkdir(
 	uint				resblks;
 	int				error;
 
-	/* Try to place metadata directories in AG 0. */
-	mp->m_agirotor = 0;
-
 	/* Allocate a transaction to create the last directory. */
 	resblks = libxfs_imeta_create_space_res(mp);
 	error = libxfs_trans_alloc(mp, &M_RES(mp)->tr_imeta_create, resblks,
