@@ -264,24 +264,6 @@ libxfs_iflush_int(
 	return 0;
 }
 
-/* Propagate extended inode properties into the new child. */
-static void
-xfs_ialloc_fsx_init(
-	struct xfs_trans		*tp,
-	struct xfs_inode		*ip,
-	const struct fsxattr		*fsx)
-{
-	ip->i_projid = fsx->fsx_projid;
-	ip->i_extsize = fsx->fsx_extsize;
-	ip->i_diflags = xfs_flags2diflags(ip, fsx->fsx_xflags);
-
-	if (xfs_sb_version_has_v3inode(&ip->i_mount->m_sb)) {
-		ip->i_diflags2 = xfs_flags2diflags2(ip, fsx->fsx_xflags);
-		ip->i_cowextsize = fsx->fsx_cowextsize;
-	}
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-}
-
 /*
  * Wrapper around call to libxfs_ialloc. Takes care of committing and
  * allocating a new transaction as needed.
@@ -292,25 +274,10 @@ xfs_ialloc_fsx_init(
 int
 libxfs_dir_ialloc(
 	struct xfs_trans	**tpp,
-	struct xfs_inode	*dp,
-	mode_t			mode,
-	nlink_t			nlink,
-	xfs_dev_t		rdev,
-	struct cred		*cr,
-	struct fsxattr		*fsx,
+	const struct xfs_ialloc_args *args,
 	struct xfs_inode	**ipp)
 {
-	struct xfs_ialloc_args	args = {
-		.pip		= dp,
-		.uid		= make_kuid(cr->cr_uid),
-		.gid		= make_kgid(cr->cr_gid),
-		.prid		= dp ? libxfs_get_initial_prid(dp) : 0,
-		.nlink		= nlink,
-		.rdev		= rdev,
-		.mode		= mode,
-		.flags		= XFS_IALLOC_ARGS_FORCE_UID |
-				  XFS_IALLOC_ARGS_FORCE_GID,
-	};
+	struct xfs_inode	*dp = args->pip;
 	struct xfs_buf		*agibp;
 	xfs_ino_t		parent_ino = dp ? dp->i_ino : 0;
 	xfs_ino_t		ino;
@@ -318,12 +285,11 @@ libxfs_dir_ialloc(
 
 	ASSERT((*tpp)->t_flags & XFS_TRANS_PERM_LOG_RES);
 
-
 	/*
 	 * Call the space management code to pick the on-disk inode to be
 	 * allocated.
 	 */
-	error = xfs_dialloc_select_ag(tpp, parent_ino, mode, &agibp);
+	error = xfs_dialloc_select_ag(tpp, parent_ino, args->mode, &agibp);
 	if (error)
 		return error;
 
@@ -336,13 +302,7 @@ libxfs_dir_ialloc(
 		return error;
 	ASSERT(ino != NULLFSINO);
 
-	error = libxfs_init_new_inode(*tpp, ino, &args, ipp);
-	if (error)
-		return error;
-
-	if (!dp)
-		xfs_ialloc_fsx_init(*tpp, *ipp, fsx);
-	return 0;
+	return libxfs_init_new_inode(*tpp, ino, args, ipp);
 }
 
 /*
@@ -466,4 +426,20 @@ inode_init_owner(
 	} else
 		inode->i_gid = current_fsgid();
 	inode->i_mode = mode;
+}
+
+/* Set up the inode allocation parameters for internal files. */
+void
+xfs_ialloc_internal_args(
+	struct xfs_ialloc_args	*args,
+	umode_t			mode)
+{
+	args->mnt_userns = NULL;
+	args->uid = make_kuid(0);
+	args->gid = make_kgid(0);
+	args->prid = 0;
+	args->mode = mode;
+	args->flags = XFS_IALLOC_ARGS_FORCE_UID |
+		      XFS_IALLOC_ARGS_FORCE_GID |
+		      XFS_IALLOC_ARGS_FORCE_MODE;
 }
