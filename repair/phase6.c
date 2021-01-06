@@ -815,7 +815,8 @@ mk_root_dir(xfs_mount_t *mp)
 	}
 
 	/*
-	 * take care of the core -- initialization from xfs_ialloc()
+	 * take care of the core since we didn't call the libxfs ialloc function
+	 * (comment changed to avoid tangling xfs/437)
 	 */
 	reset_inode_fields(ip);
 
@@ -868,6 +869,9 @@ mk_orphanage(
 {
 	struct xfs_ialloc_args	args = {
 		.nlink		= 2,
+		.flags		= XFS_IALLOC_ARGS_FORCE_UID |
+				  XFS_IALLOC_ARGS_FORCE_GID |
+				  XFS_IALLOC_ARGS_FORCE_MODE,
 	};
 	struct xfs_trans	*tp;
 	struct xfs_inode	*ip;
