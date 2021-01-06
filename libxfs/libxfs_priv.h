@@ -238,6 +238,11 @@ static inline bool WARN_ON(bool expr) {
 	(inode)->i_version = (version);	\
 } while (0)
 
+struct inode;
+
+void inode_init_owner(struct inode *inode, const struct inode *dir,
+			umode_t mode);
+
 static inline int __do_div(unsigned long long *n, unsigned base)
 {
 	int __res;
@@ -455,6 +460,7 @@ void __xfs_buf_mark_corrupt(struct xfs_buf *bp, xfs_failaddr_t fa);
 #define XFS_MOUNT_SWALLOC		0	/* ignored in userspace */
 #define XFS_MOUNT_RDONLY		0	/* ignored in userspace */
 #define XFS_MOUNT_BAD_SUMMARY		0	/* ignored in userspace */
+#define XFS_MOUNT_GRPID			0	/* ignored in userspace */
 
 #define xfs_trans_set_sync(tp)		((void) 0)
 #define xfs_trans_buf_set_type(tp, bp, t)	({	\
