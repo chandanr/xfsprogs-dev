@@ -199,7 +199,9 @@ libxfs_imeta_iget(
 	if (error)
 		return error;
 
-	if (ftype == XFS_DIR3_FT_UNKNOWN ||
+	if ((xfs_sb_version_hasmetadir(&mp->m_sb) &&
+	     !xfs_is_metadata_inode(ip)) ||
+	    ftype == XFS_DIR3_FT_UNKNOWN ||
 	    xfs_mode_to_ftype(VFS_I(ip)->i_mode) != ftype) {
 		libxfs_irele(ip);
 		return -EFSCORRUPTED;
@@ -247,6 +249,9 @@ void
 libxfs_imeta_irele(
 	struct xfs_inode	*ip)
 {
+	ASSERT(!xfs_sb_version_hasmetadir(&ip->i_mount->m_sb) ||
+	       xfs_is_metadata_inode(ip));
+
 	libxfs_irele(ip);
 }
 
