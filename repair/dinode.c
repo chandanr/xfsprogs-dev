@@ -20,6 +20,7 @@
 #include "threads.h"
 #include "slab.h"
 #include "rmap.h"
+#include "bmap_repair.h"
 
 /*
  * gettext lookups for translations of strings use mutexes internally to
@@ -1875,7 +1876,9 @@ process_inode_data_fork(
 	xfs_ino_t		lino = XFS_AGINO_TO_INO(mp, agno, ino);
 	int			err = 0;
 	int			nex;
+	int			try_rebuild = -1; /* don't know yet */
 
+retry:
 	/*
 	 * extent count on disk is only valid for positive values. The kernel
 	 * uses negative values in memory. hence if we see negative numbers
@@ -1901,11 +1904,15 @@ process_inode_data_fork(
 		*totblocks = 0;
 		break;
 	case XFS_DINODE_FMT_EXTENTS:
+		if (!rmapbt_suspect && try_rebuild == -1)
+			try_rebuild = 1;
 		err = process_exinode(mp, agno, ino, dino, type, dirty,
 			totblocks, nextents, dblkmap, XFS_DATA_FORK,
 			check_dups);
 		break;
 	case XFS_DINODE_FMT_BTREE:
+		if (!rmapbt_suspect && try_rebuild == -1)
+			try_rebuild = 1;
 		err = process_btinode(mp, agno, ino, dino, type, dirty,
 			totblocks, nextents, dblkmap, XFS_DATA_FORK,
 			check_dups);
@@ -1921,8 +1928,28 @@ process_inode_data_fork(
 	if (err)  {
 		do_warn(_("bad data fork in inode %" PRIu64 "\n"), lino);
 		if (!no_modify)  {
+			if (try_rebuild == 1) {
+				do_warn(
+_("rebuilding inode %"PRIu64" data fork\n"),
+					lino);
+				try_rebuild = 0;
+				err = rebuild_bmap(mp, lino, XFS_DATA_FORK,
+						be32_to_cpu(dino->di_nextents),
+						ino_bpp, dinop, dirty);
+				dino = *dinop;
+				if (!err)
+					goto retry;
+				do_warn(
+_("inode %"PRIu64" data fork rebuild failed, error %d, clearing\n"),
+					lino, err);
+			}
 			clear_dinode(mp, dino, lino);
 			*dirty += 1;
+			ASSERT(*dirty > 0);
+		} else if (try_rebuild == 1) {
+			do_warn(
+_("would have tried to rebuild inode %"PRIu64" data fork\n"),
+					lino);
 		}
 		return 1;
 	}
@@ -1988,7 +2015,9 @@ process_inode_attr_fork(
 	struct blkmap		*ablkmap = NULL;
 	int			repair = 0;
 	int			err;
+	int			try_rebuild = -1; /* don't know yet */
 
+retry:
 	if (!dino->di_forkoff) {
 		*anextents = 0;
 		if (dino->di_aformat != XFS_DINODE_FMT_EXTENTS) {
@@ -2015,6 +2044,8 @@ process_inode_attr_fork(
 		err = process_lclinode(mp, agno, ino, dino, XFS_ATTR_FORK);
 		break;
 	case XFS_DINODE_FMT_EXTENTS:
+		if (!rmapbt_suspect && try_rebuild == -1)
+			try_rebuild = 1;
 		ablkmap = blkmap_alloc(*anextents, XFS_ATTR_FORK);
 		*anextents = 0;
 		err = process_exinode(mp, agno, ino, dino, type, dirty,
@@ -2022,6 +2053,8 @@ process_inode_attr_fork(
 				XFS_ATTR_FORK, check_dups);
 		break;
 	case XFS_DINODE_FMT_BTREE:
+		if (!rmapbt_suspect && try_rebuild == -1)
+			try_rebuild = 1;
 		ablkmap = blkmap_alloc(*anextents, XFS_ATTR_FORK);
 		*anextents = 0;
 		err = process_btinode(mp, agno, ino, dino, type, dirty,
@@ -2047,11 +2080,30 @@ process_inode_attr_fork(
 		do_warn(_("bad attribute fork in inode %" PRIu64 "\n"), lino);
 
 		if (!no_modify)  {
+			if (try_rebuild == 1) {
+				do_warn(
+_("rebuilding inode %"PRIu64" attr fork\n"),
+					lino);
+				try_rebuild = 0;
+				err = rebuild_bmap(mp, lino, XFS_ATTR_FORK,
+						be16_to_cpu(dino->di_anextents),
+						ino_bpp, dinop, dirty);
+				dino = *dinop;
+				if (!err)
+					goto retry;
+				do_warn(
+_("inode %"PRIu64" attr fork rebuild failed, error %d"),
+					lino, err);
+			}
 			do_warn(_(", clearing attr fork\n"));
 			*dirty += clear_dinode_attr(mp, dino, lino);
 			dino->di_aformat = XFS_DINODE_FMT_LOCAL;
 			ASSERT(*dirty > 0);
-		} else  {
+		} else if (try_rebuild) {
+			do_warn(
+_("would have tried to rebuild inode %"PRIu64" attr fork or cleared it\n"),
+					lino);
+		} else {
 			do_warn(_(", would clear attr fork\n"));
 		}
 
