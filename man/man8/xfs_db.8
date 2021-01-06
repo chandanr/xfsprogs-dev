@@ -971,6 +971,11 @@ may toggle between
 and
 .B attr2
 at will (older kernels may not support the newer version).
+The filesystem can be flagged as requiring a run through
+.BR xfs_repair (8)
+if the
+.B needsrepair
+option is specified and the filesystem is formatted with the V5 format.
 .IP
 If no argument is given, the current version and feature bits are printed.
 With one argument, this command will write the updated version number

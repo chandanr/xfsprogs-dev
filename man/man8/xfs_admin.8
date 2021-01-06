@@ -6,6 +6,8 @@ xfs_admin \- change parameters of an XFS filesystem
 [
 .B \-eflpu
 ] [
+.BI \-O " feature"
+] [
 .BR "\-c 0" | 1
 ] [
 .B \-L
@@ -102,6 +104,19 @@ The filesystem label can be cleared using the special "\c
 .B \-\-\c
 " value for
 .IR label .
+.TP
+.BI \-O " feature"
+Add a new feature to the filesystem.
+Only one feature can be specified at a time.
+Features are as follows:
+.RS 0.7i
+.TP
+.B needsrepair
+If this is a V5 filesystem, flag the filesystem as needing repairs.
+Until
+.BR xfs_repair (8)
+is run, the filesystem will not be mountable.
+.RE
 .TP
 .BI \-U " uuid"
 Set the UUID of the filesystem to

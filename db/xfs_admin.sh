@@ -7,9 +7,9 @@
 status=0
 DB_OPTS=""
 REPAIR_OPTS=""
-USAGE="Usage: xfs_admin [-efjlpuV] [-c 0|1] [-L label] [-U uuid] device [logdev]"
+USAGE="Usage: xfs_admin [-efjlpuV] [-c 0|1] [-L label] [-U uuid] [-O v5_feature] device [logdev]"
 
-while getopts "efjlpuc:L:U:V" c
+while getopts "efjlpuc:L:O:U:V" c
 do
 	case $c in
 	c)	REPAIR_OPTS=$REPAIR_OPTS" -c lazycount="$OPTARG;;
@@ -19,6 +19,9 @@ do
 	l)	DB_OPTS=$DB_OPTS" -r -c label";;
 	L)	DB_OPTS=$DB_OPTS" -c 'label "$OPTARG"'";;
 	p)	DB_OPTS=$DB_OPTS" -c 'version projid32bit'";;
+	O)	DB_OPTS=$DB_OPTS" -c 'version "$OPTARG"'";
+		# Force repair to run by adding a single space to REPAIR_OPTS
+		REPAIR_OPTS="$REPAIR_OPTS ";;
 	u)	DB_OPTS=$DB_OPTS" -r -c uuid";;
 	U)	DB_OPTS=$DB_OPTS" -c 'uuid "$OPTARG"'";;
 	V)	xfs_db -p xfs_admin -V
@@ -34,6 +37,7 @@ set -- extra $@
 shift $OPTIND
 case $# in
 	1|2)
+		status=0
 		# Pick up the log device, if present
 		if [ -n "$2" ]; then
 			DB_OPTS=$DB_OPTS" -l '$2'"
@@ -46,7 +50,7 @@ case $# in
 			eval xfs_db -x -p xfs_admin $DB_OPTS $1
 			status=$?
 		fi
-		if [ -n "$REPAIR_OPTS" ]
+		if [ -n "$REPAIR_OPTS" ] && [ $status -ne 2 ]
 		then
 			# Hide normal repair output which is sent to stderr
 			# assuming the filesystem is fine when a user is

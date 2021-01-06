@@ -379,6 +379,11 @@ uuid_f(
 				progname);
 			return 0;
 		}
+		if (xfs_sb_version_needsrepair(&mp->m_sb)) {
+			dbprintf(_("%s: filesystem needs xfs_repair\n"),
+				progname);
+			return 0;
+		}
 
 		if (!strcasecmp(argv[1], "generate")) {
 			platform_uuid_generate(&uu);
@@ -501,6 +506,7 @@ do_label(xfs_agnumber_t agno, char *label)
 		memcpy(&lbl[0], &tsb.sb_fname, sizeof(tsb.sb_fname));
 		return &lbl[0];
 	}
+
 	/* set label */
 	if ((len = strlen(label)) > sizeof(tsb.sb_fname)) {
 		if (agno == 0)
@@ -539,6 +545,12 @@ label_f(
 
 		if ((x.isreadonly & LIBXFS_ISREADONLY) || !expert_mode) {
 			dbprintf(_("%s: not in expert mode, writing disabled\n"),
+				progname);
+			return 0;
+		}
+
+		if (xfs_sb_version_needsrepair(&mp->m_sb)) {
+			dbprintf(_("%s: filesystem needs xfs_repair\n"),
 				progname);
 			return 0;
 		}
@@ -584,6 +596,7 @@ version_help(void)
 " 'version attr1'    - enable v1 inline extended attributes\n"
 " 'version attr2'    - enable v2 inline extended attributes\n"
 " 'version log2'     - enable v2 log format\n"
+" 'version needsrepair' - flag filesystem as requiring repair\n"
 "\n"
 "The version function prints currently enabled features for a filesystem\n"
 "according to the version field of its primary superblock.\n"
@@ -618,6 +631,112 @@ do_version(xfs_agnumber_t agno, uint16_t version, uint32_t features)
 	libxfs_sb_to_disk(iocur_top->data, &tsb);
 	write_cur();
 	return 1;
+}
+
+struct v5feat {
+	uint32_t		compat;
+	uint32_t		ro_compat;
+	uint32_t		incompat;
+	uint32_t		log_incompat;
+};
+
+static void
+get_v5_features(
+	struct v5feat		*feat,
+	const struct xfs_sb	*sbp)
+{
+	feat->compat = sbp->sb_features_compat;
+	feat->ro_compat = sbp->sb_features_ro_compat;
+	feat->incompat = sbp->sb_features_incompat;
+	feat->log_incompat = sbp->sb_features_log_incompat;
+}
+
+static void
+set_v5_features(
+	struct xfs_sb		*sbp,
+	const struct v5feat	*feat)
+{
+	sbp->sb_features_compat = feat->compat;
+	sbp->sb_features_ro_compat = feat->ro_compat;
+	sbp->sb_features_incompat = feat->incompat;
+	sbp->sb_features_log_incompat = feat->log_incompat;
+}
+
+static bool
+upgrade_v5_features(
+	struct xfs_mount	*mp,
+	const struct v5feat	*upgrade)
+{
+	struct xfs_sb		tsb;
+	struct v5feat		old;
+	xfs_agnumber_t		agno = 0;
+	xfs_agnumber_t		revert_agno = 0;
+
+	if (upgrade->compat == mp->m_sb.sb_features_compat &&
+	    upgrade->ro_compat == mp->m_sb.sb_features_ro_compat &&
+	    upgrade->incompat == mp->m_sb.sb_features_incompat &&
+	    upgrade->log_incompat == mp->m_sb.sb_features_log_incompat)
+		return true;
+
+	/* Upgrade primary superblock. */
+	if (!get_sb(agno, &tsb))
+		goto fail;
+
+	dbprintf(_("Upgrading V5 filesystem\n"));
+
+	/* Save the old primary super features in case we revert. */
+	get_v5_features(&old, &tsb);
+
+	/* Update features and force user to run repair before mounting. */
+	set_v5_features(&tsb, upgrade);
+	tsb.sb_features_incompat |= XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR;
+
+	/* Write new primary superblock */
+	libxfs_sb_to_disk(iocur_top->data, &tsb);
+	write_cur();
+	if (!iocur_top->bp || iocur_top->bp->b_error)
+		goto fail;
+
+	/* Update the secondary superblocks, or revert. */
+	for (agno = 1; agno < mp->m_sb.sb_agcount; agno++) {
+		if (!get_sb(agno, &tsb)) {
+			agno--;
+			goto revert;
+		}
+
+		/* Set features and write secondary super. */
+		set_v5_features(&tsb, upgrade);
+		libxfs_sb_to_disk(iocur_top->data, &tsb);
+		write_cur();
+
+		/* Write or abort. */
+		if (!iocur_top->bp || iocur_top->bp->b_error)
+			goto revert;
+	}
+
+	/* All superblocks updated, update the incore values. */
+	set_v5_features(&mp->m_sb, upgrade);
+	dbprintf(_("Upgraded V5 filesystem.  Please run xfs_repair.\n"));
+	return true;
+
+revert:
+	/*
+	 * Try to revert feature flag changes, and don't worry if we fail.
+	 * We're probably in a mess anyhow, and the admin will have to run
+	 * repair anyways.
+	 */
+	for (revert_agno = 0; revert_agno <= agno; revert_agno++) {
+		if (!get_sb(revert_agno, &tsb))
+			continue;
+
+		set_v5_features(&tsb, &old);
+		libxfs_sb_to_disk(iocur_top->data, &tsb);
+		write_cur();
+	}
+fail:
+	dbprintf(
+_("Failed to upgrade V5 filesystem at AG %d, please run xfs_repair.\n"), agno);
+	return false;
 }
 
 static char *
@@ -691,15 +810,12 @@ version_string(
 		strcat(s, ",INOBTCNT");
 	if (xfs_sb_version_hasbigtime(sbp))
 		strcat(s, ",BIGTIME");
+	if (xfs_sb_version_needsrepair(sbp))
+		strcat(s, ",NEEDSREPAIR");
 	return s;
 }
 
-/*
- * XXX: this only supports reading and writing to version 4 superblock fields.
- * V5 superblocks always define certain V4 feature bits - they are blocked from
- * being changed if a V5 sb is detected, but otherwise v5 superblock features
- * are not handled here.
- */
+/* Upgrade a superblock to support a feature. */
 static int
 version_f(
 	int		argc,
@@ -710,6 +826,9 @@ version_f(
 	xfs_agnumber_t	ag;
 
 	if (argc == 2) {	/* WRITE VERSION */
+		struct v5feat	v5features;
+
+		get_v5_features(&v5features, &mp->m_sb);
 
 		if ((x.isreadonly & LIBXFS_ISREADONLY) || !expert_mode) {
 			dbprintf(_("%s: not in expert mode, writing disabled\n"),
@@ -717,8 +836,23 @@ version_f(
 			return 0;
 		}
 
+		if (xfs_sb_version_needsrepair(&mp->m_sb)) {
+			dbprintf(_("%s: filesystem needs xfs_repair\n"),
+				progname);
+			return 0;
+		}
+
 		/* Logic here derived from the IRIX xfs_chver(1M) script. */
-		if (!strcasecmp(argv[1], "extflg")) {
+		if (!strcasecmp(argv[1], "needsrepair")) {
+			if (!xfs_sb_version_hascrc(&mp->m_sb)) {
+				dbprintf(
+		_("needsrepair flag cannot be enabled on pre-V5 filesystems\n"));
+				exitcode = 2;
+				return 1;
+			}
+
+			v5features.incompat |= XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR;
+		} else if (!strcasecmp(argv[1], "extflg")) {
 			switch (XFS_SB_VERSION_NUM(&mp->m_sb)) {
 			case XFS_SB_VERSION_1:
 				version = 0x0004 | XFS_SB_VERSION_EXTFLGBIT;
@@ -808,6 +942,11 @@ version_f(
 				}
 			mp->m_sb.sb_versionnum = version;
 			mp->m_sb.sb_features2 = features;
+		}
+
+		if (!upgrade_v5_features(mp, &v5features)) {
+			exitcode = 1;
+			return 1;
 		}
 	}
 
