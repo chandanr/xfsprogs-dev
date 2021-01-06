@@ -48,10 +48,8 @@ format_scrub_descr(
 		break;
 	case XFROG_SCRUB_TYPE_FS:
 	case XFROG_SCRUB_TYPE_SUMMARY:
-		return snprintf(buf, buflen, _("%s"), _(sc->descr));
-		break;
 	case XFROG_SCRUB_TYPE_NONE:
-		assert(0);
+		return snprintf(buf, buflen, _("%s"), _(sc->descr));
 		break;
 	}
 	return -1;
