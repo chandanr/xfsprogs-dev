@@ -704,6 +704,8 @@ version_string(
 		strcat(s, ",BIGTIME");
 	if (xfs_sb_version_needsrepair(sbp))
 		strcat(s, ",NEEDSREPAIR");
+	if (xfs_sb_version_hasmetadir(sbp))
+		strcat(s, ",METADIR");
 	return s;
 }
 
