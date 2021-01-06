@@ -206,4 +206,19 @@ extern void	libxfs_irele(struct xfs_inode *ip);
 
 #define XFS_DEFAULT_COWEXTSZ_HINT 32
 
+static inline void
+inode_set_iversion(struct inode *inode, uint64_t version)
+{
+	inode->i_version = version;
+}
+
+#define xfs_inherit_noatime	(false)
+#define xfs_inherit_nodump	(false)
+#define xfs_inherit_sync	(false)
+#define xfs_inherit_nosymlinks	(false)
+#define xfs_inherit_nodefrag	(false)
+#define irix_sgid_inherit	(false)
+#define in_group_p(g)		(false)
+#define XFS_INHERIT_GID(pip)	(VFS_I(pip)->i_mode & S_ISGID)
+
 #endif /* __XFS_INODE_H__ */

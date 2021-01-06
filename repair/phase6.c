@@ -819,7 +819,8 @@ mk_root_dir(xfs_mount_t *mp)
 	}
 
 	/*
-	 * take care of the core -- initialization from xfs_ialloc()
+	 * take care of the core since we didn't call the libxfs ialloc function
+	 * (comment changed to avoid tangling xfs/437)
 	 */
 	memset(&ip->i_d, 0, sizeof(ip->i_d));
 
