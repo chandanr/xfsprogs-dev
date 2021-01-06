@@ -219,3 +219,51 @@ libxfs_irele(
 		kmem_cache_free(xfs_inode_zone, ip);
 	}
 }
+
+/*
+ * Stub of fast in-core unlinked list lookups.  We store nothing and lookups
+ * return -ENOENT which will cause us to fall back to slow lookups.  Nothing
+ * calls the iunlink functions so this is not a big deal.
+ */
+
+int
+xfs_iunlink_init(
+	struct xfs_perag	*pag)
+{
+	return 0;
+}
+
+void
+xfs_iunlink_destroy(
+	struct xfs_perag	*pag)
+{
+}
+
+/* Not implemented; we'll have to search the AGI unlinked list. */
+xfs_agino_t
+xfs_iunlink_lookup_backref(
+	struct xfs_perag	*pag,
+	xfs_agino_t		agino)
+{
+	return NULLAGINO;
+}
+
+/* Remember that @prev_agino.next_unlinked = @this_agino. */
+int
+xfs_iunlink_add_backref(
+	struct xfs_perag	*pag,
+	xfs_agino_t		prev_agino,
+	xfs_agino_t		this_agino)
+{
+	return 0;
+}
+
+/* Replace X.next_unlinked = @agino with X.next_unlinked = @next_unlinked. */
+int
+xfs_iunlink_change_backref(
+	struct xfs_perag	*pag,
+	xfs_agino_t		agino,
+	xfs_agino_t		next_unlinked)
+{
+	return 0;
+}
