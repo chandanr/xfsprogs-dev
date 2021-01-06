@@ -115,9 +115,9 @@ phase7_func(
 	int			ip;
 	int			error;
 
-	/* Check and fix the fs summary counters. */
+	/* Check and fix the summary counters. */
 	action_list_init(&alist);
-	error = scrub_fs_summary(ctx, &alist);
+	error = scrub_summary(ctx, &alist);
 	if (error)
 		return error;
 	error = action_list_process(ctx, ctx->mnt.fd, &alist,
