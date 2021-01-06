@@ -66,6 +66,7 @@ scrub_ioctl(
 		break;
 	case XFROG_SCRUB_TYPE_NONE:
 	case XFROG_SCRUB_TYPE_FS:
+	case XFROG_SCRUB_TYPE_SUMMARY:
 		/* no control parameters */
 		break;
 	}
@@ -162,6 +163,7 @@ parse_args(
 		}
 		break;
 	case XFROG_SCRUB_TYPE_FS:
+	case XFROG_SCRUB_TYPE_SUMMARY:
 	case XFROG_SCRUB_TYPE_NONE:
 		if (optind != argc) {
 			fprintf(stderr,
@@ -251,6 +253,7 @@ repair_ioctl(
 		break;
 	case XFROG_SCRUB_TYPE_NONE:
 	case XFROG_SCRUB_TYPE_FS:
+	case XFROG_SCRUB_TYPE_SUMMARY:
 		/* no control parameters */
 		break;
 	}

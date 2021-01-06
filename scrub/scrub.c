@@ -47,6 +47,7 @@ format_scrub_descr(
 				_(sc->descr));
 		break;
 	case XFROG_SCRUB_TYPE_FS:
+	case XFROG_SCRUB_TYPE_SUMMARY:
 		return snprintf(buf, buflen, _("%s"), _(sc->descr));
 		break;
 	case XFROG_SCRUB_TYPE_NONE:
@@ -346,8 +347,6 @@ scrub_all_types(
 
 		if (sc->type != scrub_type)
 			continue;
-		if (sc->flags & XFROG_SCRUB_DESCR_SUMMARY)
-			continue;
 
 		ret = scrub_meta_type(ctx, type, agno, alist);
 		if (ret)
@@ -402,7 +401,16 @@ scrub_fs_metadata(
 
 /* Scrub FS summary metadata. */
 int
-scrub_fs_summary(
+scrub_summary(
+	struct scrub_ctx		*ctx,
+	struct action_list		*alist)
+{
+	return scrub_all_types(ctx, XFROG_SCRUB_TYPE_SUMMARY, 0, alist);
+}
+
+/* Scrub the superblock summary counters. */
+int
+scrub_fs_counters(
 	struct scrub_ctx		*ctx,
 	struct action_list		*alist)
 {
@@ -426,6 +434,7 @@ scrub_estimate_ag_work(
 			estimate += ctx->mnt.fsgeom.agcount;
 			break;
 		case XFROG_SCRUB_TYPE_FS:
+		case XFROG_SCRUB_TYPE_SUMMARY:
 			estimate++;
 			break;
 		default:

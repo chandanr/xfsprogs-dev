@@ -132,8 +132,7 @@ const struct xfrog_scrub_descr xfrog_scrubbers[XFS_SCRUB_TYPE_NR] = {
 	[XFS_SCRUB_TYPE_FSCOUNTERS] = {
 		.name	= "fscounters",
 		.descr	= "filesystem summary counters",
-		.type	= XFROG_SCRUB_TYPE_FS,
-		.flags	= XFROG_SCRUB_DESCR_SUMMARY,
+		.type	= XFROG_SCRUB_TYPE_SUMMARY,
 	},
 };
 
