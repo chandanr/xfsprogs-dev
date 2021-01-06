@@ -314,6 +314,11 @@ phase4(xfs_mount_t *mp)
 	check_fs_root_dir(mp, _("root inode"), mp->m_sb.sb_rootino,
 			&need_root_inode);
 
+	if (xfs_sb_version_hasmetadir(&mp->m_sb)) {
+		check_fs_root_dir(mp, _("metadata directory root"),
+				mp->m_sb.sb_metadirino, &need_metadir_inode);
+	}
+
 	for (i = 0; i < mp->m_sb.sb_agcount; i++)  {
 		ag_end = (i < mp->m_sb.sb_agcount - 1) ? mp->m_sb.sb_agblocks :
 			mp->m_sb.sb_dblocks -
