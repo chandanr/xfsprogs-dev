@@ -40,15 +40,13 @@ xfs_setup_inode(
  * Set up an incore inode for a newly allocated ondisk inode and return it to
  * the caller locked exclusively.
  */
-static int
+int
 xfs_inode_ialloc_iget(
 	struct xfs_trans	*tp,
 	xfs_ino_t		ino,
 	struct xfs_inode	**ipp)
 {
-	struct xfs_mount	*mp = tp->t_mountp;
-
-	return libxfs_iget(mp, tp, ino, 0, ipp);
+	return libxfs_iget(tp->t_mountp, tp, ino, 0, ipp);
 }
 
 /*
@@ -114,53 +112,6 @@ libxfs_iflush_int(
 	/* generate the checksum. */
 	xfs_dinode_calc_crc(mp, dip);
 
-	return 0;
-}
-
-/*
- * Wrapper around call to libxfs_ialloc. Takes care of committing and
- * allocating a new transaction as needed.
- *
- * Originally there were two copies of this code - one in mkfs, the
- * other in repair - now there is just the one.
- */
-int
-libxfs_dir_ialloc(
-	struct xfs_trans	**tpp,
-	const struct xfs_ialloc_args *args,
-	struct xfs_inode	**ipp)
-{
-	struct xfs_inode	*dp = args->pip;
-	struct xfs_buf		*agibp;
-	xfs_ino_t		parent_ino = dp ? dp->i_ino : 0;
-	xfs_ino_t		ino;
-	int			error;
-
-	ASSERT((*tpp)->t_flags & XFS_TRANS_PERM_LOG_RES);
-
-	/*
-	 * Call the space management code to pick the on-disk inode to be
-	 * allocated.
-	 */
-	error = xfs_dialloc_select_ag(tpp, parent_ino, args->mode, &agibp);
-	if (error)
-		return error;
-
-	if (!agibp)
-		return -ENOSPC;
-
-	/* Allocate an inode from the selected AG */
-	error = xfs_dialloc_ag(*tpp, agibp, parent_ino, &ino);
-	if (error)
-		return error;
-	ASSERT(ino != NULLFSINO);
-
-	error = xfs_inode_ialloc_iget(*tpp, ino, ipp);
-	if (error)
-		return error;
-
-	ASSERT(*ipp != NULL);
-	xfs_inode_init(*tpp, args, *ipp);
 	return 0;
 }
 
