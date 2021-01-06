@@ -452,6 +452,32 @@ res_failed(
 		do_error(_("xfs_trans_reserve returned %d\n"), err);
 }
 
+/*
+ * Forcibly reinitialize a fixed-location inode, such as a filesystem root
+ * directory or the realtime metadata inodes.  The inode must not otherwise be
+ * in use; the data fork must be empty, and the attr fork will be reset.
+ */
+static void
+reset_root_ino(
+	struct xfs_trans		*tp,
+	umode_t				mode,
+	struct xfs_inode		*ip)
+{
+	struct xfs_ialloc_args	args = {
+		.nlink			= S_ISDIR(mode) ? 2 : 1,
+		.mode			= mode,
+	};
+
+	/* Reset the attr fork since libxfs_inode_init won't do it for us. */
+	if (ip->i_afp) {
+		libxfs_idestroy_fork(ip->i_afp);
+		ip->i_afp->if_format = XFS_DINODE_FMT_EXTENTS;
+		ip->i_afp->if_nextents = 0;
+	}
+
+	libxfs_inode_init(tp, &args, ip);
+}
+
 static void
 mk_rbmino(xfs_mount_t *mp)
 {
@@ -463,7 +489,6 @@ mk_rbmino(xfs_mount_t *mp)
 	int		error;
 	xfs_fileoff_t	bno;
 	xfs_bmbt_irec_t	map[XFS_BMAP_MAX_NMAP];
-	int		times;
 	uint		blocks;
 
 	/*
@@ -480,36 +505,9 @@ mk_rbmino(xfs_mount_t *mp)
 			error);
 	}
 
-	memset(&ip->i_d, 0, sizeof(ip->i_d));
-
-	VFS_I(ip)->i_mode = S_IFREG;
-	ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
-	if (ip->i_afp)
-		ip->i_afp->if_format = XFS_DINODE_FMT_EXTENTS;
-
-	set_nlink(VFS_I(ip), 1);	/* account for sb ptr */
-
-	times = XFS_ICHGTIME_CHG | XFS_ICHGTIME_MOD;
-	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
-		VFS_I(ip)->i_version = 1;
-		ip->i_d.di_flags2 = 0;
-		times |= XFS_ICHGTIME_CREATE;
-	}
-	libxfs_trans_ichgtime(tp, ip, times);
-
-	/*
-	 * now the ifork
-	 */
-	ip->i_df.if_flags = XFS_IFEXTENTS;
-	ip->i_df.if_bytes = 0;
-	ip->i_df.if_u1.if_root = NULL;
-
+	/* Reset the realtime bitmap inode. */
+	reset_root_ino(tp, S_IFREG, ip);
 	ip->i_d.di_size = mp->m_sb.sb_rbmblocks * mp->m_sb.sb_blocksize;
-
-	/*
-	 * commit changes
-	 */
-	libxfs_trans_ijoin(tp, ip, 0);
 	libxfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	error = -libxfs_trans_commit(tp);
 	if (error)
@@ -704,7 +702,6 @@ mk_rsumino(xfs_mount_t *mp)
 	int		nsumblocks;
 	xfs_fileoff_t	bno;
 	xfs_bmbt_irec_t	map[XFS_BMAP_MAX_NMAP];
-	int		times;
 	uint		blocks;
 
 	/*
@@ -721,36 +718,9 @@ mk_rsumino(xfs_mount_t *mp)
 			error);
 	}
 
-	memset(&ip->i_d, 0, sizeof(ip->i_d));
-
-	VFS_I(ip)->i_mode = S_IFREG;
-	ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
-	if (ip->i_afp)
-		ip->i_afp->if_format = XFS_DINODE_FMT_EXTENTS;
-
-	set_nlink(VFS_I(ip), 1);	/* account for sb ptr */
-
-	times = XFS_ICHGTIME_CHG | XFS_ICHGTIME_MOD;
-	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
-		VFS_I(ip)->i_version = 1;
-		ip->i_d.di_flags2 = 0;
-		times |= XFS_ICHGTIME_CREATE;
-	}
-	libxfs_trans_ichgtime(tp, ip, times);
-
-	/*
-	 * now the ifork
-	 */
-	ip->i_df.if_flags = XFS_IFEXTENTS;
-	ip->i_df.if_bytes = 0;
-	ip->i_df.if_u1.if_root = NULL;
-
+	/* Reset the rt summary inode. */
+	reset_root_ino(tp, S_IFREG, ip);
 	ip->i_d.di_size = mp->m_rsumsize;
-
-	/*
-	 * commit changes
-	 */
-	libxfs_trans_ijoin(tp, ip, 0);
 	libxfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	error = -libxfs_trans_commit(tp);
 	if (error)
@@ -806,7 +776,6 @@ mk_root_dir(xfs_mount_t *mp)
 	int		error;
 	const mode_t	mode = 0755;
 	ino_tree_node_t	*irec;
-	int		times;
 
 	ip = NULL;
 	i = -libxfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 10, 0, 0, &tp);
@@ -818,39 +787,8 @@ mk_root_dir(xfs_mount_t *mp)
 		do_error(_("could not iget root inode -- error - %d\n"), error);
 	}
 
-	/*
-	 * take care of the core since we didn't call the libxfs ialloc function
-	 * (comment changed to avoid tangling xfs/437)
-	 */
-	memset(&ip->i_d, 0, sizeof(ip->i_d));
-
-	VFS_I(ip)->i_mode = mode|S_IFDIR;
-	ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
-	if (ip->i_afp)
-		ip->i_afp->if_format = XFS_DINODE_FMT_EXTENTS;
-
-	set_nlink(VFS_I(ip), 2);	/* account for . and .. */
-
-	times = XFS_ICHGTIME_CHG | XFS_ICHGTIME_MOD;
-	if (xfs_sb_version_has_v3inode(&mp->m_sb)) {
-		VFS_I(ip)->i_version = 1;
-		ip->i_d.di_flags2 = 0;
-		times |= XFS_ICHGTIME_CREATE;
-	}
-	libxfs_trans_ichgtime(tp, ip, times);
-	libxfs_trans_ijoin(tp, ip, 0);
-	libxfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-
-	/*
-	 * now the ifork
-	 */
-	ip->i_df.if_flags = XFS_IFEXTENTS;
-	ip->i_df.if_bytes = 0;
-	ip->i_df.if_u1.if_root = NULL;
-
-	/*
-	 * initialize the directory
-	 */
+	/* Reset the root directory. */
+	reset_root_ino(tp, mode | S_IFDIR, ip);
 	libxfs_dir_init(tp, ip, ip);
 
 	error = -libxfs_trans_commit(tp);
