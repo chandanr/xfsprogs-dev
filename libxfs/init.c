@@ -516,9 +516,13 @@ libxfs_initialize_perag(
 		pag->pag_agno = index;
 		pag->pag_mount = mp;
 
+		error = xfs_iunlink_init(pag);
+		if (error)
+			goto out_unwind;
+
 		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
 			error = -EEXIST;
-			goto out_unwind;
+			goto out_unwind_iunlink;
 		}
 	}
 
@@ -578,10 +582,13 @@ libxfs_initialize_perag(
 	mp->m_ag_prealloc_blocks = xfs_prealloc_blocks(mp);
 	return 0;
 
+out_unwind_iunlink:
+	xfs_iunlink_destroy(pag);
 out_unwind:
 	kmem_free(pag);
 	for (; index > first_initialised; index--) {
 		pag = radix_tree_delete(&mp->m_perag_tree, index);
+		xfs_iunlink_destroy(pag);
 		kmem_free(pag);
 	}
 	return error;
@@ -993,6 +1000,7 @@ libxfs_umount(
 
 	for (agno = 0; agno < mp->m_maxagi; agno++) {
 		pag = radix_tree_delete(&mp->m_perag_tree, agno);
+		xfs_iunlink_destroy(pag);
 		kmem_free(pag);
 	}
 
