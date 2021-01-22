@@ -25,7 +25,7 @@ dump_bulkstat_time(
 
 static void
 dump_bulkstat(
-	struct xfs_bulkstat	*bstat)
+	struct xfs_bulkstat_v5	*bstat)
 {
 	printf("bs_ino = %"PRIu64"\n", bstat->bs_ino);
 	printf("\tbs_size = %"PRIu64"\n", bstat->bs_size);
@@ -96,7 +96,7 @@ bulkstat_f(
 	char			**argv)
 {
 	struct xfs_fd		xfd = XFS_FD_INIT(file->fd);
-	struct xfs_bulkstat_req	*breq;
+	struct xfs_bulkstat_req_v5	*breq;
 	uint64_t		startino = 0;
 	uint64_t		endino = -1ULL;
 	uint32_t		batch_size = 4096;
@@ -241,7 +241,7 @@ bulkstat_single_f(
 	char			**argv)
 {
 	struct xfs_fd		xfd = XFS_FD_INIT(file->fd);
-	struct xfs_bulkstat	bulkstat;
+	struct xfs_bulkstat_v5	bulkstat;
 	unsigned long		ver = 0;
 	unsigned int		i;
 	bool			debug = false;

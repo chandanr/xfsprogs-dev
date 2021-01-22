@@ -83,7 +83,7 @@ check_dirent_names(
 	struct scrub_ctx	*ctx,
 	struct descr		*dsc,
 	int			*fd,
-	struct xfs_bulkstat	*bstat)
+	struct xfs_bulkstat_v5	*bstat)
 {
 	struct unicrash		*uc = NULL;
 	DIR			*dir;
@@ -152,7 +152,7 @@ check_xattr_ns_names(
 	struct scrub_ctx		*ctx,
 	struct descr			*dsc,
 	struct xfs_handle		*handle,
-	struct xfs_bulkstat		*bstat,
+	struct xfs_bulkstat_v5		*bstat,
 	const struct attrns_decode	*attr_ns)
 {
 	struct attrlist_cursor		cur;
@@ -219,7 +219,7 @@ check_xattr_names(
 	struct scrub_ctx		*ctx,
 	struct descr			*dsc,
 	struct xfs_handle		*handle,
-	struct xfs_bulkstat		*bstat)
+	struct xfs_bulkstat_v5		*bstat)
 {
 	const struct attrns_decode	*ns;
 	int				ret;
@@ -242,7 +242,7 @@ render_ino_from_handle(
 	size_t			buflen,
 	void			*data)
 {
-	struct xfs_bulkstat	*bstat = data;
+	struct xfs_bulkstat_v5	*bstat = data;
 
 	return scrub_render_ino_descr(ctx, buf, buflen, bstat->bs_ino,
 			bstat->bs_gen, NULL);
@@ -259,7 +259,7 @@ static int
 check_inode_names(
 	struct scrub_ctx	*ctx,
 	struct xfs_handle	*handle,
-	struct xfs_bulkstat	*bstat,
+	struct xfs_bulkstat_v5	*bstat,
 	void			*arg)
 {
 	DEFINE_DESCR(dsc, ctx, render_ino_from_handle);
