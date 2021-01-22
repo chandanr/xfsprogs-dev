@@ -45,7 +45,7 @@ static void
 jdm_fill_filehandle_v5(
 	struct filehandle	*handlep,
 	struct fshandle		*fshandlep,
-	struct xfs_bulkstat	*statp)
+	struct xfs_bulkstat_v5	*statp)
 {
 	handlep->fh_fshandle = *fshandlep;
 	handlep->fh_sz_following = FILEHANDLE_SZ_FOLLOWING;
@@ -108,7 +108,7 @@ jdm_new_filehandle_v5(
 	jdm_filehandle_t	**handlep,
 	size_t			*hlen,
 	jdm_fshandle_t		*fshandlep,
-	struct xfs_bulkstat	*statp)
+	struct xfs_bulkstat_v5	*statp)
 {
 	/* allocate and fill filehandle */
 	*hlen = sizeof(filehandle_t);
@@ -143,7 +143,7 @@ jdm_open( jdm_fshandle_t *fshp, struct xfs_bstat *statp, intgen_t oflags )
 intgen_t
 jdm_open_v5(
 	jdm_fshandle_t		*fshp,
-	struct xfs_bulkstat	*statp,
+	struct xfs_bulkstat_v5	*statp,
 	intgen_t		oflags)
 {
 	struct fshandle		*fshandlep = (struct fshandle *)fshp;
@@ -173,7 +173,7 @@ jdm_readlink( jdm_fshandle_t *fshp,
 intgen_t
 jdm_readlink_v5(
 	jdm_fshandle_t		*fshp,
-	struct xfs_bulkstat	*statp,
+	struct xfs_bulkstat_v5	*statp,
 	char			*bufp,
 	size_t			bufsz)
 {
@@ -204,7 +204,7 @@ jdm_attr_multi(	jdm_fshandle_t *fshp,
 int
 jdm_attr_multi_v5(
 	jdm_fshandle_t		*fshp,
-	struct xfs_bulkstat	*statp,
+	struct xfs_bulkstat_v5	*statp,
 	char			*bufp,
 	int			rtrvcnt,
 	int			flags)
@@ -241,7 +241,7 @@ jdm_attr_list(	jdm_fshandle_t *fshp,
 int
 jdm_attr_list_v5(
 	jdm_fshandle_t		*fshp,
-	struct xfs_bulkstat	*statp,
+	struct xfs_bulkstat_v5	*statp,
 	char			*bufp,
 	size_t			bufsz,
 	int			flags,

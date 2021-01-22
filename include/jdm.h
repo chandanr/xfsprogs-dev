@@ -25,7 +25,7 @@ jdm_new_filehandle( jdm_filehandle_t **handlep,	/* new filehandle */
 		    struct xfs_bstat *sp);	/* bulkstat info */
 
 extern void jdm_new_filehandle_v5(jdm_filehandle_t **handlep, size_t *hlen,
-		jdm_fshandle_t *fshandlep, struct xfs_bulkstat *sp);
+		jdm_fshandle_t *fshandlep, struct xfs_bulkstat_v5 *sp);
 
 extern void
 jdm_delete_filehandle( jdm_filehandle_t *handlep,/* filehandle to delete */
@@ -36,7 +36,7 @@ jdm_open( jdm_fshandle_t *fshandlep,
 	  struct xfs_bstat *sp,
 	  intgen_t oflags);
 
-extern intgen_t jdm_open_v5(jdm_fshandle_t *fshandlep, struct xfs_bulkstat *sp,
+extern intgen_t jdm_open_v5(jdm_fshandle_t *fshandlep, struct xfs_bulkstat_v5 *sp,
 		intgen_t oflags);
 
 extern intgen_t
@@ -46,7 +46,7 @@ jdm_readlink( jdm_fshandle_t *fshandlep,
 	      size_t bufsz);
 
 extern intgen_t jdm_readlink_v5(jdm_fshandle_t *fshandlep,
-		struct xfs_bulkstat *sp, char *bufp, size_t bufsz);
+		struct xfs_bulkstat_v5 *sp, char *bufp, size_t bufsz);
 
 extern intgen_t
 jdm_attr_multi(	jdm_fshandle_t *fshp,
@@ -54,7 +54,7 @@ jdm_attr_multi(	jdm_fshandle_t *fshp,
 		char *bufp, int rtrvcnt, int flags);
 
 extern intgen_t jdm_attr_multi_v5(jdm_fshandle_t *fshp,
-		struct xfs_bulkstat *statp, char *bufp, int rtrvcnt,
+		struct xfs_bulkstat_v5 *statp, char *bufp, int rtrvcnt,
 		int flags);
 
 extern intgen_t
@@ -64,7 +64,7 @@ jdm_attr_list(	jdm_fshandle_t *fshp,
 		struct attrlist_cursor *cursor);
 
 extern intgen_t jdm_attr_list_v5(jdm_fshandle_t *fshp,
-		struct xfs_bulkstat *statp, char *bufp, size_t bufsz, int
+		struct xfs_bulkstat_v5 *statp, char *bufp, size_t bufsz, int
 		flags, struct attrlist_cursor *cursor);
 
 extern int

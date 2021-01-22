@@ -48,15 +48,15 @@
  */
 static void
 bulkstat_for_inumbers(
-	struct scrub_ctx	*ctx,
-	const char		*descr,
-	const struct xfs_inumbers *inumbers,
-	struct xfs_bulkstat_req	*breq)
+	struct scrub_ctx		*ctx,
+	const char			*descr,
+	const struct xfs_inumbers 	*inumbers,
+	struct xfs_bulkstat_req_v5	*breq)
 {
-	struct xfs_bulkstat	*bstat = breq->bulkstat;
-	struct xfs_bulkstat	*bs;
-	int			i;
-	int			error;
+	struct xfs_bulkstat_v5		*bstat = breq->bulkstat;
+	struct xfs_bulkstat_v5		*bs;
+	int				i;
+	int				error;
 
 	/* First we try regular bulkstat, for speed. */
 	breq->hdr.ino = inumbers->xi_startino;
@@ -85,7 +85,7 @@ bulkstat_for_inumbers(
 		error = -xfrog_bulkstat_single(&ctx->mnt,
 				inumbers->xi_startino + i, 0, bs);
 		if (error || bs->bs_ino != inumbers->xi_startino + i) {
-			memset(bs, 0, sizeof(struct xfs_bulkstat));
+			memset(bs, 0, sizeof(struct xfs_bulkstat_v5));
 			bs->bs_ino = inumbers->xi_startino + i;
 			bs->bs_blksize = ctx->mnt_sv.f_frsize;
 		}
@@ -107,22 +107,24 @@ struct scan_inodes {
  */
 static void
 scan_ag_inodes(
-	struct workqueue	*wq,
-	xfs_agnumber_t		agno,
-	void			*arg)
+	struct workqueue		*wq,
+	xfs_agnumber_t			agno,
+	void				*arg)
 {
-	struct xfs_handle	handle = { };
-	char			descr[DESCR_BUFSZ];
-	struct xfs_inumbers_req	*ireq;
-	struct xfs_bulkstat_req	*breq;
-	struct scan_inodes	*si = arg;
-	struct scrub_ctx	*ctx = (struct scrub_ctx *)wq->wq_ctx;
-	struct xfs_bulkstat	*bs;
-	struct xfs_inumbers	*inumbers;
-	uint64_t		nextino = cvt_agino_to_ino(&ctx->mnt, agno, 0);
-	int			i;
-	int			error;
-	int			stale_count = 0;
+	struct xfs_handle		handle = { };
+	char				descr[DESCR_BUFSZ];
+	struct xfs_inumbers_req		*ireq;
+	struct xfs_bulkstat_req_v5	*breq;
+	struct scan_inodes		*si = arg;
+	struct scrub_ctx		*ctx = (struct scrub_ctx *)wq->wq_ctx;
+	struct xfs_bulkstat_v5		*bs;
+	struct xfs_inumbers		*inumbers;
+	uint64_t			nextino;
+	int				i;
+	int				error;
+	int				stale_count = 0;
+
+	nextino = cvt_agino_to_ino(&ctx->mnt, agno, 0);
 
 	snprintf(descr, DESCR_BUFSZ, _("dev %d:%d AG %u inodes"),
 				major(ctx->fsinfo.fs_datadev),

@@ -70,13 +70,13 @@ quot_help(void)
 
 static void
 quot_bulkstat_add(
-	struct xfs_bulkstat	*p,
-	uint		flags)
+	struct xfs_bulkstat_v5	*p,
+	uint			flags)
 {
-	du_t		*dp;
-	du_t		**hp;
-	uint64_t	size;
-	uint32_t	i, id;
+	du_t			*dp;
+	du_t			**hp;
+	uint64_t		size;
+	uint32_t		i, id;
 
 	if ((p->bs_mode & S_IFMT) == 0)
 		return;
@@ -126,13 +126,13 @@ quot_bulkstat_add(
 
 static void
 quot_bulkstat_mount(
-	char			*fsdir,
-	unsigned int		flags)
+	char				*fsdir,
+	unsigned int			flags)
 {
-	struct xfs_fd		fsxfd = XFS_FD_INIT_EMPTY;
-	struct xfs_bulkstat_req	*breq;
-	int			i, sts, ret;
-	du_t			**dp;
+	struct xfs_fd			fsxfd = XFS_FD_INIT_EMPTY;
+	struct xfs_bulkstat_req_v5	*breq;
+	int				i, sts, ret;
+	du_t				**dp;
 
 	/*
 	 * Initialize tables between checks; because of the qsort
