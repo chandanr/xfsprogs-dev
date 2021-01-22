@@ -7,7 +7,7 @@
 #define __LIBFROG_FILE_EXCHANGE_H__
 
 void xfrog_file_exchange_require_file2_fresh(struct file_xchg_range *req,
-		struct xfs_bulkstat *bulkstat);
+		struct xfs_bulkstat_v5 *bulkstat);
 int xfrog_file_exchange_prep(struct xfs_fd *file2, uint64_t flags,
 		int64_t file2_offset, int file1_fd, int64_t file1_offset,
 		int64_t length, struct file_xchg_range *req);

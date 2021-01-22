@@ -70,7 +70,7 @@ quot_help(void)
 
 static void
 quot_bulkstat_add(
-	struct xfs_bulkstat	*p,
+	struct xfs_bulkstat_v5	*p,
 	uint		flags)
 {
 	du_t		*dp;
@@ -130,7 +130,7 @@ quot_bulkstat_mount(
 	unsigned int		flags)
 {
 	struct xfs_fd		fsxfd = XFS_FD_INIT_EMPTY;
-	struct xfs_bulkstat_req	*breq;
+	struct xfs_bulkstat_req_v5	*breq;
 	int			i, sts, ret;
 	du_t			**dp;
 

@@ -68,9 +68,9 @@ static int	pagesize;
 void usage(int ret);
 static int  fsrfile(char *fname, xfs_ino_t ino);
 static int  fsrfile_common(char *fname, char *tname, char *mnt,
-			   struct xfs_fd *file_fd, struct xfs_bulkstat *statp);
+			   struct xfs_fd *file_fd, struct xfs_bulkstat_v5 *statp);
 static int  packfile(char *fname, char *tname, struct xfs_fd *file_fd,
-                     struct xfs_bulkstat *statp, struct fsxattr *fsxp);
+                     struct xfs_bulkstat_v5 *statp, struct fsxattr *fsxp);
 static void fsrdir(char *dirname);
 static int  fsrfs(char *mntdir, xfs_ino_t ino, int targetrange);
 static void initallfs(char *mtab);
@@ -82,7 +82,7 @@ int xfs_getrt(int fd, struct statvfs *sfbp);
 char * gettmpname(char *fname);
 char * getparent(char *fname);
 int fsrprintf(const char *fmt, ...);
-int read_fd_bmap(int, struct xfs_bulkstat *, int *);
+int read_fd_bmap(int, struct xfs_bulkstat_v5 *, int *);
 int cmp(const void *, const void *);
 static void tmp_init(char *mnt);
 static char * tmp_next(char *mnt);
@@ -113,7 +113,7 @@ static int
 open_handle(
 	struct xfs_fd		*xfd,
 	jdm_fshandle_t		*fshandle,
-	struct xfs_bulkstat	*bulkstat,
+	struct xfs_bulkstat_v5	*bulkstat,
 	struct xfs_fsop_geom	*fsgeom,
 	int			flags)
 {
@@ -605,7 +605,7 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 	char	fname[64];
 	char	*tname;
 	jdm_fshandle_t	*fshandlep;
-	struct xfs_bulkstat_req	*breq;
+	struct xfs_bulkstat_req_v5	*breq;
 
 	fsrprintf(_("%s start inode=%llu\n"), mntdir,
 		(unsigned long long)startino);
@@ -637,9 +637,9 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 	}
 
 	while ((ret = -xfrog_bulkstat(&fsxfd, breq) == 0)) {
-		struct xfs_bulkstat	*buf = breq->bulkstat;
-		struct xfs_bulkstat	*p;
-		struct xfs_bulkstat	*endp;
+		struct xfs_bulkstat_v5	*buf = breq->bulkstat;
+		struct xfs_bulkstat_v5	*p;
+		struct xfs_bulkstat_v5	*endp;
 		struct xfs_fd		file_fd = XFS_FD_INIT_EMPTY;
 		uint32_t		buflenout = breq->hdr.ocount;
 
@@ -649,7 +649,7 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 		/* Each loop through, defrag targetrange percent of the files */
 		count = (buflenout * targetrange) / 100;
 
-		qsort((char *)buf, buflenout, sizeof(struct xfs_bulkstat), cmp);
+		qsort((char *)buf, buflenout, sizeof(struct xfs_bulkstat_v5), cmp);
 
 		for (p = buf, endp = (buf + buflenout); p < endp ; p++) {
 			/* Do some obvious checks now */
@@ -712,8 +712,8 @@ out0:
 int
 cmp(const void *s1, const void *s2)
 {
-	return( ((struct xfs_bulkstat *)s2)->bs_extents -
-	        ((struct xfs_bulkstat *)s1)->bs_extents);
+	return( ((struct xfs_bulkstat_v5 *)s2)->bs_extents -
+	        ((struct xfs_bulkstat_v5 *)s1)->bs_extents);
 
 }
 
@@ -739,7 +739,7 @@ fsrfile(
 	xfs_ino_t		ino)
 {
 	struct xfs_fd		fsxfd = XFS_FD_INIT_EMPTY;
-	struct xfs_bulkstat	bulkstat;
+	struct xfs_bulkstat_v5	bulkstat;
 	struct xfs_fd		file_fd = XFS_FD_INIT_EMPTY;
 	jdm_fshandle_t		*fshandlep;
 	int			error = -1;
@@ -815,7 +815,7 @@ fsrfile_common(
 	char		*tname,
 	char		*fsname,
 	struct xfs_fd	*file_fd,
-	struct xfs_bulkstat *statp)
+	struct xfs_bulkstat_v5 *statp)
 {
 	int		error;
 	struct statvfs  vfss;
@@ -950,7 +950,7 @@ static int
 fsr_setup_attr_fork(
 	int		fd,
 	int		tfd,
-	struct xfs_bulkstat *bstatp)
+	struct xfs_bulkstat_v5 *bstatp)
 {
 #ifdef HAVE_FSETXATTR
 	struct xfs_fd	txfd = XFS_FD_INIT(tfd);
@@ -1005,7 +1005,7 @@ fsr_setup_attr_fork(
 
 	i = 0;
 	do {
-		struct xfs_bulkstat	tbstat;
+		struct xfs_bulkstat_v5	tbstat;
 		char		name[64];
 		int		ret;
 
@@ -1154,7 +1154,7 @@ packfile(
 	char			*fname,
 	char			*tname,
 	struct xfs_fd		*file_fd,
-	struct xfs_bulkstat	*statp,
+	struct xfs_bulkstat_v5	*statp,
 	struct fsxattr		*fsxp)
 {
 	struct file_xchg_range	fxr;
@@ -1533,7 +1533,7 @@ getparent(char *fname)
 #define MAPSIZE	128
 #define	OUTMAP_SIZE_INCREMENT	MAPSIZE
 
-int	read_fd_bmap(int fd, struct xfs_bulkstat *sin, int *cur_nextents)
+int	read_fd_bmap(int fd, struct xfs_bulkstat_v5 *sin, int *cur_nextents)
 {
 	int		i, cnt;
 	struct getbmap	map[MAPSIZE];
