@@ -212,7 +212,7 @@ report_inode_health(
 	unsigned long long	ino,
 	const char		*descr)
 {
-	struct xfs_bulkstat	bs;
+	struct xfs_bulkstat_v5	bs;
 	char			d[256];
 	int			ret;
 
@@ -267,12 +267,12 @@ report_file_health(
  */
 static int
 report_bulkstat_health(
-	xfs_agnumber_t		agno)
+	xfs_agnumber_t			agno)
 {
-	struct xfs_bulkstat_req	*breq;
-	char			descr[256];
-	uint32_t		i;
-	int			error;
+	struct xfs_bulkstat_req_v5	*breq;
+	char				descr[256];
+	uint32_t			i;
+	int				error;
 
 	error = -xfrog_bulkstat_alloc_req(BULKSTAT_NR, 0, &breq);
 	if (error) {

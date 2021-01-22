@@ -254,7 +254,7 @@ xfs_inode_is_healthy(struct xfs_inode *ip)
 
 void xfs_fsop_geom_health(struct xfs_mount *mp, struct xfs_fsop_geom *geo);
 void xfs_ag_geom_health(struct xfs_perag *pag, struct xfs_ag_geometry *ageo);
-void xfs_bulkstat_health(struct xfs_inode *ip, struct xfs_bulkstat *bs);
+void xfs_bulkstat_health(struct xfs_inode *ip, uint16_t *bs_sick, uint16_t *bs_checked);
 
 #define xfs_metadata_is_sick(error) \
 	(unlikely((error) == -EFSCORRUPTED || (error) == -EFSBADCRC))
