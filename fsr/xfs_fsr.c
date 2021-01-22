@@ -590,7 +590,7 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 	char	fname[64];
 	char	*tname;
 	jdm_fshandle_t	*fshandlep;
-	struct xfs_bulkstat_req	*breq;
+	struct xfs_bulkstat_req_v5	*breq;
 
 	fsrprintf(_("%s start inode=%llu\n"), mntdir,
 		(unsigned long long)startino);
@@ -623,9 +623,9 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 
 	while ((ret = -xfrog_bulkstat(&fsxfd, breq) == 0)) {
 		struct xfs_bstat	bs1;
-		struct xfs_bulkstat	*buf = breq->bulkstat;
-		struct xfs_bulkstat	*p;
-		struct xfs_bulkstat	*endp;
+		struct xfs_bulkstat_v5	*buf = breq->bulkstat;
+		struct xfs_bulkstat_v5	*p;
+		struct xfs_bulkstat_v5	*endp;
 		uint32_t		buflenout = breq->hdr.ocount;
 
 		if (buflenout == 0)
@@ -634,7 +634,7 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 		/* Each loop through, defrag targetrange percent of the files */
 		count = (buflenout * targetrange) / 100;
 
-		qsort((char *)buf, buflenout, sizeof(struct xfs_bulkstat), cmp);
+		qsort((char *)buf, buflenout, sizeof(struct xfs_bulkstat_v5), cmp);
 
 		for (p = buf, endp = (buf + buflenout); p < endp ; p++) {
 			/* Do some obvious checks now */
@@ -728,7 +728,7 @@ fsrfile(
 	xfs_ino_t		ino)
 {
 	struct xfs_fd		fsxfd = XFS_FD_INIT_EMPTY;
-	struct xfs_bulkstat	bulkstat;
+	struct xfs_bulkstat_v5	bulkstat;
 	struct xfs_bstat	statbuf;
 	jdm_fshandle_t		*fshandlep;
 	int			fd = -1;
@@ -985,7 +985,7 @@ fsr_setup_attr_fork(
 
 	i = 0;
 	do {
-		struct xfs_bulkstat	tbstat;
+		struct xfs_bulkstat_v5	tbstat;
 		char		name[64];
 		int		ret;
 

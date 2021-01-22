@@ -48,9 +48,9 @@ xfrog_bulkstat_single5(
 	struct xfs_fd			*xfd,
 	uint64_t			ino,
 	unsigned int			flags,
-	struct xfs_bulkstat		*bulkstat)
+	struct xfs_bulkstat_v5		*bulkstat)
 {
-	struct xfs_bulkstat_req		*req;
+	struct xfs_bulkstat_req_v5	*req;
 	int				ret;
 
 	if (flags & ~(XFS_BULK_IREQ_SPECIAL))
@@ -61,7 +61,7 @@ xfrog_bulkstat_single5(
 		return ret;
 
 	req->hdr.flags = flags;
-	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT, req);
+	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT_V5, req);
 	if (ret) {
 		ret = -errno;
 		goto free;
@@ -72,7 +72,7 @@ xfrog_bulkstat_single5(
 		goto free;
 	}
 
-	memcpy(bulkstat, req->bulkstat, sizeof(struct xfs_bulkstat));
+	memcpy(bulkstat, req->bulkstat, sizeof(struct xfs_bulkstat_v5));
 free:
 	free(req);
 	return ret;
@@ -84,7 +84,7 @@ xfrog_bulkstat_single1(
 	struct xfs_fd			*xfd,
 	uint64_t			ino,
 	unsigned int			flags,
-	struct xfs_bulkstat		*bulkstat)
+	struct xfs_bulkstat_v5		*bulkstat)
 {
 	struct xfs_bstat		bstat;
 	struct xfs_fsop_bulkreq		bulkreq = { 0 };
@@ -114,7 +114,7 @@ xfrog_bulkstat_single(
 	struct xfs_fd			*xfd,
 	uint64_t			ino,
 	unsigned int			flags,
-	struct xfs_bulkstat		*bulkstat)
+	struct xfs_bulkstat_v5		*bulkstat)
 {
 	int				error;
 
@@ -255,12 +255,12 @@ static void xfrog_bstat_cvt(struct xfs_fd *xfd, void *v5, void *v1)
 /* Bulkstat a bunch of inodes using the v5 interface. */
 static int
 xfrog_bulkstat5(
-	struct xfs_fd		*xfd,
-	struct xfs_bulkstat_req	*req)
+	struct xfs_fd			*xfd,
+	struct xfs_bulkstat_req_v5	*req)
 {
 	int			ret;
 
-	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT, req);
+	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT_V5, req);
 	if (ret)
 		return -errno;
 	return 0;
@@ -269,8 +269,8 @@ xfrog_bulkstat5(
 /* Bulkstat a bunch of inodes using the v1 interface. */
 static int
 xfrog_bulkstat1(
-	struct xfs_fd		*xfd,
-	struct xfs_bulkstat_req	*req)
+	struct xfs_fd			*xfd,
+	struct xfs_bulkstat_req_v5	*req)
 {
 	struct xfs_fsop_bulkreq	bulkreq = { 0 };
 	int			error;
@@ -293,17 +293,17 @@ xfrog_bulkstat1(
 out_teardown:
 	return xfrog_bulk_req_v1_cleanup(xfd, &req->hdr, &bulkreq,
 			sizeof(struct xfs_bstat), xfrog_bstat_ino,
-			&req->bulkstat, sizeof(struct xfs_bulkstat),
+			&req->bulkstat, sizeof(struct xfs_bulkstat_v5),
 			xfrog_bstat_cvt, 1, error);
 }
 
 /* Bulkstat a bunch of inodes.  Returns zero or a positive error code. */
 int
 xfrog_bulkstat(
-	struct xfs_fd		*xfd,
-	struct xfs_bulkstat_req	*req)
+	struct xfs_fd			*xfd,
+	struct xfs_bulkstat_req_v5	*req)
 {
-	int			error;
+	int				error;
 
 	if (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V1)
 		goto try_v1;
@@ -339,7 +339,7 @@ int
 xfrog_bulkstat_v5_to_v1(
 	struct xfs_fd			*xfd,
 	struct xfs_bstat		*bs1,
-	const struct xfs_bulkstat	*bs5)
+	const struct xfs_bulkstat_v5	*bs5)
 {
 	if (bs5->bs_aextents > UINT16_MAX ||
 	    cvt_off_fsb_to_b(xfd, bs5->bs_extsize_blks) > UINT32_MAX ||
@@ -384,7 +384,7 @@ xfrog_bulkstat_v5_to_v1(
 void
 xfrog_bulkstat_v1_to_v5(
 	struct xfs_fd			*xfd,
-	struct xfs_bulkstat		*bs5,
+	struct xfs_bulkstat_v5		*bs5,
 	const struct xfs_bstat		*bs1)
 {
 	memset(bs5, 0, sizeof(*bs5));
@@ -420,13 +420,13 @@ xfrog_bulkstat_v1_to_v5(
 /* Allocate a bulkstat request.  Returns zero or a negative error code. */
 int
 xfrog_bulkstat_alloc_req(
-	uint32_t		nr,
-	uint64_t		startino,
-	struct xfs_bulkstat_req **preq)
+	uint32_t			nr,
+	uint64_t			startino,
+	struct xfs_bulkstat_req_v5 	**preq)
 {
-	struct xfs_bulkstat_req	*breq;
+	struct xfs_bulkstat_req_v5	*breq;
 
-	breq = calloc(1, XFS_BULKSTAT_REQ_SIZE(nr));
+	breq = calloc(1, XFS_BULKSTAT_V5_REQ_SIZE(nr));
 	if (!breq)
 		return -ENOMEM;
 
@@ -440,8 +440,8 @@ xfrog_bulkstat_alloc_req(
 /* Set a bulkstat cursor to iterate only a particular AG. */
 void
 xfrog_bulkstat_set_ag(
-	struct xfs_bulkstat_req	*req,
-	uint32_t		agno)
+	struct xfs_bulkstat_req_v5	*req,
+	uint32_t			agno)
 {
 	req->hdr.agno = agno;
 	req->hdr.flags |= XFS_BULK_IREQ_AGNO;

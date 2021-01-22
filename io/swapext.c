@@ -29,7 +29,7 @@ swapext_f(
 	char			**argv)
 {
 	struct xfs_fd		fxfd = XFS_FD_INIT(file->fd);
-	struct xfs_bulkstat	bulkstat;
+	struct xfs_bulkstat_v5	bulkstat;
 	int			fd;
 	int			error;
 	struct xfs_swapext	sx;
