@@ -30,7 +30,7 @@ scrub_fd(
 	struct scrub_ctx	*ctx,
 	int			(*fn)(struct scrub_ctx *ctx, uint64_t ino,
 				      uint32_t gen, struct action_list *a),
-	struct xfs_bulkstat_v5	*bs,
+	struct xfs_bulkstat_v6	*bs,
 	struct action_list	*alist)
 {
 	return fn(ctx, bs->bs_ino, bs->bs_gen, alist);
@@ -45,7 +45,7 @@ struct scrub_inode_ctx {
 static void
 report_close_error(
 	struct scrub_ctx	*ctx,
-	struct xfs_bulkstat_v5	*bstat)
+	struct xfs_bulkstat_v6	*bstat)
 {
 	char			descr[DESCR_BUFSZ];
 	int			old_errno = errno;
@@ -61,7 +61,7 @@ static int
 scrub_inode(
 	struct scrub_ctx	*ctx,
 	struct xfs_handle	*handle,
-	struct xfs_bulkstat_v5	*bstat,
+	struct xfs_bulkstat_v6	*bstat,
 	void			*arg)
 {
 	struct action_list	alist;
