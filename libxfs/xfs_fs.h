@@ -404,8 +404,52 @@ struct xfs_bulkstat_v5 {
 	uint64_t	bs_pad[7];	/* zeroed			*/
 };
 
+/* New bulkstat structure that reports v6 features and fixes padding issues */
+struct xfs_bulkstat_v6 {
+	uint64_t	bs_ino;		/* inode number			*/
+	uint64_t	bs_size;	/* file size			*/
+
+	uint64_t	bs_blocks;	/* number of blocks		*/
+	uint64_t	bs_xflags;	/* extended flags		*/
+
+	int64_t		bs_atime;	/* access time, seconds		*/
+	int64_t		bs_mtime;	/* modify time, seconds		*/
+
+	int64_t		bs_ctime;	/* inode change time, seconds	*/
+	int64_t		bs_btime;	/* creation time, seconds	*/
+
+	uint32_t	bs_gen;		/* generation count		*/
+	uint32_t	bs_uid;		/* user id			*/
+	uint32_t	bs_gid;		/* group id			*/
+	uint32_t	bs_projectid;	/* project id			*/
+
+	uint32_t	bs_atime_nsec;	/* access time, nanoseconds	*/
+	uint32_t	bs_mtime_nsec;	/* modify time, nanoseconds	*/
+	uint32_t	bs_ctime_nsec;	/* inode change time, nanoseconds */
+	uint32_t	bs_btime_nsec;	/* creation time, nanoseconds	*/
+
+	uint32_t	bs_blksize;	/* block size			*/
+	uint32_t	bs_rdev;	/* device value			*/
+	uint32_t	bs_cowextsize_blks; /* cow extent size hint, blocks */
+	uint32_t	bs_extsize_blks; /* extent size hint, blocks	*/
+
+	uint32_t	bs_nlink;	/* number of links		*/
+	uint64_t	bs_extents;	/* number of extents		*/
+	uint32_t	bs_aextents;	/* attribute number of extents	*/
+	uint16_t	bs_version;	/* structure version		*/
+	uint16_t	bs_forkoff;	/* inode fork offset in bytes	*/
+
+	uint16_t	bs_sick;	/* sick inode metadata		*/
+	uint16_t	bs_checked;	/* checked inode metadata	*/
+	uint16_t	bs_mode;	/* type and mode		*/
+	uint16_t	bs_pad2;	/* zeroed			*/
+
+	uint64_t	bs_pad[7];	/* zeroed			*/
+};
+
 #define XFS_BULKSTAT_VERSION_V1	(1)
-#define XFS_BULKSTAT_VERSION_V5	(5)
+#define XFS_BULKSTAT_VERSION_V5 (5)
+#define XFS_BULKSTAT_VERSION_V6	(6)
 
 /* bs_sick flags */
 #define XFS_BS_SICK_INODE	(1 << 0)  /* inode core */
@@ -489,7 +533,7 @@ struct xfs_bulk_ireq {
 #define XFS_BULK_IREQ_SPECIAL_ROOT	(1)
 
 /*
- * ioctl structures for v5 bulkstat and inumbers requests
+ * ioctl structures for v5 bulkstat request
  */
 struct xfs_bulkstat_req_v5 {
 	struct xfs_bulk_ireq	hdr;
@@ -498,6 +542,19 @@ struct xfs_bulkstat_req_v5 {
 #define XFS_BULKSTAT_V5_REQ_SIZE(nr)	(sizeof(struct xfs_bulkstat_req_v5) + \
 					 (nr) * sizeof(struct xfs_bulkstat_v5))
 
+/*
+ * ioctl structures for v6 bulkstat request
+ */
+struct xfs_bulkstat_req_v6 {
+	struct xfs_bulk_ireq	hdr;
+	struct xfs_bulkstat_v6	bulkstat[];
+};
+#define XFS_BULKSTAT_V6_REQ_SIZE(nr)	(sizeof(struct xfs_bulkstat_req_v6) + \
+					 (nr) * sizeof(struct xfs_bulkstat_v6))
+
+/*
+ * ioctl structures for v5 inumbers request
+ */
 struct xfs_inumbers_req {
 	struct xfs_bulk_ireq	hdr;
 	struct xfs_inumbers	inumbers[];
@@ -845,6 +902,7 @@ struct xfs_scrub_metadata {
 #define XFS_IOC_BULKSTAT_V5	     _IOR ('X', 127, struct xfs_bulkstat_req_v5)
 #define XFS_IOC_INUMBERS	     _IOR ('X', 128, struct xfs_inumbers_req)
 /*	FIEXCHANGE_RANGE ----------- hoisted 129	 */
+#define XFS_IOC_BULKSTAT_V6	     _IOR ('X', 130, struct xfs_bulkstat_req_v6)
 /*	XFS_IOC_GETFSUUID ---------- deprecated 140	 */
 
 

@@ -25,7 +25,7 @@ dump_bulkstat_time(
 
 static void
 dump_bulkstat(
-	struct xfs_bulkstat_v5	*bstat)
+	struct xfs_bulkstat_v6	*bstat)
 {
 	printf("bs_ino = %"PRIu64"\n", bstat->bs_ino);
 	printf("\tbs_size = %"PRIu64"\n", bstat->bs_size);
@@ -49,7 +49,7 @@ dump_bulkstat(
 	printf("\tbs_extsize_blks = %"PRIu32"\n", bstat->bs_extsize_blks);
 
 	printf("\tbs_nlink = %"PRIu32"\n", bstat->bs_nlink);
-	printf("\tbs_extents = %"PRIu32"\n", bstat->bs_extents);
+	printf("\tbs_extents = %"PRIu64"\n", bstat->bs_extents);
 	printf("\tbs_aextents = %"PRIu32"\n", bstat->bs_aextents);
 	printf("\tbs_version = %"PRIu16"\n", bstat->bs_version);
 	printf("\tbs_forkoff = %"PRIu16"\n", bstat->bs_forkoff);
@@ -85,6 +85,9 @@ set_xfd_flags(
 	case 5:
 		xfd->flags |= XFROG_FLAG_BULKSTAT_FORCE_V5;
 		break;
+	case 6:
+		xfd->flags |= XFROG_FLAG_BULKSTAT_FORCE_V6;
+		break;
 	default:
 		break;
 	}
@@ -96,7 +99,7 @@ bulkstat_f(
 	char				**argv)
 {
 	struct xfs_fd			xfd = XFS_FD_INIT(file->fd);
-	struct xfs_bulkstat_req_v5	*breq;
+	struct xfs_bulkstat_req_v6	*breq;
 	uint64_t			startino = 0;
 	uint64_t			endino = -1ULL;
 	uint32_t			batch_size = 4096;
@@ -148,8 +151,8 @@ bulkstat_f(
 				perror(optarg);
 				return 1;
 			}
-			if (ver != 1 && ver != 5) {
-				fprintf(stderr, "version must be 1 or 5.\n");
+			if (ver != 1 && ver != 5 && ver != 6) {
+				fprintf(stderr, "version must be 1, 5 or 6.\n");
 				return 1;
 			}
 			break;
@@ -241,7 +244,7 @@ bulkstat_single_f(
 	char			**argv)
 {
 	struct xfs_fd		xfd = XFS_FD_INIT(file->fd);
-	struct xfs_bulkstat_v5	bulkstat;
+	struct xfs_bulkstat_v6	bulkstat;
 	unsigned long		ver = 0;
 	unsigned int		i;
 	bool			debug = false;

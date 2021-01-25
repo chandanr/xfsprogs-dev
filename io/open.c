@@ -791,7 +791,7 @@ inode_f(
 	int			argc,
 	char			**argv)
 {
-	struct xfs_bulkstat_v5	bulkstat;
+	struct xfs_bulkstat_v6	bulkstat;
 	uint64_t		result_ino = 0;
 	uint64_t		userino = NULLFSINO;
 	char			*p;
@@ -847,7 +847,7 @@ inode_f(
 		}
 	} else if (ret_next) {
 		struct xfs_fd			xfd = XFS_FD_INIT(file->fd);
-		struct xfs_bulkstat_req_v5	*breq;
+		struct xfs_bulkstat_req_v6	*breq;
 
 		/*
 		 * The -n option means that the caller wants to know the number

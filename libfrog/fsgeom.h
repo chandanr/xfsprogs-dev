@@ -56,6 +56,10 @@ struct xfs_fd {
 /* Only use FIEXCHANGE_RANGE for file data exchanges. */
 #define XFROG_FLAG_FORCE_FIEXCHANGE	(1 << 3)
 
+/* Only use v6 bulkstat/inumbers ioctls. */
+#define XFROG_FLAG_BULKSTAT_FORCE_V6	(1 << 4)
+
+
 /* Static initializers */
 #define XFS_FD_INIT(_fd)	{ .fd = (_fd), }
 #define XFS_FD_INIT_EMPTY	XFS_FD_INIT(-1)
