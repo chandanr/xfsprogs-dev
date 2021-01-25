@@ -590,7 +590,7 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 	char	fname[64];
 	char	*tname;
 	jdm_fshandle_t	*fshandlep;
-	struct xfs_bulkstat_req_v5	*breq;
+	struct xfs_bulkstat_req_v6	*breq;
 
 	fsrprintf(_("%s start inode=%llu\n"), mntdir,
 		(unsigned long long)startino);
@@ -623,9 +623,9 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 
 	while ((ret = -xfrog_bulkstat(&fsxfd, breq) == 0)) {
 		struct xfs_bstat	bs1;
-		struct xfs_bulkstat_v5	*buf = breq->bulkstat;
-		struct xfs_bulkstat_v5	*p;
-		struct xfs_bulkstat_v5	*endp;
+		struct xfs_bulkstat_v6	*buf = breq->bulkstat;
+		struct xfs_bulkstat_v6	*p;
+		struct xfs_bulkstat_v6	*endp;
 		uint32_t		buflenout = breq->hdr.ocount;
 
 		if (buflenout == 0)
@@ -634,7 +634,7 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 		/* Each loop through, defrag targetrange percent of the files */
 		count = (buflenout * targetrange) / 100;
 
-		qsort((char *)buf, buflenout, sizeof(struct xfs_bulkstat_v5), cmp);
+		qsort((char *)buf, buflenout, sizeof(struct xfs_bulkstat_v6), cmp);
 
 		for (p = buf, endp = (buf + buflenout); p < endp ; p++) {
 			/* Do some obvious checks now */
@@ -642,7 +642,7 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 			     (p->bs_extents < 2))
 				continue;
 
-			ret = -xfrog_bulkstat_v5_to_v1(&fsxfd, &bs1, p);
+			ret = -xfrog_bulkstat_v6_to_v1(&fsxfd, &bs1, p);
 			if (ret) {
 				fsrprintf(_("bstat conversion error: %s\n"),
 						strerror(ret));
@@ -702,8 +702,8 @@ out0:
 static int
 cmp(const void *s1, const void *s2)
 {
-	return( ((struct xfs_bulkstat *)s2)->bs_extents -
-	        ((struct xfs_bulkstat *)s1)->bs_extents);
+	return( ((struct xfs_bulkstat_v6 *)s2)->bs_extents -
+	        ((struct xfs_bulkstat_v6 *)s1)->bs_extents);
 }
 
 /*
@@ -728,7 +728,7 @@ fsrfile(
 	xfs_ino_t		ino)
 {
 	struct xfs_fd		fsxfd = XFS_FD_INIT_EMPTY;
-	struct xfs_bulkstat_v5	bulkstat;
+	struct xfs_bulkstat_v6	bulkstat;
 	struct xfs_bstat	statbuf;
 	jdm_fshandle_t		*fshandlep;
 	int			fd = -1;
@@ -759,7 +759,7 @@ fsrfile(
 			fname, strerror(error));
 		goto out;
 	}
-	error = -xfrog_bulkstat_v5_to_v1(&fsxfd, &statbuf, &bulkstat);
+	error = -xfrog_bulkstat_v6_to_v1(&fsxfd, &statbuf, &bulkstat);
 	if (error) {
 		fsrprintf(_("bstat conversion error on %s: %s\n"),
 			fname, strerror(error));
@@ -985,7 +985,7 @@ fsr_setup_attr_fork(
 
 	i = 0;
 	do {
-		struct xfs_bulkstat_v5	tbstat;
+		struct xfs_bulkstat_v6	tbstat;
 		char		name[64];
 		int		ret;
 
