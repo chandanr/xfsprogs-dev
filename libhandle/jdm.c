@@ -54,6 +54,19 @@ jdm_fill_filehandle_v5(
 	handlep->fh_ino = statp->bs_ino;
 }
 
+static void
+jdm_fill_filehandle_v6(
+	struct filehandle	*handlep,
+	struct fshandle		*fshandlep,
+	struct xfs_bulkstat_v6	*statp)
+{
+	handlep->fh_fshandle = *fshandlep;
+	handlep->fh_sz_following = FILEHANDLE_SZ_FOLLOWING;
+	memset(handlep->fh_pad, 0, FILEHANDLE_SZ_PAD);
+	handlep->fh_gen = statp->bs_gen;
+	handlep->fh_ino = statp->bs_ino;
+}
+
 jdm_fshandle_t *
 jdm_getfshandle( char *mntpnt )
 {
@@ -150,6 +163,19 @@ jdm_open_v5(
 	struct filehandle	filehandle;
 
 	jdm_fill_filehandle_v5(&filehandle, fshandlep, statp);
+	return open_by_fshandle(&filehandle, sizeof(filehandle), oflags);
+}
+
+intgen_t
+jdm_open_v6(
+	jdm_fshandle_t		*fshp,
+	struct xfs_bulkstat_v6	*statp,
+	intgen_t		oflags)
+{
+	struct fshandle		*fshandlep = (struct fshandle *)fshp;
+	struct filehandle	filehandle;
+
+	jdm_fill_filehandle_v6(&filehandle, fshandlep, statp);
 	return open_by_fshandle(&filehandle, sizeof(filehandle), oflags);
 }
 

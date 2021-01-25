@@ -39,6 +39,8 @@ jdm_open( jdm_fshandle_t *fshandlep,
 extern intgen_t jdm_open_v5(jdm_fshandle_t *fshandlep, struct xfs_bulkstat_v5 *sp,
 		intgen_t oflags);
 
+extern intgen_t jdm_open_v6(jdm_fshandle_t *fshandlep, struct xfs_bulkstat_v6 *sp,
+		intgen_t oflags);
 extern intgen_t
 jdm_readlink( jdm_fshandle_t *fshandlep,
 	      struct xfs_bstat *sp,

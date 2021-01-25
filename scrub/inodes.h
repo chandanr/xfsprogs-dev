@@ -15,7 +15,7 @@
  * function never generates that error code on its own.
  */
 typedef int (*scrub_inode_iter_fn)(struct scrub_ctx *ctx,
-		struct xfs_handle *handle, struct xfs_bulkstat_v5 *bs, void *arg);
+		struct xfs_handle *handle, struct xfs_bulkstat_v6 *bs, void *arg);
 
 int scrub_scan_all_inodes(struct scrub_ctx *ctx, scrub_inode_iter_fn fn,
 		void *arg);
