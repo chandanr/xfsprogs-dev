@@ -81,7 +81,7 @@ char * gettmpname(char *fname);
 char * getparent(char *fname);
 int fsrprintf(const char *fmt, ...);
 int read_fd_bmap(int, struct xfs_bstat *, int *);
-int cmp(const void *, const void *);
+static int cmp(const void *, const void *);
 static void tmp_init(char *mnt);
 static char * tmp_next(char *mnt);
 static void tmp_close(char *mnt);
@@ -699,7 +699,7 @@ out0:
 /*
  * To compare bstat structs for qsort.
  */
-int
+static int
 cmp(const void *s1, const void *s2)
 {
 	return( ((struct xfs_bulkstat *)s2)->bs_extents -
