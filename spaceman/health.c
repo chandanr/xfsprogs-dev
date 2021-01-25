@@ -208,7 +208,7 @@ report_inode_health(
 	unsigned long long	ino,
 	const char		*descr)
 {
-	struct xfs_bulkstat_v5	bs;
+	struct xfs_bulkstat_v6	bs;
 	char			d[256];
 	int			ret;
 
@@ -265,7 +265,7 @@ static int
 report_bulkstat_health(
 	xfs_agnumber_t		agno)
 {
-	struct xfs_bulkstat_req_v5	*breq;
+	struct xfs_bulkstat_req_v6	*breq;
 	char			descr[256];
 	uint32_t		i;
 	int			error;

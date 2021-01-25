@@ -29,7 +29,7 @@ swapext_f(
 	char			**argv)
 {
 	struct xfs_fd		fxfd = XFS_FD_INIT(file->fd);
-	struct xfs_bulkstat_v5	bulkstat;
+	struct xfs_bulkstat_v6	bulkstat;
 	int			fd;
 	int			error;
 	struct xfs_swapext	sx;
@@ -55,7 +55,7 @@ swapext_f(
 		xfrog_perror(error, "bulkstat");
 		goto out;
 	}
-	error = -xfrog_bulkstat_v5_to_v1(&fxfd, &sx.sx_stat, &bulkstat);
+	error = -xfrog_bulkstat_v6_to_v1(&fxfd, &sx.sx_stat, &bulkstat);
 	if (error) {
 		xfrog_perror(error, "bulkstat conversion");
 		goto out;
