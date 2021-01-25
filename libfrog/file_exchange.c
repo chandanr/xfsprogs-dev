@@ -21,7 +21,7 @@ xfrog_file_exchange_prep_freshness(
 	struct file_xchg_range	*req)
 {
 	struct stat		stat;
-	struct xfs_bulkstat_v5	bulkstat;
+	struct xfs_bulkstat_v6	bulkstat;
 	int			error;
 
 	error = fstat(dest->fd, &stat);
@@ -62,7 +62,7 @@ xfrog_file_exchange_prep_freshness(
 void
 xfrog_file_exchange_require_file2_fresh(
 	struct file_xchg_range	*req,
-	struct xfs_bulkstat_v5	*bulkstat)
+	struct xfs_bulkstat_v6	*bulkstat)
 {
 	req->flags |= FILE_XCHG_RANGE_FILE2_FRESH;
 	req->file2_ino = bulkstat->bs_ino;

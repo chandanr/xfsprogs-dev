@@ -272,7 +272,7 @@ static int
 report_inode_loss(
 	struct scrub_ctx		*ctx,
 	struct xfs_handle		*handle,
-	struct xfs_bulkstat_v5		*bstat,
+	struct xfs_bulkstat_v6		*bstat,
 	void				*arg)
 {
 	char				descr[DESCR_BUFSZ];
