@@ -398,7 +398,7 @@ _("Filesystem has errors, skipping connectivity checks."));
 	if (ret)
 		return ret;
 
-	ret = scrub_scan_all_inodes(ctx, check_inode_names, &aborted);
+	ret = scrub_scan_all_inodes(ctx, check_inode_names, 0, &aborted);
 	if (ret)
 		return ret;
 	if (aborted)
