@@ -54,8 +54,8 @@ static void		extmap_set_ext(extmap_t **extmapp, xfs_fileoff_t o,
 				       xfs_extlen_t c);
 static int		frag_f(int argc, char **argv);
 static int		init(int argc, char **argv);
-static void		process_bmbt_reclist(xfs_bmbt_rec_t *rp, int numrecs,
-					     extmap_t **extmapp);
+static void		process_bmbt_reclist(xfs_bmbt_rec_t *rp,
+				xfs_extnum_t numrecs, extmap_t **extmapp);
 static void		process_btinode(xfs_dinode_t *dip, extmap_t **extmapp,
 					int whichfork);
 static void		process_exinode(xfs_dinode_t *dip, extmap_t **extmapp,
@@ -216,7 +216,7 @@ init(
 static void
 process_bmbt_reclist(
 	xfs_bmbt_rec_t		*rp,
-	int			numrecs,
+	xfs_extnum_t		numrecs,
 	extmap_t		**extmapp)
 {
 	xfs_filblks_t		c;
@@ -273,7 +273,7 @@ process_fork(
 	int		whichfork)
 {
 	extmap_t	*extmap;
-	int		nex;
+	xfs_extnum_t	nex;
 
 	nex = XFS_DFORK_NEXTENTS(dip, whichfork);
 	if (!nex)

@@ -351,7 +351,7 @@ static int
 process_bmbt_reclist_int(
 	xfs_mount_t		*mp,
 	xfs_bmbt_rec_t		*rp,
-	int			*numrecs,
+	xfs_extnum_t		*numrecs,
 	int			type,
 	xfs_ino_t		ino,
 	xfs_rfsblock_t		*tot,
@@ -674,7 +674,7 @@ int
 process_bmbt_reclist(
 	xfs_mount_t		*mp,
 	xfs_bmbt_rec_t		*rp,
-	int			*numrecs,
+	xfs_extnum_t		*numrecs,
 	int			type,
 	xfs_ino_t		ino,
 	xfs_rfsblock_t		*tot,
@@ -781,7 +781,7 @@ process_btinode(
 	int			type,
 	int			*dirty,
 	xfs_rfsblock_t		*tot,
-	uint64_t		*nex,
+	xfs_extnum_t		*nex,
 	blkmap_t		**blkmapp,
 	int			whichfork,
 	int			check_dups,
@@ -922,7 +922,7 @@ _("bad key in bmbt root (is %" PRIu64 ", would reset to %" PRIu64 ") in inode "
 	if (*nex <= XFS_DFORK_SIZE(dip, mp, whichfork) /
 			sizeof(xfs_bmbt_rec_t)) {
 		do_warn(
-	_("extent count for ino %" PRIu64 " %s fork too low (%" PRIu64 ") for file format\n"),
+	_("extent count for ino %" PRIu64 " %s fork too low (%" PRIi32 ") for file format\n"),
 				lino, forkname, *nex);
 		return(1);
 	}
@@ -957,7 +957,7 @@ process_exinode(
 	int			type,
 	int			*dirty,
 	xfs_rfsblock_t		*tot,
-	uint64_t		*nex,
+	xfs_extnum_t		*nex,
 	blkmap_t		**blkmapp,
 	int			whichfork,
 	int			check_dups,
@@ -967,7 +967,7 @@ process_exinode(
 	xfs_bmbt_rec_t		*rp;
 	xfs_fileoff_t		first_key;
 	xfs_fileoff_t		last_key;
-	int32_t			numrecs;
+	xfs_extnum_t		numrecs;
 	int			ret;
 
 	lino = XFS_AGINO_TO_INO(mp, agno, ino);
@@ -1050,7 +1050,7 @@ process_symlink_extlist(xfs_mount_t *mp, xfs_ino_t lino, xfs_dinode_t *dino)
 	xfs_fileoff_t		expected_offset;
 	xfs_bmbt_rec_t		*rp;
 	xfs_bmbt_irec_t		irec;
-	int			numrecs;
+	xfs_extnum_t		numrecs;
 	int			i;
 	int			max_blocks;
 
@@ -1811,8 +1811,8 @@ process_inode_blocks_and_extents(
 	struct xfs_mount *mp,
 	xfs_dinode_t	*dino,
 	xfs_rfsblock_t	nblocks,
-	uint64_t	nextents,
-	uint64_t	anextents,
+	xfs_extnum_t	nextents,
+	xfs_extnum_t	anextents,
 	xfs_ino_t	lino,
 	int		*dirty)
 {
@@ -1834,14 +1834,14 @@ _("bad nblocks %llu for inode %" PRIu64 ", would reset to %" PRIu64 "\n"),
 
 	if (nextents > xfs_iext_max(&mp->m_sb, XFS_DATA_FORK)) {
 		do_warn(
-_("too many data fork extents (%" PRIu64 ") in inode %" PRIu64 "\n"),
+_("too many data fork extents (%" PRIi32 ") in inode %" PRIu64 "\n"),
 			nextents, lino);
 		return 1;
 	}
 	if (nextents != be32_to_cpu(dino->di_nextents))  {
 		if (!no_modify)  {
 			do_warn(
-_("correcting nextents for inode %" PRIu64 ", was %d - counted %" PRIu64 "\n"),
+_("correcting nextents for inode %" PRIu64 ", was %d - counted %" PRIi32 "\n"),
 				lino,
 				be32_to_cpu(dino->di_nextents),
 				nextents);
@@ -1849,7 +1849,7 @@ _("correcting nextents for inode %" PRIu64 ", was %d - counted %" PRIu64 "\n"),
 			*dirty = 1;
 		} else  {
 			do_warn(
-_("bad nextents %d for inode %" PRIu64 ", would reset to %" PRIu64 "\n"),
+_("bad nextents %d for inode %" PRIu64 ", would reset to %" PRIi32 "\n"),
 				be32_to_cpu(dino->di_nextents),
 				lino, nextents);
 		}
@@ -1857,21 +1857,21 @@ _("bad nextents %d for inode %" PRIu64 ", would reset to %" PRIu64 "\n"),
 
 	if (anextents > xfs_iext_max(&mp->m_sb, XFS_ATTR_FORK))  {
 		do_warn(
-_("too many attr fork extents (%" PRIu64 ") in inode %" PRIu64 "\n"),
+_("too many attr fork extents (%" PRIi32 ") in inode %" PRIu64 "\n"),
 			anextents, lino);
 		return 1;
 	}
 	if (anextents != be16_to_cpu(dino->di_anextents))  {
 		if (!no_modify)  {
 			do_warn(
-_("correcting anextents for inode %" PRIu64 ", was %d - counted %" PRIu64 "\n"),
+_("correcting anextents for inode %" PRIu64 ", was %d - counted %" PRIi32 "\n"),
 				lino,
 				be16_to_cpu(dino->di_anextents), anextents);
 			dino->di_anextents = cpu_to_be16(anextents);
 			*dirty = 1;
 		} else  {
 			do_warn(
-_("bad anextents %d for inode %" PRIu64 ", would reset to %" PRIu64 "\n"),
+_("bad anextents %d for inode %" PRIu64 ", would reset to %" PRIi32 "\n"),
 				be16_to_cpu(dino->di_anextents),
 				lino, anextents);
 		}
@@ -1902,7 +1902,7 @@ process_inode_data_fork(
 	int			type,
 	int			*dirty,
 	xfs_rfsblock_t		*totblocks,
-	uint64_t		*nextents,
+	xfs_extnum_t		*nextents,
 	blkmap_t		**dblkmap,
 	int			check_dups,
 	struct xfs_buf		**ino_bpp,
@@ -1911,7 +1911,7 @@ process_inode_data_fork(
 	struct xfs_dinode	*dino = *dinop;
 	xfs_ino_t		lino = XFS_AGINO_TO_INO(mp, agno, ino);
 	int			err = 0;
-	int			nex;
+	xfs_extnum_t		nex;
 	int			try_rebuild = -1; /* don't know yet */
 
 retry:
@@ -2040,7 +2040,7 @@ process_inode_attr_fork(
 	int			type,
 	int			*dirty,
 	xfs_rfsblock_t		*atotblocks,
-	uint64_t		*anextents,
+	xfs_extnum_t		*anextents,
 	int			check_dups,
 	int			extra_attr_check,
 	int			*retval,
@@ -2304,8 +2304,8 @@ process_dinode_int(
 	int			di_mode;
 	int			type;
 	int			retval = 0;
-	uint64_t		nextents;
-	uint64_t		anextents;
+	xfs_extnum_t		nextents;
+	xfs_extnum_t		anextents;
 	xfs_ino_t		lino;
 	const int		is_free = 0;
 	const int		is_used = 1;

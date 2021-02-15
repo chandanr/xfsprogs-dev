@@ -2057,7 +2057,7 @@ process_multi_fsb_objects(
 static int
 process_bmbt_reclist(
 	xfs_bmbt_rec_t 		*rp,
-	int 			numrecs,
+	xfs_extnum_t 		numrecs,
 	typnm_t			btype,
 	bool			is_meta)
 {

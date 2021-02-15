@@ -165,7 +165,7 @@ static int
 pf_read_bmbt_reclist(
 	prefetch_args_t		*args,
 	xfs_bmbt_rec_t		*rp,
-	int			numrecs)
+	xfs_extnum_t		numrecs)
 {
 	int			i;
 	xfs_bmbt_irec_t		irec;
