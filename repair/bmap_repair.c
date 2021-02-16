@@ -535,7 +535,7 @@ rebuild_bmap(
 		if (nextents == 0)
 			return 0;
 		(*dinop)->di_format = XFS_DINODE_FMT_EXTENTS;
-		(*dinop)->di_nextents = 0;
+		(*dinop)->di_nextents32 = 0;
 		libxfs_dinode_calc_crc(mp, *dinop);
 		*dirty = 1;
 		break;
@@ -546,7 +546,7 @@ rebuild_bmap(
 		if (nextents == 0)
 			return 0;
 		(*dinop)->di_aformat = XFS_DINODE_FMT_EXTENTS;
-		(*dinop)->di_anextents = 0;
+		(*dinop)->di_nextents16 = 0;
 		libxfs_dinode_calc_crc(mp, *dinop);
 		*dirty = 1;
 		break;
