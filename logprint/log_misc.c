@@ -452,9 +452,9 @@ xlog_print_trans_inode_core(
 		xlog_extract_dinode_ts(ip->di_ctime));
     printf(_("size 0x%llx nblocks 0x%llx extsize 0x%x nextents 0x%x\n"),
 	   (unsigned long long)ip->di_size, (unsigned long long)ip->di_nblocks,
-	   ip->di_extsize, ip->di_nextents);
+	   ip->di_extsize, ip->di_nextents32);
     printf(_("naextents 0x%x forkoff %d dmevmask 0x%x dmstate 0x%hx\n"),
-	   ip->di_anextents, (int)ip->di_forkoff, ip->di_dmevmask,
+	   ip->di_nextents16, (int)ip->di_forkoff, ip->di_dmevmask,
 	   ip->di_dmstate);
     printf(_("flags 0x%x gen 0x%x\n"),
 	   ip->di_flags, ip->di_gen);
