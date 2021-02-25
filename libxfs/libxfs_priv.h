@@ -499,6 +499,9 @@ static inline int retzero(void) { return 0; }
 #define xfs_trans_unreserve_quota_nblks(t,i,b,n,f)	retzero()
 #define xfs_qm_dqattach(i)				(0)
 
+#define xfs_quota_reserve_blkres(ip, alen)		(0)
+#define xfs_quota_unreserve_blkres(ip, alen)		retzero()
+
 #define uuid_copy(s,d)		platform_uuid_copy((s),(d))
 #define uuid_equal(s,d)		(platform_uuid_compare((s),(d)) == 0)
 
