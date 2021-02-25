@@ -996,3 +996,27 @@ libxfs_trans_commit(
 {
 	return __xfs_trans_commit(tp, false);
 }
+
+int
+libxfs_trans_alloc_inode(
+	struct xfs_inode	*ip,
+	struct xfs_trans_res	*resv,
+	unsigned int		dblocks,
+	bool			force,
+	struct xfs_trans	**tpp)
+{
+	struct xfs_trans	*tp;
+	struct xfs_mount	*mp = ip->i_mount;
+	int			error;
+
+	error = libxfs_trans_alloc(mp, resv, dblocks, 0,
+			force ? XFS_TRANS_RESERVE : 0, &tp);
+	if (error)
+		return error;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, 0);
+
+	*tpp = tp;
+	return 0;
+}
