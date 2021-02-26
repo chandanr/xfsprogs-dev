@@ -24,7 +24,7 @@ xlog_recover_do_trans(
 	struct xlog_recover	*trans,
 	int			pass)
 {
-	xlog_recover_print_trans(trans, &trans->r_itemq, 3);
+	xlog_recover_print_trans(log, trans, &trans->r_itemq, 3);
 	return 0;
 }
 
