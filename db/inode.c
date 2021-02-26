@@ -269,6 +269,7 @@ inode_a_bmx_count(
 	void		*obj,
 	int		startoff)
 {
+	xfs_extnum_t	nextents;
 	xfs_dinode_t	*dip;
 
 	ASSERT(bitoffs(startoff) == 0);
@@ -277,8 +278,12 @@ inode_a_bmx_count(
 	if (!dip->di_forkoff)
 		return 0;
 	ASSERT((char *)XFS_DFORK_APTR(dip) - (char *)dip == byteize(startoff));
-	return dip->di_aformat == XFS_DINODE_FMT_EXTENTS ?
-		xfs_dfork_nextents(dip, XFS_ATTR_FORK) : 0;
+	if (dip->di_aformat != XFS_DINODE_FMT_EXTENTS ||
+		xfs_dfork_nextents(dip, XFS_ATTR_FORK, &nextents)) {
+			nextents = 0;
+	}
+
+        return nextents;
 }
 
 static int
@@ -342,7 +347,8 @@ inode_a_size(
 		asf = (struct xfs_attr_shortform *)XFS_DFORK_APTR(dip);
 		return bitize(be16_to_cpu(asf->hdr.totsize));
 	case XFS_DINODE_FMT_EXTENTS:
-		nextents = xfs_dfork_nextents(dip, XFS_ATTR_FORK);
+		if (xfs_dfork_nextents(dip, XFS_ATTR_FORK, &nextents))
+			nextents = 0;
 		return nextents * bitsz(struct xfs_bmbt_rec);
 	case XFS_DINODE_FMT_BTREE:
 		return bitize((int)XFS_DFORK_ASIZE(dip, mp));
@@ -497,14 +503,19 @@ inode_u_bmx_count(
 	void		*obj,
 	int		startoff)
 {
+	xfs_extnum_t	nextents;
 	xfs_dinode_t	*dip;
 
 	ASSERT(bitoffs(startoff) == 0);
 	ASSERT(obj == iocur_top->data);
 	dip = obj;
 	ASSERT((char *)XFS_DFORK_DPTR(dip) - (char *)dip == byteize(startoff));
-	return dip->di_format == XFS_DINODE_FMT_EXTENTS ?
-		xfs_dfork_nextents(dip, XFS_DATA_FORK) : 0;
+	if (dip->di_format != XFS_DINODE_FMT_EXTENTS ||
+		xfs_dfork_nextents(dip, XFS_DATA_FORK, &nextents)) {
+		nextents = 0;
+	}
+
+        return nextents;
 }
 
 static int
@@ -590,7 +601,7 @@ inode_u_size(
 	int		idx)
 {
 	xfs_dinode_t	*dip;
-	xfs_extnum_t	nextents;
+	xfs_extnum_t	nextents = 0;
 
 	ASSERT(startoff == 0);
 	ASSERT(idx == 0);
@@ -601,7 +612,8 @@ inode_u_size(
 	case XFS_DINODE_FMT_LOCAL:
 		return bitize((int)be64_to_cpu(dip->di_size));
 	case XFS_DINODE_FMT_EXTENTS:
-		nextents = xfs_dfork_nextents(dip, XFS_DATA_FORK);
+		if (xfs_dfork_nextents(dip, XFS_DATA_FORK, &nextents))
+			nextents = 0;
 		return nextents * bitsz(struct xfs_bmbt_rec);
 	case XFS_DINODE_FMT_BTREE:
 		return bitize((int)XFS_DFORK_DSIZE(dip, mp));

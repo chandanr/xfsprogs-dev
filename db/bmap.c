@@ -68,11 +68,13 @@ bmap(
 	ASSERT(fmt == XFS_DINODE_FMT_LOCAL || fmt == XFS_DINODE_FMT_EXTENTS ||
 		fmt == XFS_DINODE_FMT_BTREE);
 	if (fmt == XFS_DINODE_FMT_EXTENTS) {
-		nextents = xfs_dfork_nextents(dip, whichfork);
-		xp = (xfs_bmbt_rec_t *)XFS_DFORK_PTR(dip, whichfork);
-		for (ep = xp; ep < &xp[nextents] && n < nex; ep++) {
-			if (!bmap_one_extent(ep, &curoffset, eoffset, &n, bep))
-				break;
+		if (!xfs_dfork_nextents(dip, whichfork, &nextents)) {
+			xp = (xfs_bmbt_rec_t *)XFS_DFORK_PTR(dip, whichfork);
+			for (ep = xp; ep < &xp[nextents] && n < nex; ep++) {
+				if (!bmap_one_extent(ep, &curoffset, eoffset,
+						&n, bep))
+					break;
+			}
 		}
 	} else if (fmt == XFS_DINODE_FMT_BTREE) {
 		push_cur();
@@ -155,12 +157,15 @@ bmap_f(
 		}
 	}
 	if (afork + dfork == 0) {
+		xfs_extnum_t nextents;
 		push_cur();
 		set_cur_inode(iocur_top->ino);
 		dip = iocur_top->data;
-		if (xfs_dfork_nextents(dip, XFS_DATA_FORK))
+		if (!xfs_dfork_nextents(dip, XFS_DATA_FORK, &nextents) &&
+		    nextents)
 			dfork = 1;
-		if (xfs_dfork_nextents(dip, XFS_ATTR_FORK))
+		if (!xfs_dfork_nextents(dip, XFS_ATTR_FORK, &nextents) &&
+		    nextents)
 			afork = 1;
 		pop_cur();
 	}
