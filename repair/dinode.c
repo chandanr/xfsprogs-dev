@@ -60,6 +60,9 @@ get_forkname(int whichfork)
 static int
 clear_dinode_attr(xfs_mount_t *mp, xfs_dinode_t *dino, xfs_ino_t ino_num)
 {
+	xfs_extnum_t anextents;
+	int err;
+
 	ASSERT(dino->di_forkoff != 0);
 
 	if (!no_modify)
@@ -69,7 +72,10 @@ _("clearing inode %" PRIu64 " attributes\n"), ino_num);
 		fprintf(stderr,
 _("would have cleared inode %" PRIu64 " attributes\n"), ino_num);
 
-	if (xfs_dfork_nextents(dino, XFS_ATTR_FORK) != 0) {
+	err = xfs_dfork_nextents(dino, XFS_ATTR_FORK, &anextents);
+	ASSERT(err == 0);
+
+	if (anextents != 0) {
 		if (no_modify)
 			return(1);
 		dino->di_anextents = cpu_to_be16(0);
@@ -973,7 +979,9 @@ process_exinode(
 	lino = XFS_AGINO_TO_INO(mp, agno, ino);
 	rp = (xfs_bmbt_rec_t *)XFS_DFORK_PTR(dip, whichfork);
 	*tot = 0;
-	numrecs = xfs_dfork_nextents(dip, whichfork);
+
+        ret = xfs_dfork_nextents(dip, whichfork, &numrecs);
+	ASSERT(ret == 0);
 
 	/*
 	 * We've already decided on the maximum number of extents on the inode,
@@ -1053,6 +1061,7 @@ process_symlink_extlist(xfs_mount_t *mp, xfs_ino_t lino, xfs_dinode_t *dino)
 	xfs_extnum_t		numrecs;
 	int			i;
 	int			max_blocks;
+	int			ret;
 
 	if (be64_to_cpu(dino->di_size) <= XFS_DFORK_DSIZE(dino, mp)) {
 		if (dino->di_format == XFS_DINODE_FMT_LOCAL)
@@ -1072,7 +1081,9 @@ _("mismatch between format (%d) and size (%" PRId64 ") in symlink inode %" PRIu6
 	}
 
 	rp = (xfs_bmbt_rec_t *)XFS_DFORK_DPTR(dino);
-	numrecs = xfs_dfork_nextents(dino, XFS_DATA_FORK);
+
+        ret = xfs_dfork_nextents(dino, XFS_DATA_FORK, &numrecs);
+	ASSERT(ret == 0);
 
 	/*
 	 * the max # of extents in a symlink inode is equal to the
@@ -1579,6 +1590,7 @@ process_check_sb_inodes(
 	int		*dirty)
 {
 	xfs_extnum_t	nextents;
+	int		ret;
 
 	if (lino == mp->m_sb.sb_rootino) {
 		if (*type != XR_INO_DIR)  {
@@ -1635,7 +1647,9 @@ _("realtime summary inode %" PRIu64 " has bad type 0x%x, "),
 			}
 		}
 
-		nextents = xfs_dfork_nextents(dinoc, XFS_DATA_FORK);
+		ret = xfs_dfork_nextents(dinoc, XFS_DATA_FORK, &nextents);
+		ASSERT(ret == 0);
+
 		if (mp->m_sb.sb_rblocks == 0 && nextents != 0)  {
 			do_warn(
 _("bad # of extents (%d) for realtime summary inode %" PRIu64 "\n"),
@@ -1658,8 +1672,10 @@ _("realtime bitmap inode %" PRIu64 " has bad type 0x%x, "),
 			}
 		}
 
-		nextents = xfs_dfork_nextents(dinoc, XFS_DATA_FORK);
-		if (mp->m_sb.sb_rblocks == 0 && nextents != 0)  {
+		ret = xfs_dfork_nextents(dinoc, XFS_DATA_FORK, &nextents);
+		ASSERT(ret == 0);
+
+                if (mp->m_sb.sb_rblocks == 0 && nextents != 0)  {
 			do_warn(
 _("bad # of extents (%d) for realtime bitmap inode %" PRIu64 "\n"),
 				nextents, lino);
@@ -1823,6 +1839,7 @@ process_inode_blocks_and_extents(
 	int		*dirty)
 {
 	xfs_extnum_t		dnextents;
+	int			ret;
 
 	if (nblocks != be64_to_cpu(dino->di_nblocks))  {
 		if (!no_modify)  {
@@ -1847,7 +1864,9 @@ _("too many data fork extents (%" PRIu64 ") in inode %" PRIu64 "\n"),
 		return 1;
 	}
 
-	dnextents = xfs_dfork_nextents(dino, XFS_DATA_FORK);
+	ret = xfs_dfork_nextents(dino, XFS_DATA_FORK, &dnextents);
+	ASSERT(ret == 0);
+
 	if (nextents != dnextents)  {
 		if (!no_modify)  {
 			do_warn(
@@ -1869,7 +1888,9 @@ _("too many attr fork extents (%" PRIu64 ") in inode %" PRIu64 "\n"),
 		return 1;
 	}
 
-	dnextents = xfs_dfork_nextents(dino, XFS_ATTR_FORK);
+	ret = xfs_dfork_nextents(dino, XFS_ATTR_FORK, &dnextents);
+	ASSERT(ret == 0);
+
 	if (anextents != dnextents)  {
 		if (!no_modify)  {
 			do_warn(
@@ -1920,6 +1941,7 @@ process_inode_data_fork(
 	xfs_extnum_t		nex;
 	int			err = 0;
 	int			try_rebuild = -1; /* don't know yet */
+	int			ret;
 
 retry:
 	/*
@@ -1927,7 +1949,9 @@ retry:
 	 * uses negative values in memory. hence if we see negative numbers
 	 * here, trash it!
 	 */
-	nex = xfs_dfork_nextents(dino, XFS_DATA_FORK);
+	ret = xfs_dfork_nextents(dino, XFS_DATA_FORK, &nex);
+	ASSERT(ret == 0);
+
 	if (nex < 0)
 		*nextents = 1;
 	else
@@ -2076,8 +2100,11 @@ retry:
 		return 0;
 	}
 
-	*anextents = xfs_dfork_nextents(dino, XFS_ATTR_FORK);
-	if (*anextents > be64_to_cpu(dino->di_nblocks))
+	err = xfs_dfork_nextents(dino, XFS_ATTR_FORK,
+			(xfs_extnum_t *)anextents);
+	ASSERT(err == 0);
+
+        if (*anextents > be64_to_cpu(dino->di_nblocks))
 		*anextents = 1;
 
 	switch (dino->di_aformat) {
@@ -2126,8 +2153,10 @@ retry:
 			if (try_rebuild == 1) {
 				xfs_extnum_t danextents;
 
-				danextents = xfs_dfork_nextents(dino,
-						XFS_ATTR_FORK);
+				err = xfs_dfork_nextents(dino, XFS_ATTR_FORK,
+						&danextents);
+				ASSERT(err == 0);
+
 				do_warn(
 _("rebuilding inode %"PRIu64" attr fork\n"),
 					lino);
@@ -2833,6 +2862,9 @@ _("bad (negative) size %" PRId64 " on inode %" PRIu64 "\n"),
 				di_mode & S_IFMT, lino);
 		goto clear_bad_out;
 	}
+
+	if (xfs_dfork_nextents(dino, XFS_DATA_FORK, (xfs_extnum_t *)&nextents))
+		goto clear_bad_out;
 
 	/*
 	 * type checks for superblock inodes
