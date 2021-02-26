@@ -135,10 +135,20 @@ static inline int8_t xfs_ifork_format(struct xfs_ifork *ifp)
 
 static inline xfs_extnum_t xfs_iext_max(struct xfs_mount *mp, int whichfork)
 {
-	if (whichfork == XFS_DATA_FORK || whichfork == XFS_COW_FORK)
-		return XFS_IFORK_EXTCNT_MAXS32;
-	else
-		return XFS_IFORK_EXTCNT_MAXS16;
+	bool has_64bit_extcnt = xfs_sb_version_hasextcount_64bit(&mp->m_sb);
+
+	switch (whichfork) {
+	case XFS_DATA_FORK:
+	case XFS_COW_FORK:
+		return has_64bit_extcnt ? XFS_IFORK_EXTCNT_MAXU48 : XFS_IFORK_EXTCNT_MAXS32;
+
+	case XFS_ATTR_FORK:
+		return has_64bit_extcnt ? XFS_IFORK_EXTCNT_MAXU32 : XFS_IFORK_EXTCNT_MAXS16;
+
+	default:
+		ASSERT(0);
+		return 0;
+	}
 }
 
 struct xfs_ifork *xfs_ifork_alloc(enum xfs_dinode_fmt format,

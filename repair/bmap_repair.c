@@ -536,7 +536,10 @@ rebuild_bmap(
 		if (nextents == 0)
 			return 0;
 		(*dinop)->di_format = XFS_DINODE_FMT_EXTENTS;
-		(*dinop)->di_nextents32 = 0;
+		if (xfs_sb_version_hasextcount_64bit(&mp->m_sb))
+			(*dinop)->di_nextents64 = cpu_to_be64(0);
+		else
+			(*dinop)->di_nextents32 = cpu_to_be32(0);
 		libxfs_dinode_calc_crc(mp, *dinop);
 		*dirty = 1;
 		break;
@@ -547,7 +550,10 @@ rebuild_bmap(
 		if (nextents == 0)
 			return 0;
 		(*dinop)->di_aformat = XFS_DINODE_FMT_EXTENTS;
-		(*dinop)->di_nextents16 = 0;
+		if (xfs_sb_version_hasextcount_64bit(&mp->m_sb))
+			(*dinop)->di_nextents32 = cpu_to_be32(0);
+		else
+			(*dinop)->di_nextents16 = cpu_to_be16(0);
 		libxfs_dinode_calc_crc(mp, *dinop);
 		*dirty = 1;
 		break;
