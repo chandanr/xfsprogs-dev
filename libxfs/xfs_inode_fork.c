@@ -105,12 +105,19 @@ xfs_iformat_extents(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
 	int			state = xfs_bmap_fork_to_state(whichfork);
-	xfs_extnum_t		nex = xfs_dfork_nextents(dip, whichfork);
-	int			size = nex * sizeof(xfs_bmbt_rec_t);
+	xfs_extnum_t		nex;
+	int			size;
 	struct xfs_iext_cursor	icur;
 	struct xfs_bmbt_rec	*dp;
 	struct xfs_bmbt_irec	new;
 	int			i;
+	int			error;
+
+	error = xfs_dfork_nextents(dip, whichfork, &nex);
+	if (error)
+		return error;
+
+	size = nex * sizeof(struct xfs_bmbt_rec);
 
 	/*
 	 * If the number of extents is unreasonable, then something is wrong and
@@ -232,7 +239,10 @@ xfs_iformat_data_fork(
 	 * depend on it.
 	 */
 	ip->i_df.if_format = dip->di_format;
-	ip->i_df.if_nextents = xfs_dfork_nextents(dip, XFS_DATA_FORK);
+	error = xfs_dfork_nextents(dip, XFS_DATA_FORK,
+		&ip->i_df.if_nextents);
+	if (error)
+		return error;
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFIFO:
@@ -300,13 +310,16 @@ xfs_iformat_attr_fork(
 	struct xfs_dinode	*dip)
 {
 	xfs_extnum_t		naextents;
-	int			error = 0;
+	int			error;
 
-	/*
+	error = xfs_dfork_nextents(dip, XFS_ATTR_FORK, &naextents);
+	if (error)
+		return error;
+
+        /*
 	 * Initialize the extent count early, as the per-format routines may
 	 * depend on it.
 	 */
-	naextents = xfs_dfork_nextents(dip, XFS_ATTR_FORK);
 	ip->i_afp = xfs_ifork_alloc(dip->di_aformat, naextents);
 
 	switch (ip->i_afp->if_format) {
