@@ -158,9 +158,9 @@ bmap_f(
 		push_cur();
 		set_cur_inode(iocur_top->ino);
 		dip = iocur_top->data;
-		if (be32_to_cpu(dip->di_nextents))
+		if (xfs_dfork_nextents(mp, dip, XFS_DATA_FORK))
 			dfork = 1;
-		if (be16_to_cpu(dip->di_anextents))
+		if (xfs_dfork_nextents(mp, dip, XFS_ATTR_FORK))
 			afork = 1;
 		pop_cur();
 	}
