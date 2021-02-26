@@ -153,6 +153,7 @@ dump_inode(
 	bool			dump_node_blocks,
 	bool			attrfork)
 {
+	xfs_extnum_t		nextents;
 	char			*prefix;
 	struct xfs_dinode	*dip;
 	int			ret = 0;
@@ -166,14 +167,16 @@ dump_inode(
 
 	dip = iocur_top->data;
 	if (attrfork) {
-		if (!xfs_dfork_nextents(dip, XFS_ATTR_FORK) ||
-		    dip->di_aformat != XFS_DINODE_FMT_BTREE) {
+		if (xfs_dfork_nextents(dip, XFS_ATTR_FORK, &nextents))
+			return -1;
+		if (!nextents || dip->di_aformat != XFS_DINODE_FMT_BTREE) {
 			dbprintf(_("attr fork not in btree format\n"));
 			return 0;
 		}
 	} else {
-		if (!xfs_dfork_nextents(dip, XFS_DATA_FORK) ||
-		    dip->di_format != XFS_DINODE_FMT_BTREE) {
+		if (xfs_dfork_nextents(dip, XFS_DATA_FORK, &nextents))
+			return -1;
+		if (!nextents || dip->di_format != XFS_DINODE_FMT_BTREE) {
 			dbprintf(_("data fork not in btree format\n"));
 			return 0;
 		}
