@@ -572,7 +572,7 @@ rebuild_bmap(
 	 */
 	switch (whichfork) {
 	case XFS_DATA_FORK:
-		if ((*dinop)->di_nextents == 0)
+		if (!xfs_dfork_nextents(*dinop, XFS_DATA_FORK))
 			return 0;
 		(*dinop)->di_format = XFS_DINODE_FMT_EXTENTS;
 		(*dinop)->di_nextents = 0;
@@ -580,7 +580,7 @@ rebuild_bmap(
 		*dirty = 1;
 		break;
 	case XFS_ATTR_FORK:
-		if ((*dinop)->di_anextents == 0)
+		if (!xfs_dfork_nextents(*dinop, XFS_ATTR_FORK))
 			return 0;
 		(*dinop)->di_aformat = XFS_DINODE_FMT_EXTENTS;
 		(*dinop)->di_anextents = 0;
