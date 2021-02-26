@@ -107,12 +107,19 @@ xfs_iformat_extents(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
 	int			state = xfs_bmap_fork_to_state(whichfork);
-	xfs_extnum_t		nex = xfs_dfork_nextents(mp, dip, whichfork);
-	int			size = nex * sizeof(xfs_bmbt_rec_t);
+	xfs_extnum_t		nex;
+	int			size;
 	struct xfs_iext_cursor	icur;
 	struct xfs_bmbt_rec	*dp;
 	struct xfs_bmbt_irec	new;
-	int			i;
+	int			error;
+	xfs_extnum_t		i;
+
+	error = xfs_dfork_nextents(mp, dip, whichfork, &nex);
+	if (error)
+		return error;
+
+	size = nex * sizeof(xfs_bmbt_rec_t);
 
 	/*
 	 * If the number of extents is unreasonable, then something is wrong and
@@ -236,7 +243,11 @@ xfs_iformat_data_fork(
 	 * depend on it.
 	 */
 	ip->i_df.if_format = dip->di_format;
-	ip->i_df.if_nextents = xfs_dfork_nextents(mp, dip, XFS_DATA_FORK);
+
+	error = xfs_dfork_nextents(mp, dip, XFS_DATA_FORK,
+		&ip->i_df.if_nextents);
+	if (error)
+		return error;
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFIFO:
@@ -301,7 +312,11 @@ xfs_iformat_attr_fork(
 	ip->i_afp->if_format = dip->di_aformat;
 	if (unlikely(ip->i_afp->if_format == 0)) /* pre IRIX 6.2 file system */
 		ip->i_afp->if_format = XFS_DINODE_FMT_EXTENTS;
-	ip->i_afp->if_nextents = xfs_dfork_nextents(mp, dip, XFS_ATTR_FORK);
+
+	error = xfs_dfork_nextents(mp, dip, XFS_ATTR_FORK,
+			&ip->i_afp->if_nextents);
+	if (error)
+		goto out;
 
 	switch (ip->i_afp->if_format) {
 	case XFS_DINODE_FMT_LOCAL:
@@ -324,6 +339,7 @@ xfs_iformat_attr_fork(
 		break;
 	}
 
+out:
 	if (error) {
 		kmem_cache_free(xfs_ifork_zone, ip->i_afp);
 		ip->i_afp = NULL;
