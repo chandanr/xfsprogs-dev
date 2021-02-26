@@ -392,8 +392,11 @@ pf_read_exinode(
 	prefetch_args_t		*args,
 	xfs_dinode_t		*dino)
 {
-	pf_read_bmbt_reclist(args, (xfs_bmbt_rec_t *)XFS_DFORK_DPTR(dino),
-			xfs_dfork_nextents(dino, XFS_DATA_FORK));
+	xfs_extnum_t		nextents;
+
+	if (!xfs_dfork_nextents(dino, XFS_DATA_FORK, &nextents))
+		pf_read_bmbt_reclist(args,
+			(xfs_bmbt_rec_t *)XFS_DFORK_DPTR(dino), nextents);
 }
 
 static void
