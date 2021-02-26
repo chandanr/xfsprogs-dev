@@ -2718,10 +2718,17 @@ process_exinode(
 	int			whichfork)
 {
 	xfs_bmbt_rec_t		*rp;
+	int			ret;
 
 	rp = (xfs_bmbt_rec_t *)XFS_DFORK_PTR(dip, whichfork);
-	*nex = xfs_dfork_nextents(dip, whichfork);
-	if (*nex < 0 || *nex > XFS_DFORK_SIZE(dip, mp, whichfork) /
+	ret = xfs_dfork_nextents(dip, whichfork, nex);
+	if (ret) {
+		if (!sflag || id->ilist)
+			dbprintf(_("Corrupt extent count for inode %lld\n"),
+				id->ino);
+		error++;
+		return;
+	} else if (*nex < 0 || *nex > XFS_DFORK_SIZE(dip, mp, whichfork) /
 						sizeof(xfs_bmbt_rec_t)) {
 		if (!sflag || id->ilist)
 			dbprintf(_("bad number of extents %d for inode %lld\n"),
@@ -2881,8 +2888,16 @@ process_inode(
 		return;
 	}
 
-	dnextents = xfs_dfork_nextents(dip, XFS_DATA_FORK);
-	danextents = xfs_dfork_nextents(dip, XFS_ATTR_FORK);
+	if (xfs_dfork_nextents(dip, XFS_DATA_FORK, &dnextents)) {
+		if (v)
+			dbprintf(_("Corrupt extent count for inode %lld\n"),
+				id->ino);
+		error++;
+		return;
+	}
+
+	if (xfs_dfork_nextents(dip, XFS_ATTR_FORK, &danextents))
+		ASSERT(0);
 
 	if (verbose || (id && id->ilist) || CHECK_BLIST(bno))
 		dbprintf(_("inode %lld mode %#o fmt %s "
