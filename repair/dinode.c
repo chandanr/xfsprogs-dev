@@ -1808,6 +1808,7 @@ _("bad attr fork offset %d in inode %" PRIu64 ", max=%zu\n"),
  */
 static int
 process_inode_blocks_and_extents(
+	struct xfs_mount *mp,
 	xfs_dinode_t	*dino,
 	xfs_rfsblock_t	nblocks,
 	uint64_t	nextents,
@@ -1831,7 +1832,7 @@ _("bad nblocks %llu for inode %" PRIu64 ", would reset to %" PRIu64 "\n"),
 		}
 	}
 
-	if (nextents > XFS_IFORK_EXTCNT_MAXS32)  {
+	if (nextents > xfs_iext_max(mp, XFS_DATA_FORK)) {
 		do_warn(
 _("too many data fork extents (%" PRIu64 ") in inode %" PRIu64 "\n"),
 			nextents, lino);
@@ -1854,7 +1855,7 @@ _("bad nextents %d for inode %" PRIu64 ", would reset to %" PRIu64 "\n"),
 		}
 	}
 
-	if (anextents > XFS_IFORK_EXTCNT_MAXS16)  {
+	if (anextents > xfs_iext_max(mp, XFS_ATTR_FORK))  {
 		do_warn(
 _("too many attr fork extents (%" PRIu64 ") in inode %" PRIu64 "\n"),
 			anextents, lino);
@@ -2961,7 +2962,7 @@ _("Bad CoW extent size %u on inode %" PRIu64 ", "),
 	/*
 	 * correct space counters if required
 	 */
-	if (process_inode_blocks_and_extents(dino, totblocks + atotblocks,
+	if (process_inode_blocks_and_extents(mp, dino, totblocks + atotblocks,
 			nextents, anextents, lino, dirty) != 0)
 		goto clear_bad_out;
 
