@@ -1073,6 +1073,7 @@ process_longform_attr(
 	struct blkmap		*blkmap,
 	int			*repair) /* out - 1 if something was fixed */
 {
+	xfs_extnum_t		anextents;
 	xfs_fsblock_t		bno;
 	struct xfs_buf		*bp;
 	struct xfs_da_blkinfo	*info;
@@ -1082,9 +1083,13 @@ process_longform_attr(
 
 	bno = blkmap_get(blkmap, 0);
 	if (bno == NULLFSBLOCK) {
-		if (dip->di_aformat == XFS_DINODE_FMT_EXTENTS &&
-			xfs_dfork_nextents(dip, XFS_ATTR_FORK) == 0)
-			return(0); /* the kernel can handle this state */
+		if (dip->di_aformat == XFS_DINODE_FMT_EXTENTS) {
+			error = xfs_dfork_nextents(dip, XFS_ATTR_FORK,
+					&anextents);
+			ASSERT(error == 0);
+			if (anextents == 0)
+				return(0); /* the kernel can handle this state */
+		}
 		do_warn(
 	_("block 0 of inode %" PRIu64 " attribute fork is missing\n"),
 			ino);

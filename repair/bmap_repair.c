@@ -516,6 +516,7 @@ rebuild_bmap(
 	struct xfs_buf		*bp;
 	unsigned long long	resblks;
 	xfs_daddr_t		bp_bn;
+	xfs_extnum_t		nextents;
 	int			bp_length;
 	int			error;
 
@@ -528,7 +529,10 @@ rebuild_bmap(
 	 */
 	switch (whichfork) {
 	case XFS_DATA_FORK:
-		if (!xfs_dfork_nextents(*dinop, XFS_DATA_FORK))
+		error = xfs_dfork_nextents(*dinop, whichfork, &nextents);
+		if (error)
+			return error;
+		if (nextents == 0)
 			return 0;
 		(*dinop)->di_format = XFS_DINODE_FMT_EXTENTS;
 		(*dinop)->di_nextents = 0;
@@ -536,7 +540,10 @@ rebuild_bmap(
 		*dirty = 1;
 		break;
 	case XFS_ATTR_FORK:
-		if (!xfs_dfork_nextents(*dinop, XFS_ATTR_FORK))
+		error = xfs_dfork_nextents(*dinop, whichfork, &nextents);
+		if (error)
+			return error;
+		if (nextents == 0)
 			return 0;
 		(*dinop)->di_aformat = XFS_DINODE_FMT_EXTENTS;
 		(*dinop)->di_anextents = 0;
