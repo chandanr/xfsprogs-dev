@@ -288,6 +288,7 @@ xfs_inode_to_disk(
 	struct xfs_dinode	*to,
 	xfs_lsn_t		lsn)
 {
+	struct xfs_sb		*sbp = &ip->i_mount->m_sb;
 	struct inode		*inode = VFS_I(ip);
 
 	to->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
@@ -306,12 +307,9 @@ xfs_inode_to_disk(
 	to->di_nlink = cpu_to_be32(inode->i_nlink);
 	to->di_gen = cpu_to_be32(inode->i_generation);
 	to->di_mode = cpu_to_be16(inode->i_mode);
-
 	to->di_size = cpu_to_be64(ip->i_disk_size);
 	to->di_nblocks = cpu_to_be64(ip->i_nblocks);
 	to->di_extsize = cpu_to_be32(ip->i_extsize);
-	to->di_nextents32 = cpu_to_be32(xfs_ifork_nextents(&ip->i_df));
-	to->di_nextents16 = cpu_to_be16(xfs_ifork_nextents(ip->i_afp));
 	to->di_forkoff = ip->i_forkoff;
 	to->di_aformat = xfs_ifork_format(ip->i_afp);
 	to->di_flags = cpu_to_be16(ip->i_diflags);
@@ -330,6 +328,19 @@ xfs_inode_to_disk(
 	} else {
 		to->di_version = 2;
 		to->di_flushiter = cpu_to_be16(ip->i_flushiter);
+	}
+
+	if (xfs_sb_version_hasextcount_64bit(sbp)) {
+		to->di_nextents64 = cpu_to_be64(xfs_ifork_nextents(&ip->i_df));
+		to->di_nextents32 = cpu_to_be32(xfs_ifork_nextents(ip->i_afp));
+		/*
+		 * xchk_dinode() passes an uninitialized disk inode. Hence,
+		 * clear di_nextents16 field explicitly.
+		 */
+		to->di_nextents16 = cpu_to_be16(0);
+	} else {
+		to->di_nextents32 = cpu_to_be32(xfs_ifork_nextents(&ip->i_df));
+		to->di_nextents16 = cpu_to_be16(xfs_ifork_nextents(ip->i_afp));
 	}
 }
 
@@ -382,13 +393,25 @@ xfs_dfork_nextents(
 	int			whichfork,
 	xfs_extnum_t		*nextents)
 {
+	if (xfs_sb_version_hasextcount_64bit(&mp->m_sb) &&
+		dip->di_nextents16 != 0)
+			return -EFSCORRUPTED;
+
 	switch (whichfork) {
 	case XFS_DATA_FORK:
-		*nextents = be32_to_cpu(dip->di_nextents32);
+		if (xfs_sb_version_hasextcount_64bit(&mp->m_sb))
+			*nextents = be64_to_cpu(dip->di_nextents64);
+		else
+			*nextents = be32_to_cpu(dip->di_nextents32);
+
 		break;
 
 	case XFS_ATTR_FORK:
-		*nextents = be16_to_cpu(dip->di_nextents16);
+		if (xfs_sb_version_hasextcount_64bit(&mp->m_sb))
+			*nextents = be32_to_cpu(dip->di_nextents32);
+		else
+			*nextents = be16_to_cpu(dip->di_nextents16);
+
 		break;
 
 	default:
