@@ -263,9 +263,11 @@ process_exinode(
 {
 	xfs_bmbt_rec_t		*rp;
 	xfs_extnum_t		nextents;
+	int			error;
 
 	rp = (xfs_bmbt_rec_t *)XFS_DFORK_PTR(dip, whichfork);
-	nextents = xfs_dfork_nextents(dip, whichfork);
+	error = xfs_dfork_nextents(dip, whichfork, &nextents);
+	ASSERT(error == 0);
 	process_bmbt_reclist(rp, nextents, extmapp);
 }
 
@@ -277,8 +279,7 @@ process_fork(
 	extmap_t	*extmap;
 	xfs_extnum_t	nex;
 
-	nex = xfs_dfork_nextents(dip, whichfork);
-	if (!nex)
+	if (xfs_dfork_nextents(dip, whichfork, &nex) || !nex)
 		return;
 	extmap = extmap_alloc(nex);
 	switch (XFS_DFORK_FORMAT(dip, whichfork)) {
