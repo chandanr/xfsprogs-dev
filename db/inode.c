@@ -37,6 +37,8 @@ static int	inode_u_muuid_count(void *obj, int startoff);
 static int	inode_u_sfdir2_count(void *obj, int startoff);
 static int	inode_u_sfdir3_count(void *obj, int startoff);
 static int	inode_u_symlink_count(void *obj, int startoff);
+static int	inode_v3_64bitext_count(void *obj, int startoff);
+static int	inode_v3_pad2_count(void *obj, int startoff);
 
 static const cmdinfo_t	inode_cmd =
 	{ "inode", NULL, inode_f, 0, 1, 1, "[inode#]",
@@ -100,8 +102,8 @@ const field_t	inode_core_flds[] = {
 	{ "size", FLDT_FSIZE, OI(COFF(size)), C1, 0, TYP_NONE },
 	{ "nblocks", FLDT_DRFSBNO, OI(COFF(nblocks)), C1, 0, TYP_NONE },
 	{ "extsize", FLDT_EXTLEN, OI(COFF(extsize)), C1, 0, TYP_NONE },
-	{ "nextents32", FLDT_EXTNUM, OI(COFF(nextents32)), C1, 0, TYP_NONE },
-	{ "nextents16", FLDT_AEXTNUM, OI(COFF(nextents16)), C1, 0, TYP_NONE },
+	{ "nextents32", FLDT_UINT32D, OI(COFF(nextents32)), C1, 0, TYP_NONE },
+	{ "nextents16", FLDT_UINT16D, OI(COFF(nextents16)), C1, 0, TYP_NONE },
 	{ "forkoff", FLDT_UINT8D, OI(COFF(forkoff)), C1, 0, TYP_NONE },
 	{ "aformat", FLDT_DINODE_FMT, OI(COFF(aformat)), C1, 0, TYP_NONE },
 	{ "dmevmask", FLDT_UINT32X, OI(COFF(dmevmask)), C1, 0, TYP_NONE },
@@ -162,7 +164,10 @@ const field_t	inode_v3_flds[] = {
 	{ "lsn", FLDT_UINT64X, OI(COFF(lsn)), C1, 0, TYP_NONE },
 	{ "flags2", FLDT_UINT64X, OI(COFF(flags2)), C1, 0, TYP_NONE },
 	{ "cowextsize", FLDT_EXTLEN, OI(COFF(cowextsize)), C1, 0, TYP_NONE },
-	{ "pad2", FLDT_UINT8X, OI(OFF(pad2)), CI(12), FLD_ARRAY|FLD_SKIPALL, TYP_NONE },
+	{ "nextents64", FLDT_UINT64D, OI(COFF(nextents64)),
+	  inode_v3_64bitext_count, FLD_COUNT, TYP_NONE },
+	{ "pad2", FLDT_UINT8X, OI(OFF(pad2)), inode_v3_pad2_count,
+	  FLD_ARRAY|FLD_COUNT|FLD_SKIPALL, TYP_NONE },
 	{ "crtime", FLDT_TIMESTAMP, OI(COFF(crtime)), C1, 0, TYP_NONE },
 	{ "inumber", FLDT_INO, OI(COFF(ino)), C1, 0, TYP_NONE },
 	{ "uuid", FLDT_UUID, OI(COFF(uuid)), C1, 0, TYP_NONE },
@@ -180,6 +185,9 @@ const field_t	inode_v3_flds[] = {
 	  0, TYP_NONE },
 	{ "metadata", FLDT_UINT1,
 	  OI(COFF(flags2) + bitsz(uint64_t) - XFS_DIFLAG2_METADATA_BIT-1), C1,
+	  0, TYP_NONE },
+	{ "nrext64", FLDT_UINT1,
+	  OI(COFF(flags2) + bitsz(uint64_t) - XFS_DIFLAG2_NREXT64_BIT-1), C1,
 	  0, TYP_NONE },
 	{ NULL }
 };
@@ -407,6 +415,36 @@ inode_core_projid_count(
 	ASSERT(obj == iocur_top->data);
 	dic = obj;
 	return dic->di_version >= 2;
+}
+
+static int
+inode_v3_64bitext_count(
+	void			*obj,
+	int			startoff)
+{
+	struct xfs_dinode 	*dic;
+
+	ASSERT(startoff == 0);
+	ASSERT(obj == iocur_top->data);
+	dic = obj;
+	return !!(be64_to_cpu(dic->di_flags2) & XFS_DIFLAG2_NREXT64);
+}
+
+static int
+inode_v3_pad2_count(
+	void			*obj,
+	int			startoff)
+{
+	struct xfs_dinode 	*dic;
+
+	ASSERT(startoff == 0);
+	ASSERT(obj == iocur_top->data);
+	dic = obj;
+
+        if (be64_to_cpu(dic->di_flags2) & XFS_DIFLAG2_NREXT64)
+		return 4;
+	else
+		return 12;
 }
 
 static int

@@ -238,9 +238,13 @@ xlog_recover_print_dquot(
 
 STATIC void
 xlog_recover_print_inode_core(
+	struct xlog		*log,
 	struct xfs_log_dinode	*di)
 {
-	printf(_("	CORE inode:\n"));
+	xfs_extnum_t		nextents;
+	xfs_aextnum_t		anextents;
+
+        printf(_("	CORE inode:\n"));
 	if (!print_inode)
 		return;
 	printf(_("		magic:%c%c  mode:0x%x  ver:%d  format:%d\n"),
@@ -254,10 +258,19 @@ xlog_recover_print_inode_core(
 			xlog_extract_dinode_ts(di->di_mtime),
 			xlog_extract_dinode_ts(di->di_ctime));
 	printf(_("		flushiter:%d\n"), di->di_flushiter);
+
+	if (di->di_flags2 & XFS_DIFLAG2_NREXT64) {
+		nextents = di->di_nextents64;
+		anextents = di->di_nextents32;
+	} else {
+		nextents = di->di_nextents32;
+		anextents = di->di_nextents16;
+	}
+
 	printf(_("		size:0x%llx  nblks:0x%llx  exsize:%d  "
-	     "nextents:%d  anextents:%d\n"), (unsigned long long)
+	     "nextents:%lu  anextents:%u\n"), (unsigned long long)
 	       di->di_size, (unsigned long long)di->di_nblocks,
-	       di->di_extsize, di->di_nextents32, (int)di->di_nextents16);
+	       di->di_extsize, nextents, anextents);
 	printf(_("		forkoff:%d  dmevmask:0x%x  dmstate:%d  flags:0x%x  "
 	     "gen:%u\n"),
 	       (int)di->di_forkoff, di->di_dmevmask, (int)di->di_dmstate,
@@ -270,6 +283,7 @@ xlog_recover_print_inode_core(
 
 STATIC void
 xlog_recover_print_inode(
+	struct xlog		*log,
 	struct xlog_recover_item *item)
 {
 	struct xfs_inode_log_format	f_buf;
@@ -291,7 +305,7 @@ xlog_recover_print_inode(
 	ASSERT(item->ri_buf[1].i_len ==
 			offsetof(struct xfs_log_dinode, di_next_unlinked) ||
 	       item->ri_buf[1].i_len == sizeof(struct xfs_log_dinode));
-	xlog_recover_print_inode_core((struct xfs_log_dinode *)
+	xlog_recover_print_inode_core(log, (struct xfs_log_dinode *)
 				      item->ri_buf[1].i_addr);
 
 	hasdata = (f->ilf_fields & XFS_ILOG_DFORK) != 0;
@@ -386,6 +400,7 @@ xlog_recover_print_icreate(
 
 void
 xlog_recover_print_logitem(
+	struct xlog			*log,
 	struct xlog_recover_item	*item)
 {
 	switch (ITEM_TYPE(item)) {
@@ -396,7 +411,7 @@ xlog_recover_print_logitem(
 		xlog_recover_print_icreate(item);
 		break;
 	case XFS_LI_INODE:
-		xlog_recover_print_inode(item);
+		xlog_recover_print_inode(log, item);
 		break;
 	case XFS_LI_EFD:
 		xlog_recover_print_efd(item);
@@ -442,6 +457,7 @@ xlog_recover_print_logitem(
 
 static void
 xlog_recover_print_item(
+	struct xlog		*log,
 	struct xlog_recover_item *item)
 {
 	int			i;
@@ -507,11 +523,12 @@ xlog_recover_print_item(
 		       (long)item->ri_buf[i].i_addr, item->ri_buf[i].i_len);
 	}
 	printf("\n");
-	xlog_recover_print_logitem(item);
+	xlog_recover_print_logitem(log, item);
 }
 
 void
 xlog_recover_print_trans(
+	struct xlog		*log,
 	struct xlog_recover	*trans,
 	struct list_head	*itemq,
 	int			print)
@@ -524,5 +541,5 @@ xlog_recover_print_trans(
 	print_xlog_record_line();
 	xlog_recover_print_trans_head(trans);
 	list_for_each_entry(item, itemq, ri_list)
-		xlog_recover_print_item(item);
+		xlog_recover_print_item(log, item);
 }
