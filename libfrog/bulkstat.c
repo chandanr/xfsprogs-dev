@@ -61,7 +61,7 @@ xfrog_bulkstat_single5(
 		return ret;
 
 	req->hdr.flags = flags;
-	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT, req);
+	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT_V5, req);
 	if (ret) {
 		ret = -errno;
 		goto free;
@@ -260,7 +260,7 @@ xfrog_bulkstat5(
 {
 	int			ret;
 
-	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT, req);
+	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT_V5, req);
 	if (ret)
 		return -errno;
 	return 0;
@@ -366,7 +366,7 @@ xfrog_bulkstat_v5_to_v1(
 	bs1->bs_blocks = bs5->bs_blocks;
 	bs1->bs_xflags = bs5->bs_xflags;
 	bs1->bs_extsize = cvt_off_fsb_to_b(xfd, bs5->bs_extsize_blks);
-	bs1->bs_extents = bs5->bs_extents;
+	bs1->bs_extents = bs5->bs_extents32;
 	bs1->bs_gen = bs5->bs_gen;
 	bs1->bs_projid_lo = bs5->bs_projectid & 0xFFFF;
 	bs1->bs_forkoff = bs5->bs_forkoff;
@@ -407,7 +407,7 @@ xfrog_bulkstat_v1_to_v5(
 	bs5->bs_blocks = bs1->bs_blocks;
 	bs5->bs_xflags = bs1->bs_xflags;
 	bs5->bs_extsize_blks = cvt_b_to_off_fsbt(xfd, bs1->bs_extsize);
-	bs5->bs_extents = bs1->bs_extents;
+	bs5->bs_extents32 = bs1->bs_extents;
 	bs5->bs_gen = bs1->bs_gen;
 	bs5->bs_projectid = bstat_get_projid(bs1);
 	bs5->bs_forkoff = bs1->bs_forkoff;
