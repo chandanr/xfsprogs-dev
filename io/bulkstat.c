@@ -49,7 +49,7 @@ dump_bulkstat(
 	printf("\tbs_extsize_blks = %"PRIu32"\n", bstat->bs_extsize_blks);
 
 	printf("\tbs_nlink = %"PRIu32"\n", bstat->bs_nlink);
-	printf("\tbs_extents = %"PRIu32"\n", bstat->bs_extents);
+	printf("\tbs_extents = %"PRIu32"\n", bstat->bs_extents32);
 	printf("\tbs_aextents = %"PRIu32"\n", bstat->bs_aextents);
 	printf("\tbs_version = %"PRIu16"\n", bstat->bs_version);
 	printf("\tbs_forkoff = %"PRIu16"\n", bstat->bs_forkoff);
