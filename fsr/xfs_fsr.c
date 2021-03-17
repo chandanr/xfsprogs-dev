@@ -6,6 +6,7 @@
 
 #include "libxfs.h"
 #include "xfs.h"
+#include "xfs/xfs_fs.h"
 #include "xfs_types.h"
 #include "jdm.h"
 #include "xfs_bmap_btree.h"
@@ -654,7 +655,7 @@ fsrfs(char *mntdir, xfs_ino_t startino, int targetrange)
 		for (p = buf, endp = (buf + buflenout); p < endp ; p++) {
 			/* Do some obvious checks now */
 			if (((p->bs_mode & S_IFMT) != S_IFREG) ||
-			     (p->bs_extents32 < 2))
+			     (p->bs_extents64 < 2))
 				continue;
 
 			ret = open_handle(&file_fd, fshandlep, p,
@@ -712,9 +713,8 @@ out0:
 int
 cmp(const void *s1, const void *s2)
 {
-	return( ((struct xfs_bulkstat *)s2)->bs_extents32 -
-	        ((struct xfs_bulkstat *)s1)->bs_extents32);
-
+	return( ((struct xfs_bulkstat *)s2)->bs_extents64 -
+	        ((struct xfs_bulkstat *)s1)->bs_extents64);
 }
 
 /*
