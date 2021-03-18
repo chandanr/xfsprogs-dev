@@ -48,7 +48,10 @@ struct xfs_fd {
 #define XFROG_FLAG_BULKSTAT_FORCE_V1	(1 << 0)
 
 /* Only use v5 bulkstat/inumbers ioctls. */
-#define XFROG_FLAG_BULKSTAT_FORCE_V5	(1 << 1)
+#define XFROG_FLAG_BULKSTAT_FORCE_V5 (1 << 1)
+
+/* Only use v6 bulkstat ioctls. */
+#define XFROG_FLAG_BULKSTAT_FORCE_V6	(1 << 2)
 
 /* Only use the old XFS swapext ioctl for file data exchanges. */
 #define XFROG_FLAG_FORCE_SWAPEXT	(1 << 2)

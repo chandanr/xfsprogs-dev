@@ -18,10 +18,9 @@ int xfrog_bulkstat(struct xfs_fd *xfd, struct xfs_bulkstat_req *req);
 
 int xfrog_bulkstat_alloc_req(uint32_t nr, uint64_t startino,
 		struct xfs_bulkstat_req **preq);
-int xfrog_bulkstat_v5_to_v1(struct xfs_fd *xfd, struct xfs_bstat *bs1,
-		const struct xfs_bulkstat *bstat);
-void xfrog_bulkstat_v1_to_v5(struct xfs_fd *xfd, struct xfs_bulkstat *bstat,
-		const struct xfs_bstat *bs1);
+void xfrog_bulkstat_v1_to_v6(struct xfs_fd *xfd, struct xfs_bulkstat *bstat,
+                             const struct xfs_bstat *bs1);
+void xfrog_bulkstat_v5_to_v6(struct xfs_bulkstat *bs);
 
 void xfrog_bulkstat_set_ag(struct xfs_bulkstat_req *req, uint32_t agno);
 
