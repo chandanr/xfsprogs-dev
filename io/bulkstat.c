@@ -49,7 +49,7 @@ dump_bulkstat(
 	printf("\tbs_extsize_blks = %"PRIu32"\n", bstat->bs_extsize_blks);
 
 	printf("\tbs_nlink = %"PRIu32"\n", bstat->bs_nlink);
-	printf("\tbs_extents = %"PRIu32"\n", bstat->bs_extents32);
+	printf("\tbs_extents = %"PRIu64"\n", bstat->bs_extents64);
 	printf("\tbs_aextents = %"PRIu32"\n", bstat->bs_aextents);
 	printf("\tbs_version = %"PRIu16"\n", bstat->bs_version);
 	printf("\tbs_forkoff = %"PRIu16"\n", bstat->bs_forkoff);
@@ -85,6 +85,9 @@ set_xfd_flags(
 		break;
 	case 5:
 		xfd->flags |= XFROG_FLAG_BULKSTAT_FORCE_V5;
+		break;
+	case 6:
+		xfd->flags |= XFROG_FLAG_BULKSTAT_FORCE_V6;
 		break;
 	default:
 		break;
@@ -153,8 +156,9 @@ bulkstat_f(
 				perror(optarg);
 				return 1;
 			}
-			if (ver != 1 && ver != 5) {
-				fprintf(stderr, "version must be 1 or 5.\n");
+			if (ver != 1 && ver != 5 && ver != 6) {
+				fprintf(stderr,
+					"version must be 1 or 5 or 6.\n");
 				return 1;
 			}
 			break;
