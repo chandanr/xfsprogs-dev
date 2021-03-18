@@ -5,6 +5,7 @@
  */
 #include <string.h>
 #include <strings.h>
+#include <assert.h>
 #include "xfs.h"
 #include "fsgeom.h"
 #include "bulkstat.h"
@@ -42,6 +43,42 @@ xfrog_bulkstat_prep_v1_emulation(
 	return xfd_prepare_geometry(xfd);
 }
 
+/* Bulkstat a single inode using v6 ioctl. */
+static int
+xfrog_bulkstat_single6(
+	struct xfs_fd			*xfd,
+	uint64_t			ino,
+	unsigned int			flags,
+	struct xfs_bulkstat		*bulkstat)
+{
+	struct xfs_bulkstat_req		*req;
+	int				ret;
+
+	if (flags & ~(XFS_BULK_IREQ_SPECIAL))
+		return -EINVAL;
+
+	ret = xfrog_bulkstat_alloc_req(1, ino, &req);
+	if (ret)
+		return ret;
+
+	req->hdr.flags = flags;
+	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT_V6, req);
+	if (ret) {
+		ret = -errno;
+		goto free;
+	}
+
+	if (req->hdr.ocount == 0) {
+		ret = -ENOENT;
+		goto free;
+	}
+
+	memcpy(bulkstat, req->bulkstat, sizeof(struct xfs_bulkstat));
+free:
+	free(req);
+	return ret;
+}
+
 /* Bulkstat a single inode using v5 ioctl. */
 static int
 xfrog_bulkstat_single5(
@@ -73,6 +110,9 @@ xfrog_bulkstat_single5(
 	}
 
 	memcpy(bulkstat, req->bulkstat, sizeof(struct xfs_bulkstat));
+
+	xfrog_bulkstat_v5_to_v6(bulkstat);
+
 free:
 	free(req);
 	return ret;
@@ -104,34 +144,46 @@ xfrog_bulkstat_single1(
 	if (error)
 		return -errno;
 
-	xfrog_bulkstat_v1_to_v5(xfd, bulkstat, &bstat);
+	xfrog_bulkstat_v1_to_v6(xfd, bulkstat, &bstat);
 	return 0;
 }
 
 /* Bulkstat a single inode.  Returns zero or a negative error code. */
 int
 xfrog_bulkstat_single(
-	struct xfs_fd			*xfd,
-	uint64_t			ino,
-	unsigned int			flags,
-	struct xfs_bulkstat		*bulkstat)
+	struct xfs_fd		*xfd,
+	uint64_t		ino,
+	unsigned int		flags,
+	struct xfs_bulkstat	*bulkstat)
 {
-	int				error;
+	unsigned int		xfd_flags = 0;
+	int			error;
 
 	if (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V1)
 		goto try_v1;
 
-	error = xfrog_bulkstat_single5(xfd, ino, flags, bulkstat);
-	if (error == 0 || (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V5))
+	if (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V5)
+		goto try_v5;
+
+	error = xfrog_bulkstat_single6(xfd, ino, flags, bulkstat);
+	if (error == 0 || xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V6)
 		return error;
 
-	/* If the v5 ioctl wasn't found, we punt to v1. */
-	switch (error) {
-	case -EOPNOTSUPP:
-	case -ENOTTY:
-		xfd->flags |= XFROG_FLAG_BULKSTAT_FORCE_V1;
-		break;
+        if (error == -EOPNOTSUPP && error == -ENOTTY)
+		xfd_flags = XFROG_FLAG_BULKSTAT_FORCE_V5;
+
+try_v5:
+	error = xfrog_bulkstat_single5(xfd, ino, flags, bulkstat);
+	if (error == 0) {
+		xfd->flags |= xfd_flags;
+		return 0;
 	}
+
+	if (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V5)
+		return error;
+
+	if (error == -EOPNOTSUPP && error == -ENOTTY)
+		xfd->flags |= XFROG_FLAG_BULKSTAT_FORCE_V1;
 
 try_v1:
 	return xfrog_bulkstat_single1(xfd, ino, flags, bulkstat);
@@ -200,14 +252,14 @@ xfrog_bulk_req_v1_cleanup(
 	struct xfs_fsop_bulkreq	*bulkreq,
 	size_t			v1_rec_size,
 	uint64_t		(*v1_ino)(void *v1_rec),
-	void			*v5_records,
-	size_t			v5_rec_size,
+	void			*v6_records,
+	size_t			v6_rec_size,
 	void			(*cvt)(struct xfs_fd *xfd, void *v5, void *v1),
 	unsigned int		startino_adj,
 	int			error)
 {
 	void			*v1_rec = bulkreq->ubuffer;
-	void			*v5_rec = v5_records;
+	void			*v6_rec = v6_records;
 	unsigned int		i;
 
 	if (error == -ECANCELED) {
@@ -224,7 +276,7 @@ xfrog_bulk_req_v1_cleanup(
 	 */
 	for (i = 0;
 	     i < hdr->ocount;
-	     i++, v1_rec += v1_rec_size, v5_rec += v5_rec_size) {
+	     i++, v1_rec += v1_rec_size, v6_rec += v6_rec_size) {
 		uint64_t	ino = v1_ino(v1_rec);
 
 		/* Stop if we hit a different AG. */
@@ -233,7 +285,7 @@ xfrog_bulk_req_v1_cleanup(
 			hdr->ocount = i;
 			break;
 		}
-		cvt(xfd, v5_rec, v1_rec);
+		cvt(xfd, v6_rec, v1_rec);
 		hdr->ino = ino + startino_adj;
 	}
 
@@ -247,9 +299,23 @@ static uint64_t xfrog_bstat_ino(void *v1_rec)
 	return ((struct xfs_bstat *)v1_rec)->bs_ino;
 }
 
-static void xfrog_bstat_cvt(struct xfs_fd *xfd, void *v5, void *v1)
+static void xfrog_bstat_cvt(struct xfs_fd *xfd, void *v6, void *v1)
 {
-	xfrog_bulkstat_v1_to_v5(xfd, v5, v1);
+	xfrog_bulkstat_v1_to_v6(xfd, v6, v1);
+}
+
+/* Bulkstat a bunch of inodes using the v6 interface. */
+static int
+xfrog_bulkstat6(
+	struct xfs_fd		*xfd,
+	struct xfs_bulkstat_req	*req)
+{
+	int			ret;
+
+	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT_V6, req);
+	if (ret)
+		return -errno;
+	return 0;
 }
 
 /* Bulkstat a bunch of inodes using the v5 interface. */
@@ -258,11 +324,17 @@ xfrog_bulkstat5(
 	struct xfs_fd		*xfd,
 	struct xfs_bulkstat_req	*req)
 {
+	struct xfs_bulk_ireq	*hdr = &req->hdr;
 	int			ret;
+	int			i;
 
 	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT_V5, req);
 	if (ret)
 		return -errno;
+
+	for (i = 0; i < hdr->ocount; i++)
+		xfrog_bulkstat_v5_to_v6(&req->bulkstat[i]);
+
 	return 0;
 }
 
@@ -303,118 +375,86 @@ xfrog_bulkstat(
 	struct xfs_fd		*xfd,
 	struct xfs_bulkstat_req	*req)
 {
+	unsigned int		xfd_flags = 0;
 	int			error;
 
 	if (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V1)
 		goto try_v1;
 
-	error = xfrog_bulkstat5(xfd, req);
-	if (error == 0 || (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V5))
+	if (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V5)
+		goto try_v5;
+
+        error = xfrog_bulkstat6(xfd, req);
+	if (error == 0 || xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V6)
 		return error;
 
-	/* If the v5 ioctl wasn't found, we punt to v1. */
-	switch (error) {
-	case -EOPNOTSUPP:
-	case -ENOTTY:
-		xfd->flags |= XFROG_FLAG_BULKSTAT_FORCE_V1;
-		break;
+	if (error == -EOPNOTSUPP || error == -ENOTTY)
+		xfd_flags = XFROG_FLAG_BULKSTAT_FORCE_V5;
+
+try_v5:
+        error = xfrog_bulkstat5(xfd, req);
+	if (error == 0) {
+		xfd->flags |= xfd_flags;
+		return 0;
 	}
+
+	if (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V5)
+		return error;
+
+	if (error == -EOPNOTSUPP || error == -ENOTTY)
+		xfd->flags |= XFROG_FLAG_BULKSTAT_FORCE_V1;
 
 try_v1:
 	return xfrog_bulkstat1(xfd, req);
 }
 
-static bool
-time_too_big(
-	uint64_t	time)
+/* Convert bulkstat data from v5 format to v6 format. */
+void
+xfrog_bulkstat_v5_to_v6(
+	struct xfs_bulkstat		*bs)
 {
-	time_t		TIME_MAX;
+	bs->bs_version = XFS_BULKSTAT_VERSION_V5;
 
-	memset(&TIME_MAX, 0xFF, sizeof(TIME_MAX));
-	return time > TIME_MAX;
-}
-
-/* Convert bulkstat data from v5 format to v1 format. */
-int
-xfrog_bulkstat_v5_to_v1(
-	struct xfs_fd			*xfd,
-	struct xfs_bstat		*bs1,
-	const struct xfs_bulkstat	*bs5)
-{
-	if (bs5->bs_aextents > UINT16_MAX ||
-	    cvt_off_fsb_to_b(xfd, bs5->bs_extsize_blks) > UINT32_MAX ||
-	    cvt_off_fsb_to_b(xfd, bs5->bs_cowextsize_blks) > UINT32_MAX ||
-	    time_too_big(bs5->bs_atime) ||
-	    time_too_big(bs5->bs_ctime) ||
-	    time_too_big(bs5->bs_mtime))
-		return -ERANGE;
-
-	bs1->bs_ino = bs5->bs_ino;
-	bs1->bs_mode = bs5->bs_mode;
-	bs1->bs_nlink = bs5->bs_nlink;
-	bs1->bs_uid = bs5->bs_uid;
-	bs1->bs_gid = bs5->bs_gid;
-	bs1->bs_rdev = bs5->bs_rdev;
-	bs1->bs_blksize = bs5->bs_blksize;
-	bs1->bs_size = bs5->bs_size;
-	bs1->bs_atime.tv_sec = bs5->bs_atime;
-	bs1->bs_mtime.tv_sec = bs5->bs_mtime;
-	bs1->bs_ctime.tv_sec = bs5->bs_ctime;
-	bs1->bs_atime.tv_nsec = bs5->bs_atime_nsec;
-	bs1->bs_mtime.tv_nsec = bs5->bs_mtime_nsec;
-	bs1->bs_ctime.tv_nsec = bs5->bs_ctime_nsec;
-	bs1->bs_blocks = bs5->bs_blocks;
-	bs1->bs_xflags = bs5->bs_xflags;
-	bs1->bs_extsize = cvt_off_fsb_to_b(xfd, bs5->bs_extsize_blks);
-	bs1->bs_extents = bs5->bs_extents32;
-	bs1->bs_gen = bs5->bs_gen;
-	bs1->bs_projid_lo = bs5->bs_projectid & 0xFFFF;
-	bs1->bs_forkoff = bs5->bs_forkoff;
-	bs1->bs_projid_hi = bs5->bs_projectid >> 16;
-	bs1->bs_sick = bs5->bs_sick;
-	bs1->bs_checked = bs5->bs_checked;
-	bs1->bs_cowextsize = cvt_off_fsb_to_b(xfd, bs5->bs_cowextsize_blks);
-	bs1->bs_dmevmask = 0;
-	bs1->bs_dmstate = 0;
-	bs1->bs_aextents = bs5->bs_aextents;
-	return 0;
+        assert(bs->bs_extents64 == 0);
+	bs->bs_extents64 = bs->bs_extents32;
+	bs->bs_extents32 = 0;
 }
 
 /* Convert bulkstat data from v1 format to v5 format. */
 void
-xfrog_bulkstat_v1_to_v5(
+xfrog_bulkstat_v1_to_v6(
 	struct xfs_fd			*xfd,
-	struct xfs_bulkstat		*bs5,
+	struct xfs_bulkstat		*bs6,
 	const struct xfs_bstat		*bs1)
 {
-	memset(bs5, 0, sizeof(*bs5));
-	bs5->bs_version = XFS_BULKSTAT_VERSION_V1;
+	memset(bs6, 0, sizeof(*bs6));
+	bs6->bs_version = XFS_BULKSTAT_VERSION_V1;
 
-	bs5->bs_ino = bs1->bs_ino;
-	bs5->bs_mode = bs1->bs_mode;
-	bs5->bs_nlink = bs1->bs_nlink;
-	bs5->bs_uid = bs1->bs_uid;
-	bs5->bs_gid = bs1->bs_gid;
-	bs5->bs_rdev = bs1->bs_rdev;
-	bs5->bs_blksize = bs1->bs_blksize;
-	bs5->bs_size = bs1->bs_size;
-	bs5->bs_atime = bs1->bs_atime.tv_sec;
-	bs5->bs_mtime = bs1->bs_mtime.tv_sec;
-	bs5->bs_ctime = bs1->bs_ctime.tv_sec;
-	bs5->bs_atime_nsec = bs1->bs_atime.tv_nsec;
-	bs5->bs_mtime_nsec = bs1->bs_mtime.tv_nsec;
-	bs5->bs_ctime_nsec = bs1->bs_ctime.tv_nsec;
-	bs5->bs_blocks = bs1->bs_blocks;
-	bs5->bs_xflags = bs1->bs_xflags;
-	bs5->bs_extsize_blks = cvt_b_to_off_fsbt(xfd, bs1->bs_extsize);
-	bs5->bs_extents32 = bs1->bs_extents;
-	bs5->bs_gen = bs1->bs_gen;
-	bs5->bs_projectid = bstat_get_projid(bs1);
-	bs5->bs_forkoff = bs1->bs_forkoff;
-	bs5->bs_sick = bs1->bs_sick;
-	bs5->bs_checked = bs1->bs_checked;
-	bs5->bs_cowextsize_blks = cvt_b_to_off_fsbt(xfd, bs1->bs_cowextsize);
-	bs5->bs_aextents = bs1->bs_aextents;
+	bs6->bs_ino = bs1->bs_ino;
+	bs6->bs_mode = bs1->bs_mode;
+	bs6->bs_nlink = bs1->bs_nlink;
+	bs6->bs_uid = bs1->bs_uid;
+	bs6->bs_gid = bs1->bs_gid;
+	bs6->bs_rdev = bs1->bs_rdev;
+	bs6->bs_blksize = bs1->bs_blksize;
+	bs6->bs_size = bs1->bs_size;
+	bs6->bs_atime = bs1->bs_atime.tv_sec;
+	bs6->bs_mtime = bs1->bs_mtime.tv_sec;
+	bs6->bs_ctime = bs1->bs_ctime.tv_sec;
+	bs6->bs_atime_nsec = bs1->bs_atime.tv_nsec;
+	bs6->bs_mtime_nsec = bs1->bs_mtime.tv_nsec;
+	bs6->bs_ctime_nsec = bs1->bs_ctime.tv_nsec;
+	bs6->bs_blocks = bs1->bs_blocks;
+	bs6->bs_xflags = bs1->bs_xflags;
+	bs6->bs_extsize_blks = cvt_b_to_off_fsbt(xfd, bs1->bs_extsize);
+	bs6->bs_extents64 = bs1->bs_extents;
+	bs6->bs_gen = bs1->bs_gen;
+	bs6->bs_projectid = bstat_get_projid(bs1);
+	bs6->bs_forkoff = bs1->bs_forkoff;
+	bs6->bs_sick = bs1->bs_sick;
+	bs6->bs_checked = bs1->bs_checked;
+	bs6->bs_cowextsize_blks = cvt_b_to_off_fsbt(xfd, bs1->bs_cowextsize);
+	bs6->bs_aextents = bs1->bs_aextents;
 }
 
 /* Allocate a bulkstat request.  Returns zero or a negative error code. */
