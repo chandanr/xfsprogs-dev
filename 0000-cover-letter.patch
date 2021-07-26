@@ -1,0 +1,108 @@
+From c5767996f486bdb1a8f1e9f0a257ccbfc8ef2049 Mon Sep 17 00:00:00 2001
+From: Chandan Babu R <chandan.babu@oracle.com>
+Date: Thu, 16 Sep 2021 13:04:11 +0530
+Subject: [PATCH V3 00/16] xfsprogs: Extend per-inode extent counters
+To: chandanrmail@gmail.com
+
+This patchset implements the changes to userspace programs that are
+required to support extending inode's data and attr fork extent
+counter fields. The changes allow programs in xfsprogs to be able to
+create and work with filesystem instances with 64-bit data fork extent
+counter and 32-bit attr fork extent counter fields.
+
+The patchset is based on Darrick's btree-dynamic-depth branch.
+These patches can also be obtained from
+https://github.com/chandanr/xfsprogs-dev.git at branch
+xfs-incompat-extend-extcnt-v3.
+
+Changelog:
+V2 -> V3:
+1. Introduce the ability to upgrade existing filesystems to use 64-bit
+   extent counters if it is feasible to do so.
+2. Report presence of 64-bit extent counters via xfs_info.
+3. Add XFS_SB_FEAT_INCOMPAT_NREXT64 to XFS_SB_FEAT_INCOMPAT_ALL in a
+   separate patch.
+
+V1 -> V2:
+1. Rebase patches on top of Darrick's btree-dynamic-depth branch.
+2. Add support for using the new bulkstat ioctl version to support
+   64-bit data fork extent counter field.
+
+Chandan Babu R (15):
+  xfsprogs: Move extent count limits to xfs_format.h
+  xfsprogs: Introduce xfs_iext_max_nextents() helper
+  xfsprogs: Rename MAXEXTNUM, MAXAEXTNUM to XFS_IFORK_EXTCNT_MAXS32,
+    XFS_IFORK_EXTCNT_MAXS16
+  xfsprogs: Use xfs_extnum_t instead of basic data types
+  xfsprogs: Introduce xfs_dfork_nextents() helper
+  xfsprogs: xfs_dfork_nextents: Return extent count via an out argument
+  xfsprogs: Rename inode's extent counter fields based on their width
+  xfsprogs: Promote xfs_extnum_t and xfs_aextnum_t to 64 and 32-bits
+    respectively
+  xfsprogs: Enable bulkstat ioctl to support 64-bit extent counters
+  xfsprogs: Extend per-inode extent counter widths
+  xfsprogs: xfs_info: Report NREXT64 feature status
+  xfsprogs: Add XFS_SB_FEAT_INCOMPAT_NREXT64 to XFS_SB_FEAT_INCOMPAT_ALL
+  xfsprogs: Add extcnt64bit mkfs option
+  xfsprogs: Add support for upgrading to NREXT64 feature
+  xfsprogs: Define max extent length based on on-disk format definition
+
+Darrick J. Wong (1):
+  xfsprogs: xfs_repair: allow administrators to add older v5 features
+
+ db/bmap.c                  |  21 ++-
+ db/btdump.c                |  11 +-
+ db/check.c                 |  44 +++--
+ db/field.c                 |   4 -
+ db/field.h                 |   2 -
+ db/frag.c                  |  11 +-
+ db/inode.c                 |  74 +++++++--
+ db/metadump.c              |  14 +-
+ fsr/xfs_fsr.c              |   4 +-
+ include/libxfs.h           |   1 +
+ include/libxlog.h          |   6 +-
+ include/xfs_inode.h        |   5 +
+ include/xfs_mount.h        |   4 +-
+ io/bulkstat.c              |   3 +-
+ libfrog/bulkstat.c         |  55 ++++++-
+ libfrog/fsgeom.c           |   6 +-
+ libxfs/libxfs_api_defs.h   |   3 +
+ libxfs/xfs_bmap.c          |  74 +++++----
+ libxfs/xfs_format.h        |  77 +++++++--
+ libxfs/xfs_fs.h            |  20 ++-
+ libxfs/xfs_ialloc.c        |   2 +
+ libxfs/xfs_inode_buf.c     |  61 +++++--
+ libxfs/xfs_inode_fork.c    |  33 ++--
+ libxfs/xfs_inode_fork.h    |  23 ++-
+ libxfs/xfs_log_format.h    |   7 +-
+ libxfs/xfs_rtbitmap.c      |   4 +-
+ libxfs/xfs_sb.c            |   3 +
+ libxfs/xfs_swapext.c       |   6 +-
+ libxfs/xfs_trans_inode.c   |   5 +
+ libxfs/xfs_trans_resv.c    |  10 +-
+ libxfs/xfs_types.h         |  11 +-
+ logprint/log_misc.c        |  23 ++-
+ logprint/log_print_all.c   |  31 +++-
+ logprint/log_print_trans.c |   2 +-
+ man/man8/mkfs.xfs.8        |   7 +
+ man/man8/xfs_admin.8       |  30 ++++
+ mkfs/xfs_mkfs.c            |  29 +++-
+ repair/attr_repair.c       |  11 +-
+ repair/bmap_repair.c       |  23 ++-
+ repair/dino_chunks.c       |   6 +-
+ repair/dinode.c            | 143 ++++++++++++-----
+ repair/dinode.h            |   4 +-
+ repair/globals.c           |   5 +
+ repair/globals.h           |   5 +
+ repair/phase2.c            | 319 +++++++++++++++++++++++++++++++++++--
+ repair/phase4.c            |   7 +-
+ repair/prefetch.c          |   7 +-
+ repair/protos.h            |   1 +
+ repair/rmap.c              |   4 +-
+ repair/scan.c              |   6 +-
+ repair/xfs_repair.c        |  55 +++++++
+ 51 files changed, 1074 insertions(+), 248 deletions(-)
+
+-- 
+2.30.2
+
