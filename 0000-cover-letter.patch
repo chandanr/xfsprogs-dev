@@ -1,0 +1,81 @@
+From 225ac351e98ff32a6b068e2f90ca4cf1ca862cea Mon Sep 17 00:00:00 2001
+From: Chandan Babu R <chandanrlinux@gmail.com>
+Date: Mon, 26 Jul 2021 15:16:01 +0530
+Subject: [PATCH V2 00/12] xfsprogs: Extend per-inode extent counters
+To: linux-xfs@vger.kernel.org
+Cc: djwong@kernel.org
+
+This patchset implements the changes to userspace programs that are
+required to support extending inode's data and attr fork extent
+counter fields. It adds the following capabilities to xfsprogs,
+1. Add support to programs in xfsprogs to be able to create and work
+   with filesystem instances with 64-bit data fork extent counter and
+   32-bit attr fork extent counter fields.
+2. Enable support for the newly introduced XFS_IOC_BULKSTAT_V6 ioctl.
+
+The patchset is based on Darrick's btree-dynamic-depth branch.
+These patches can also be obtained from
+https://github.com/chandanr/xfsprogs-dev.git at branch
+xfs-incompat-extend-extcnt-v2.
+
+Changelog:
+V1 -> V2:
+1. Rebase patches on top of Darrick's btree-dynamic-depth branch.
+2. Add support for using the new bulkstat ioctl version to support
+   64-bit data fork extent counter field.
+   
+Chandan Babu R (12):
+  xfsprogs: Move extent count limits to xfs_format.h
+  xfsprogs: Rename MAXEXTNUM, MAXAEXTNUM to XFS_IFORK_EXTCNT_MAXS32,
+    XFS_IFORK_EXTCNT_MAXS16
+  xfsprogs: Introduce xfs_iext_max() helper
+  xfsprogs: Use xfs_extnum_t instead of basic data types
+  xfsprogs: Introduce xfs_dfork_nextents() helper
+  xfsprogs: xfs_dfork_nextents: Return extent count via an out argument
+  xfsprogs: Rename inode's extent counter fields based on their width
+  xfsprogs: Promote xfs_extnum_t and xfs_aextnum_t to 64 and 32-bits
+    respectively
+  xfsprogs: Rename XFS_IOC_BULKSTAT to XFS_IOC_BULKSTAT_V5
+  xfsprogs: Enable bulkstat ioctl to support 64-bit extent counters
+  xfsprogs: Extend per-inode extent counter widths
+  xfsprogs: Add extcnt64bit mkfs option
+
+ db/bmap.c                  |  21 +--
+ db/btdump.c                |  11 +-
+ db/check.c                 |  44 +++++--
+ db/field.c                 |   4 -
+ db/field.h                 |   2 -
+ db/frag.c                  |  11 +-
+ db/inode.c                 |  62 +++++++--
+ db/metadump.c              |  12 +-
+ fsr/xfs_fsr.c              |   9 +-
+ include/libxlog.h          |   6 +-
+ io/bulkstat.c              |  10 +-
+ libfrog/bulkstat.c         | 264 +++++++++++++++++++++----------------
+ libfrog/bulkstat.h         |   7 +-
+ libfrog/fsgeom.h           |   5 +-
+ libxfs/xfs_bmap.c          |  19 ++-
+ libxfs/xfs_format.h        |  30 +++--
+ libxfs/xfs_fs.h            |   9 +-
+ libxfs/xfs_inode_buf.c     |  86 ++++++++++--
+ libxfs/xfs_inode_buf.h     |   2 +
+ libxfs/xfs_inode_fork.c    |  38 ++++--
+ libxfs/xfs_inode_fork.h    |  18 +++
+ libxfs/xfs_log_format.h    |   7 +-
+ libxfs/xfs_types.h         |  11 +-
+ logprint/log_misc.c        |  23 +++-
+ logprint/log_print_all.c   |  34 ++++-
+ logprint/log_print_trans.c |   2 +-
+ man/man8/mkfs.xfs.8        |   7 +
+ mkfs/xfs_mkfs.c            |  23 ++++
+ repair/attr_repair.c       |  11 +-
+ repair/bmap_repair.c       |  22 +++-
+ repair/dinode.c            | 139 ++++++++++++-------
+ repair/dinode.h            |   4 +-
+ repair/prefetch.c          |   7 +-
+ repair/scan.c              |   6 +-
+ 34 files changed, 665 insertions(+), 301 deletions(-)
+
+-- 
+2.30.2
+
