@@ -71,6 +71,7 @@ enum c_opt_nums {
 	CONVERT_REFLINK,
 	CONVERT_RMAPBT,
 	CONVERT_METADIR,
+	CONVERT_NREXT64,
 	C_MAX_OPTS,
 };
 
@@ -82,6 +83,7 @@ static char *c_opts[] = {
 	[CONVERT_REFLINK]	= "reflink",
 	[CONVERT_RMAPBT]	= "rmapbt",
 	[CONVERT_METADIR]	= "metadir",
+	[CONVERT_NREXT64]	= "nrext64",
 	[C_MAX_OPTS]		= NULL,
 };
 
@@ -367,6 +369,15 @@ process_args(int argc, char **argv)
 						do_abort(
 		_("-c metadir only supports upgrades\n"));
 					add_metadir = true;
+					break;
+				case CONVERT_NREXT64:
+					if (!val)
+						do_abort(
+		_("-c nrext64 requires a parameter\n"));
+					if (strtol(val, NULL, 0) != 1)
+						do_abort(
+		_("-c nrext64 only supports upgrades\n"));
+					add_nrext64 = true;
 					break;
 				default:
 					unknown('c', val);
