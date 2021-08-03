@@ -191,6 +191,7 @@ check_new_v5_geometry(
 	struct xfs_perag	*pag;
 	xfs_agnumber_t		agno;
 	xfs_ino_t		rootino;
+	uint			old_bm_maxlevels[2];
 	int			min_logblocks;
 	int			error;
 
@@ -200,6 +201,12 @@ check_new_v5_geometry(
 	 */
 	memcpy(&old_sb, &mp->m_sb, sizeof(struct xfs_sb));
 	memcpy(&mp->m_sb, new_sb, sizeof(struct xfs_sb));
+
+	old_bm_maxlevels[0] = mp->m_bm_maxlevels[0];
+	old_bm_maxlevels[1] = mp->m_bm_maxlevels[1];
+
+	xfs_bmap_compute_maxlevels(mp, XFS_DATA_FORK);
+	xfs_bmap_compute_maxlevels(mp, XFS_ATTR_FORK);
 
 	/* Do we have a big enough log? */
 	min_logblocks = libxfs_log_calc_minimum_size(mp);
@@ -287,6 +294,9 @@ check_new_v5_geometry(
 		pag->pagf_init = 0;
 		pag->pagi_init = 0;
 	}
+
+	mp->m_bm_maxlevels[0] = old_bm_maxlevels[0];
+	mp->m_bm_maxlevels[1] = old_bm_maxlevels[1];
 
 	/*
 	 * Put back the old superblock.
@@ -429,6 +439,28 @@ set_metadir(
 	return true;
 }
 
+static bool
+set_nrext64(
+	struct xfs_mount	*mp,
+	struct xfs_sb		*new_sb)
+{
+	if (!xfs_sb_version_hascrc(&mp->m_sb)) {
+		printf(
+	_("Nrext64 only supported on V5 filesystems.\n"));
+		exit(0);
+	}
+
+	if (xfs_sb_version_hasnrext64(&mp->m_sb)) {
+		printf(_("Filesystem already supports nrext64.\n"));
+		exit(0);
+	}
+
+	printf(_("Adding nrext64 to filesystem.\n"));
+	new_sb->sb_features_incompat |= XFS_SB_FEAT_INCOMPAT_NREXT64;
+	new_sb->sb_features_incompat |= XFS_SB_FEAT_INCOMPAT_NEEDSREPAIR;
+	return true;
+}
+
 /* Perform the user's requested upgrades on filesystem. */
 static void
 upgrade_filesystem(
@@ -453,6 +485,8 @@ upgrade_filesystem(
 		dirty |= set_rmapbt(mp, &new_sb);
 	if (add_metadir)
 		dirty |= set_metadir(mp, &new_sb);
+	if (add_nrext64)
+		dirty |= set_nrext64(mp, &new_sb);
 	if (!dirty)
 		return;
 
