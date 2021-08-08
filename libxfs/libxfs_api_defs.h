@@ -21,6 +21,8 @@
 
 #define xfs_ag_init_headers		libxfs_ag_init_headers
 #define xfs_ag_block_count		libxfs_ag_block_count
+#define xfs_ag_resv_free		libxfs_ag_resv_free
+#define xfs_ag_resv_init		libxfs_ag_resv_init
 
 #define xfs_alloc_ag_max_usable		libxfs_alloc_ag_max_usable
 #define xfs_allocbt_maxrecs		libxfs_allocbt_maxrecs
@@ -121,6 +123,9 @@
 #define xfs_highbit64			libxfs_highbit64
 #define xfs_ialloc_calc_rootino		libxfs_ialloc_calc_rootino
 #define xfs_ialloc_internal_args	libxfs_ialloc_internal_args
+#define xfs_ialloc_read_agi		libxfs_ialloc_read_agi
+#define xfs_icreate			libxfs_icreate
+#define xfs_icreate_args_rootfile	libxfs_icreate_args_rootfile
 #define xfs_idata_realloc		libxfs_idata_realloc
 #define xfs_idestroy_fork		libxfs_idestroy_fork
 #define xfs_iext_first			libxfs_iext_first
