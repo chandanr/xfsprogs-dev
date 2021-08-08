@@ -2495,14 +2495,8 @@ _("bad (negative) size %" PRId64 " on inode %" PRIu64 "\n"),
 		}
 		if (flags & XFS_DIFLAG_NEWRTBM) {
 			/* must be a rt bitmap inode */
-			if (lino != mp->m_sb.sb_rbmino) {
-				if (!uncertain) {
-					do_warn(
-	_("inode %" PRIu64 " not rt bitmap\n"),
-						lino);
-				}
+			if (lino != mp->m_sb.sb_rbmino)
 				flags &= ~XFS_DIFLAG_NEWRTBM;
-			}
 		}
 		if (flags & (XFS_DIFLAG_RTINHERIT |
 			     XFS_DIFLAG_EXTSZINHERIT |

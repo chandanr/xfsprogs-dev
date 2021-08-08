@@ -49,8 +49,8 @@ bool
 rmap_needs_work(
 	struct xfs_mount	*mp)
 {
-	return xfs_sb_version_hasreflink(&mp->m_sb) ||
-	       xfs_sb_version_hasrmapbt(&mp->m_sb);
+	return xfs_sb_version_hasreflink(&mp->m_sb) || add_reflink ||
+		xfs_sb_version_hasrmapbt(&mp->m_sb) || add_rmapbt;
 }
 
 /*
