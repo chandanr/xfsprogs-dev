@@ -48,12 +48,13 @@ xfrog_bulkstat_single5(
 	struct xfs_fd			*xfd,
 	uint64_t			ino,
 	unsigned int			flags,
+	uint64_t			bstat_flags,
 	struct xfs_bulkstat		*bulkstat)
 {
 	struct xfs_bulkstat_req		*req;
 	int				ret;
 
-	if (flags & ~(XFS_BULK_IREQ_SPECIAL))
+	if (flags & ~(XFS_BULK_IREQ_SPECIAL | XFS_BULK_IREQ_BULKSTAT))
 		return -EINVAL;
 
 	ret = xfrog_bulkstat_alloc_req(1, ino, &req);
@@ -61,6 +62,7 @@ xfrog_bulkstat_single5(
 		return ret;
 
 	req->hdr.flags = flags;
+	req->hdr.bulkstat_flags = bstat_flags;
 	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT, req);
 	if (ret) {
 		ret = -errno;
@@ -73,6 +75,12 @@ xfrog_bulkstat_single5(
 	}
 
 	memcpy(bulkstat, req->bulkstat, sizeof(struct xfs_bulkstat));
+
+	if (!(xfd->fsgeom.flags & XFS_FSOP_GEOM_FLAGS_NREXT64)) {
+		bulkstat->bs_extents64 = bulkstat->bs_extents32;
+		bulkstat->bs_extents32 = 0;
+	}
+
 free:
 	free(req);
 	return ret;
@@ -116,22 +124,32 @@ xfrog_bulkstat_single(
 	unsigned int			flags,
 	struct xfs_bulkstat		*bulkstat)
 {
+	uint64_t			bstat_flags = 0;
 	int				error;
 
 	if (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V1)
 		goto try_v1;
 
-	error = xfrog_bulkstat_single5(xfd, ino, flags, bulkstat);
+	if (xfd->fsgeom.flags & XFS_FSOP_GEOM_FLAGS_NREXT64) {
+		flags |= XFS_BULK_IREQ_BULKSTAT;
+		bstat_flags = XFS_BULK_IREQ_BULKSTAT_NREXT64;
+	}
+
+	error = xfrog_bulkstat_single5(xfd, ino, flags,
+			bstat_flags, bulkstat);
 	if (error == 0 || (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V5))
 		return error;
 
-	/* If the v5 ioctl wasn't found, we punt to v1. */
+        /* If the v5 ioctl wasn't found, we punt to v1. */
 	switch (error) {
 	case -EOPNOTSUPP:
 	case -ENOTTY:
+		assert(!(xfd->fsgeom.flags & XFS_FSOP_GEOM_FLAGS_NREXT64));
 		xfd->flags |= XFROG_FLAG_BULKSTAT_FORCE_V1;
 		break;
 	}
+
+        flags &= ~XFS_BULK_IREQ_BULKSTAT;
 
 try_v1:
 	return xfrog_bulkstat_single1(xfd, ino, flags, bulkstat);
@@ -259,10 +277,21 @@ xfrog_bulkstat5(
 	struct xfs_bulkstat_req	*req)
 {
 	int			ret;
+	int			i;
 
 	ret = ioctl(xfd->fd, XFS_IOC_BULKSTAT, req);
 	if (ret)
 		return -errno;
+
+	if (!(req->hdr.flags & XFS_BULK_IREQ_BULKSTAT) ||
+	    !(req->hdr.bulkstat_flags & XFS_BULK_IREQ_BULKSTAT_NREXT64)) {
+		for (i = 0; i < req->hdr.ocount; i++) {
+			req->bulkstat[i].bs_extents64 =
+				req->bulkstat[i].bs_extents32;
+			req->bulkstat[i].bs_extents32 = 0;
+		}
+	}
+
 	return 0;
 }
 
@@ -308,6 +337,11 @@ xfrog_bulkstat(
 	if (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V1)
 		goto try_v1;
 
+	if (xfd->fsgeom.flags & XFS_FSOP_GEOM_FLAGS_NREXT64) {
+		req->hdr.flags |= XFS_BULK_IREQ_BULKSTAT;
+		req->hdr.bulkstat_flags |= XFS_BULK_IREQ_BULKSTAT_NREXT64;
+	}
+
 	error = xfrog_bulkstat5(xfd, req);
 	if (error == 0 || (xfd->flags & XFROG_FLAG_BULKSTAT_FORCE_V5))
 		return error;
@@ -316,9 +350,13 @@ xfrog_bulkstat(
 	switch (error) {
 	case -EOPNOTSUPP:
 	case -ENOTTY:
+		assert(!(xfd->fsgeom.flags & XFS_FSOP_GEOM_FLAGS_NREXT64));
 		xfd->flags |= XFROG_FLAG_BULKSTAT_FORCE_V1;
 		break;
 	}
+
+	req->hdr.flags &= ~XFS_BULK_IREQ_BULKSTAT;
+	req->hdr.bulkstat_flags &= ~XFS_BULK_IREQ_BULKSTAT_NREXT64;
 
 try_v1:
 	return xfrog_bulkstat1(xfd, req);
@@ -342,6 +380,7 @@ xfrog_bulkstat_v5_to_v1(
 	const struct xfs_bulkstat	*bs5)
 {
 	if (bs5->bs_aextents > UINT16_MAX ||
+	    bs5->bs_extents64 > INT32_MAX ||
 	    cvt_off_fsb_to_b(xfd, bs5->bs_extsize_blks) > UINT32_MAX ||
 	    cvt_off_fsb_to_b(xfd, bs5->bs_cowextsize_blks) > UINT32_MAX ||
 	    time_too_big(bs5->bs_atime) ||
@@ -366,7 +405,7 @@ xfrog_bulkstat_v5_to_v1(
 	bs1->bs_blocks = bs5->bs_blocks;
 	bs1->bs_xflags = bs5->bs_xflags;
 	bs1->bs_extsize = cvt_off_fsb_to_b(xfd, bs5->bs_extsize_blks);
-	bs1->bs_extents = bs5->bs_extents;
+	bs1->bs_extents = bs5->bs_extents64;
 	bs1->bs_gen = bs5->bs_gen;
 	bs1->bs_projid_lo = bs5->bs_projectid & 0xFFFF;
 	bs1->bs_forkoff = bs5->bs_forkoff;
@@ -407,7 +446,6 @@ xfrog_bulkstat_v1_to_v5(
 	bs5->bs_blocks = bs1->bs_blocks;
 	bs5->bs_xflags = bs1->bs_xflags;
 	bs5->bs_extsize_blks = cvt_b_to_off_fsbt(xfd, bs1->bs_extsize);
-	bs5->bs_extents = bs1->bs_extents;
 	bs5->bs_gen = bs1->bs_gen;
 	bs5->bs_projectid = bstat_get_projid(bs1);
 	bs5->bs_forkoff = bs1->bs_forkoff;
@@ -415,6 +453,7 @@ xfrog_bulkstat_v1_to_v5(
 	bs5->bs_checked = bs1->bs_checked;
 	bs5->bs_cowextsize_blks = cvt_b_to_off_fsbt(xfd, bs1->bs_cowextsize);
 	bs5->bs_aextents = bs1->bs_aextents;
+	bs5->bs_extents64 = bs1->bs_extents;
 }
 
 /* Allocate a bulkstat request.  Returns zero or a negative error code. */

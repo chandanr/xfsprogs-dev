@@ -49,7 +49,7 @@ dump_bulkstat(
 	printf("\tbs_extsize_blks = %"PRIu32"\n", bstat->bs_extsize_blks);
 
 	printf("\tbs_nlink = %"PRIu32"\n", bstat->bs_nlink);
-	printf("\tbs_extents = %"PRIu32"\n", bstat->bs_extents);
+	printf("\tbs_extents32 = %"PRIu32"\n", bstat->bs_extents32);
 	printf("\tbs_aextents = %"PRIu32"\n", bstat->bs_aextents);
 	printf("\tbs_version = %"PRIu16"\n", bstat->bs_version);
 	printf("\tbs_forkoff = %"PRIu16"\n", bstat->bs_forkoff);
@@ -57,6 +57,7 @@ dump_bulkstat(
 	printf("\tbs_sick = 0x%"PRIx16"\n", bstat->bs_sick);
 	printf("\tbs_checked = 0x%"PRIx16"\n", bstat->bs_checked);
 	printf("\tbs_mode = 0%"PRIo16"\n", bstat->bs_mode);
+	printf("\tbs_extents64 = %"PRIu64"\n", bstat->bs_extents64);
 };
 
 static void
