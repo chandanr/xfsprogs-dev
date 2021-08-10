@@ -64,7 +64,7 @@ xrep_bmap_from_rmap(
 
 	do {
 		irec.br_blockcount = min_t(xfs_filblks_t, blockcount,
-				MAXEXTLEN);
+				XFS_MAX_EXTLEN);
 		libxfs_bmbt_disk_set_all(&rbe, &irec);
 
 		error = slab_add(rb->bmap_records, &rbe);
