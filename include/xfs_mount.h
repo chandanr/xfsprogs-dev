@@ -153,8 +153,9 @@ typedef struct xfs_mount {
 #define XFS_FEAT_NEEDSREPAIR	(1ULL << 25)	/* needs xfs_repair */
 #define XFS_FEAT_ATOMIC_SWAP	(1ULL << 26)	/* extent swap log items */
 #define XFS_FEAT_METADIR	(1ULL << 27)	/* metadata directory tree */
+#define XFS_FEAT_NREXT64	(1ULL << 28)	/* 64-bit inode extent counters */
 
-#define __XFS_HAS_FEAT(name, NAME) \
+#define __XFS_HAS_FEAT(name, NAME)			   \
 static inline bool xfs_has_ ## name (struct xfs_mount *mp) \
 { \
 	return mp->m_features & XFS_FEAT_ ## NAME; \
@@ -198,6 +199,7 @@ __XFS_HAS_FEAT(bigtime, BIGTIME)
 __XFS_HAS_FEAT(needsrepair, NEEDSREPAIR)
 __XFS_HAS_FEAT(atomicswap, ATOMIC_SWAP)
 __XFS_HAS_FEAT(metadir, METADIR)
+__XFS_HAS_FEAT(nrext64, NREXT64)
 
 /*
  * Decide if this filesystem can use log-assisted ("atomic") extent swapping.

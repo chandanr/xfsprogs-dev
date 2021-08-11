@@ -438,8 +438,11 @@ xlog_print_trans_qoff(char **ptr, uint len)
 
 static void
 xlog_print_trans_inode_core(
+	struct xfs_mount	*mp,
 	struct xfs_log_dinode	*ip)
 {
+    xfs_extnum_t		nextents;
+
     printf(_("INODE CORE\n"));
     printf(_("magic 0x%hx mode 0%ho version %d format %d\n"),
 	   ip->di_magic, ip->di_mode, (int)ip->di_version,
@@ -450,11 +453,21 @@ xlog_print_trans_inode_core(
 		xlog_extract_dinode_ts(ip->di_atime),
 		xlog_extract_dinode_ts(ip->di_mtime),
 		xlog_extract_dinode_ts(ip->di_ctime));
-    printf(_("size 0x%llx nblocks 0x%llx extsize 0x%x nextents 0x%x\n"),
+
+    if (ip->di_flags2 & XFS_DIFLAG2_NREXT64)
+	    nextents = ip->di_nextents64;
+    else
+	    nextents = ip->di_nextents32;
+    printf(_("size 0x%llx nblocks 0x%llx extsize 0x%x nextents 0x%lx\n"),
 	   (unsigned long long)ip->di_size, (unsigned long long)ip->di_nblocks,
-	   ip->di_extsize, ip->di_nextents32);
-    printf(_("naextents 0x%x forkoff %d dmevmask 0x%x dmstate 0x%hx\n"),
-	   ip->di_nextents16, (int)ip->di_forkoff, ip->di_dmevmask,
+	   ip->di_extsize, nextents);
+
+    if (ip->di_flags2 & XFS_DIFLAG2_NREXT64)
+	    nextents = ip->di_nextents32;
+    else
+	    nextents = ip->di_nextents16;
+    printf(_("naextents 0x%lx forkoff %d dmevmask 0x%x dmstate 0x%hx\n"),
+	   nextents, (int)ip->di_forkoff, ip->di_dmevmask,
 	   ip->di_dmstate);
     printf(_("flags 0x%x gen 0x%x\n"),
 	   ip->di_flags, ip->di_gen);
@@ -564,7 +577,7 @@ xlog_print_trans_inode(
     memmove(&dino, *ptr, sizeof(dino));
     mode = dino.di_mode & S_IFMT;
     size = (int)dino.di_size;
-    xlog_print_trans_inode_core(&dino);
+    xlog_print_trans_inode_core(log->l_mp, &dino);
     *ptr += xfs_log_dinode_size(log->l_mp);
     skip_count--;
 
