@@ -3858,7 +3858,7 @@ main(
 			.dirftype = true,
 			.finobt = true,
 			.spinodes = true,
-			.rmapbt = false,
+			.rmapbt = true,
 			.reflink = true,
 			.inobtcnt = false,
 			.parent_pointers = false,
