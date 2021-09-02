@@ -55,17 +55,17 @@ scrub_ioctl(
 	sc = &xfrog_scrubbers[type];
 	memset(&meta, 0, sizeof(meta));
 	meta.sm_type = type;
-	switch (sc->type) {
-	case XFROG_SCRUB_TYPE_AGHEADER:
-	case XFROG_SCRUB_TYPE_PERAG:
+	switch (sc->group) {
+	case XFROG_SCRUB_GROUP_AGHEADER:
+	case XFROG_SCRUB_GROUP_PERAG:
 		meta.sm_agno = control;
 		break;
-	case XFROG_SCRUB_TYPE_INODE:
+	case XFROG_SCRUB_GROUP_INODE:
 		meta.sm_ino = control;
 		meta.sm_gen = control2;
 		break;
-	case XFROG_SCRUB_TYPE_NONE:
-	case XFROG_SCRUB_TYPE_FS:
+	case XFROG_SCRUB_GROUP_NONE:
+	case XFROG_SCRUB_GROUP_FS:
 		/* no control parameters */
 		break;
 	}
@@ -121,8 +121,8 @@ parse_args(
 	}
 	optind++;
 
-	switch (d->type) {
-	case XFROG_SCRUB_TYPE_INODE:
+	switch (d->group) {
+	case XFROG_SCRUB_GROUP_INODE:
 		if (optind == argc) {
 			control = 0;
 			control2 = 0;
@@ -147,8 +147,8 @@ parse_args(
 			return 0;
 		}
 		break;
-	case XFROG_SCRUB_TYPE_AGHEADER:
-	case XFROG_SCRUB_TYPE_PERAG:
+	case XFROG_SCRUB_GROUP_AGHEADER:
+	case XFROG_SCRUB_GROUP_PERAG:
 		if (optind != argc - 1) {
 			fprintf(stderr,
 				_("Must specify one AG number.\n"));
@@ -161,8 +161,8 @@ parse_args(
 			return 0;
 		}
 		break;
-	case XFROG_SCRUB_TYPE_FS:
-	case XFROG_SCRUB_TYPE_NONE:
+	case XFROG_SCRUB_GROUP_FS:
+	case XFROG_SCRUB_GROUP_NONE:
 		if (optind != argc) {
 			fprintf(stderr,
 				_("No parameters allowed.\n"));
@@ -240,17 +240,17 @@ repair_ioctl(
 	sc = &xfrog_scrubbers[type];
 	memset(&meta, 0, sizeof(meta));
 	meta.sm_type = type;
-	switch (sc->type) {
-	case XFROG_SCRUB_TYPE_AGHEADER:
-	case XFROG_SCRUB_TYPE_PERAG:
+	switch (sc->group) {
+	case XFROG_SCRUB_GROUP_AGHEADER:
+	case XFROG_SCRUB_GROUP_PERAG:
 		meta.sm_agno = control;
 		break;
-	case XFROG_SCRUB_TYPE_INODE:
+	case XFROG_SCRUB_GROUP_INODE:
 		meta.sm_ino = control;
 		meta.sm_gen = control2;
 		break;
-	case XFROG_SCRUB_TYPE_NONE:
-	case XFROG_SCRUB_TYPE_FS:
+	case XFROG_SCRUB_GROUP_NONE:
+	case XFROG_SCRUB_GROUP_FS:
 		/* no control parameters */
 		break;
 	}
