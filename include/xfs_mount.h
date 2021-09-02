@@ -217,6 +217,7 @@ __XFS_UNSUPP_FEAT(noattr2)
 __XFS_UNSUPP_FEAT(ikeep)
 __XFS_UNSUPP_FEAT(swalloc)
 __XFS_UNSUPP_FEAT(readonly)
+__XFS_UNSUPP_FEAT(grpid)
 
 /*
  * Operational mount state flags

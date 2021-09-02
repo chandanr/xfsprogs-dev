@@ -235,6 +235,11 @@ static inline bool WARN_ON(bool expr) {
 	(inode)->i_version = (version);	\
 } while (0)
 
+struct inode;
+
+void inode_init_owner(struct inode *inode, const struct inode *dir,
+			umode_t mode);
+
 static inline int __do_div(unsigned long long *n, unsigned base)
 {
 	int __res;
