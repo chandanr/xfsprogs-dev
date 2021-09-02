@@ -191,6 +191,11 @@ If no errors occur during the repair operation, the check is performed a
 second time to determine whether the repair succeeded.
 If errors occur, the call returns an error status immediately.
 .TP
+.B XFS_SCRUB_IFLAG_FREEZE_OK
+The caller sets this flag to grant the kernel driver permission to freeze the
+filesystem in order to perform global scans.
+Any writes or updates from userspace will block while this happens.
+.TP
 .B XFS_SCRUB_OFLAG_CORRUPT
 The metadata was corrupt when the call returned.
 If
@@ -222,6 +227,11 @@ The checker was unable to complete its check of all records.
 The checker encountered a metadata object with potentially problematic
 records.
 However, the records were not obviously corrupt.
+.TP
+.B XFS_SCRUB_IFLAG_FREEZE_OK
+Set this to allow the kernel to freeze the filesystem to perform more
+intensive metadata checks.
+This can only be specified by the system administrator.
 .RE
 .PP
 For metadata checkers that operate on inodes or inode metadata, the fields
@@ -300,6 +310,11 @@ Filesystem is read-only and a repair was requested.
 .TP
 .B ESHUTDOWN
 Filesystem is shut down due to previous errors.
+.TP
+.B EUSERS
+The operation needed permission to freeze the filesystem but the
+.B XFS_SCRUB_IFLAG_FREEZE_OK
+flag was not specified, so nothing was done.
 .SH CONFORMING TO
 This API is specific to XFS filesystem on the Linux kernel.
 .SH NOTES
