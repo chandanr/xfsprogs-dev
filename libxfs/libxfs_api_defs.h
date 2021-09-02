@@ -131,11 +131,13 @@
 #define xfs_imap_to_bp			libxfs_imap_to_bp
 
 #define xfs_imeta_create		libxfs_imeta_create
+#define xfs_imeta_create_space_res	libxfs_imeta_create_space_res
 #define xfs_imeta_end_update		libxfs_imeta_end_update
 #define xfs_imeta_link			libxfs_imeta_link
 #define xfs_imeta_lookup		libxfs_imeta_lookup
 #define xfs_imeta_mount			libxfs_imeta_mount
 #define xfs_imeta_unlink		libxfs_imeta_unlink
+#define xfs_imeta_unlink_space_res	libxfs_imeta_unlink_space_res
 
 #define xfs_initialize_perag		libxfs_initialize_perag
 #define xfs_initialize_perag_data	libxfs_initialize_perag_data
