@@ -313,6 +313,8 @@
 #define trace_xfs_rmap_map_error(...)		((void) 0)
 #define trace_xfs_rmap_delete_error(...)	((void) 0)
 
+#define trace_xfs_trans_resv_calc_logsize(...)	((void) 0)
+
 #define trace_xfs_fs_mark_healthy(a,b)		((void) 0)
 
 /* set c = c to avoid unused var warnings */
