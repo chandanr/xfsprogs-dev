@@ -681,6 +681,10 @@ rtinit(
 	int			i;
 	int			error;
 
+	error = -libxfs_imeta_ensure_dirpath(mp, &XFS_IMETA_RTBITMAP);
+	if (error)
+		fail(_("Realtime bitmap directory allocation failed"), error);
+
 	/*
 	 * First, allocate the inodes.
 	 */
@@ -710,6 +714,10 @@ rtinit(
 				error);
 	mp->m_rbmip = rbmip;
 	libxfs_imeta_end_update(mp, &ic, 0);
+
+	error = -libxfs_imeta_ensure_dirpath(mp, &XFS_IMETA_RTSUMMARY);
+	if (error)
+		fail(_("Realtime summary directory allocation failed"), error);
 
 	i = -libxfs_trans_alloc(mp, &M_RES(mp)->tr_imeta_create,
 			libxfs_imeta_create_space_res(mp), 0, 0, &tp);
