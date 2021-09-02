@@ -18,6 +18,7 @@ bitmap.c \
 bulkstat.c \
 convert.c \
 crc32.c \
+file_exchange.c \
 fsgeom.c \
 list_sort.c \
 linux.c \
@@ -39,6 +40,7 @@ crc32c.h \
 crc32cselftest.h \
 crc32defs.h \
 crc32table.h \
+file_exchange.h \
 fsgeom.h \
 fsmap.h \
 logging.h \
@@ -54,6 +56,10 @@ LSRCFILES += gen_crc32table.c
 
 ifeq ($(HAVE_GETMNTENT),yes)
 LCFLAGS += -DHAVE_GETMNTENT
+endif
+
+ifeq ($(HAVE_FIEXCHANGE),yes)
+LCFLAGS += -DHAVE_FIEXCHANGE
 endif
 
 LDIRT = gen_crc32table crc32table.h crc32selftest

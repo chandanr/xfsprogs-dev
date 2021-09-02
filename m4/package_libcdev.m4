@@ -450,3 +450,23 @@ AC_DEFUN([AC_PACKAGE_CHECK_LTO],
     AC_SUBST(lto_cflags)
     AC_SUBST(lto_ldflags)
   ])
+
+#
+# Check if we have a FIEXCHANGE_RANGE ioctl (Linux)
+#
+AC_DEFUN([AC_HAVE_FIEXCHANGE],
+  [ AC_MSG_CHECKING([for FIEXCHANGE_RANGE])
+    AC_TRY_LINK([
+#define _GNU_SOURCE
+#include <sys/syscall.h>
+#include <unistd.h>
+#include <linux/fs.h>
+#include <linux/fiexchange.h>
+    ], [
+         unsigned long x = FIEXCHANGE_RANGE;
+         struct file_xchg_range fxr;
+    ], have_fiexchange=yes
+       AC_MSG_RESULT(yes),
+       AC_MSG_RESULT(no))
+    AC_SUBST(have_fiexchange)
+  ])
