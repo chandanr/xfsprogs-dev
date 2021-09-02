@@ -665,63 +665,71 @@ parse_proto(
  */
 static void
 rtinit(
-	xfs_mount_t	*mp)
+	struct xfs_mount	*mp)
 {
-	xfs_fileoff_t	bno;
-	xfs_fileoff_t	ebno;
-	xfs_bmbt_irec_t	*ep;
-	int		error;
-	int		i;
-	xfs_bmbt_irec_t	map[XFS_BMAP_MAX_NMAP];
-	xfs_extlen_t	nsumblocks;
-	uint		blocks;
-	int		nmap;
-	xfs_inode_t	*rbmip;
-	xfs_inode_t	*rsumip;
-	xfs_trans_t	*tp;
-	struct cred	creds;
-	struct fsxattr	fsxattrs;
+	struct xfs_imeta_end	ic;
+	struct xfs_bmbt_irec	map[XFS_BMAP_MAX_NMAP];
+	struct xfs_inode	*rbmip;
+	struct xfs_inode	*rsumip;
+	struct xfs_trans	*tp;
+	struct xfs_bmbt_irec	*ep;
+	xfs_fileoff_t		bno;
+	xfs_fileoff_t		ebno;
+	xfs_extlen_t		nsumblocks;
+	uint			blocks;
+	int			nmap;
+	int			i;
+	int			error;
 
 	/*
 	 * First, allocate the inodes.
 	 */
-	i = -libxfs_trans_alloc_rollable(mp, MKFS_BLOCKRES_INODE, &tp);
+	i = -libxfs_trans_alloc(mp, &M_RES(mp)->tr_imeta_create,
+			libxfs_imeta_create_space_res(mp), 0, 0, &tp);
 	if (i)
 		res_failed(i);
 
-	memset(&creds, 0, sizeof(creds));
-	memset(&fsxattrs, 0, sizeof(fsxattrs));
-	error = creatproto(&tp, NULL, S_IFREG, 1, 0, &creds, &fsxattrs,
-			&rbmip);
+	error = -libxfs_imeta_create(&tp, &XFS_IMETA_RTBITMAP, S_IFREG, 0,
+			&rbmip, &ic);
 	if (error) {
 		fail(_("Realtime bitmap inode allocation failed"), error);
 	}
+
 	/*
 	 * Do our thing with rbmip before allocating rsumip,
 	 * because the next call to creatproto() may
 	 * commit the transaction in which rbmip was allocated.
 	 */
-	mp->m_sb.sb_rbmino = rbmip->i_ino;
 	rbmip->i_disk_size = mp->m_sb.sb_rbmblocks * mp->m_sb.sb_blocksize;
-	rbmip->i_diflags = XFS_DIFLAG_NEWRTBM;
+	rbmip->i_diflags |= XFS_DIFLAG_NEWRTBM;
 	*(uint64_t *)&VFS_I(rbmip)->i_atime = 0;
 	libxfs_trans_log_inode(tp, rbmip, XFS_ILOG_CORE);
-	libxfs_log_sb(tp);
+	error = -libxfs_trans_commit(tp);
+	if (error)
+		fail(_("Completion of the realtime bitmap inode failed"),
+				error);
 	mp->m_rbmip = rbmip;
-	error = creatproto(&tp, NULL, S_IFREG, 1, 0, &creds, &fsxattrs,
-			&rsumip);
+	libxfs_imeta_end_update(mp, &ic, 0);
+
+	i = -libxfs_trans_alloc(mp, &M_RES(mp)->tr_imeta_create,
+			libxfs_imeta_create_space_res(mp), 0, 0, &tp);
+	if (i)
+		res_failed(i);
+
+	error = -libxfs_imeta_create(&tp, &XFS_IMETA_RTSUMMARY, S_IFREG, 0,
+			&rsumip, &ic);
 	if (error) {
 		fail(_("Realtime summary inode allocation failed"), error);
 	}
-	mp->m_sb.sb_rsumino = rsumip->i_ino;
 	rsumip->i_disk_size = mp->m_rsumsize;
 	libxfs_trans_log_inode(tp, rsumip, XFS_ILOG_CORE);
-	libxfs_log_sb(tp);
 	error = -libxfs_trans_commit(tp);
 	if (error)
 		fail(_("Completion of the realtime summary inode failed"),
 				error);
 	mp->m_rsumip = rsumip;
+	libxfs_imeta_end_update(mp, &ic, 0);
+
 	/*
 	 * Next, give the bitmap file some zero-filled blocks.
 	 */
