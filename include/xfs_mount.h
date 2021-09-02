@@ -140,4 +140,5 @@ extern void	libxfs_rtmount_destroy (xfs_mount_t *);
 struct xfs_dquot {
 	int		q_type;
 };
+
 #endif	/* __XFS_MOUNT_H__ */
