@@ -6227,7 +6227,6 @@ __xfs_bmap_add(
 {
 	struct xfs_bmap_intent		*bi;
 
-
 	bi = kmem_alloc(sizeof(struct xfs_bmap_intent), KM_NOFS);
 	INIT_LIST_HEAD(&bi->bi_list);
 	bi->bi_type = type;
