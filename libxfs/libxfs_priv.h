@@ -608,6 +608,7 @@ void xfs_log_item_init(struct xfs_mount *, struct xfs_log_item *, int);
 #define xfs_log_in_recovery(mp)	(false)
 
 /* xfs_icache.c */
+#define xfs_inode_clear_cowblocks_tag(ip)	do { } while (0)
 #define xfs_inode_set_cowblocks_tag(ip)	do { } while (0)
 #define xfs_inode_set_eofblocks_tag(ip)	do { } while (0)
 
