@@ -44,6 +44,7 @@ HFILES = \
 	xfs_ialloc_btree.h \
 	xfs_inode_buf.h \
 	xfs_inode_fork.h \
+	xfs_inode_util.h \
 	xfs_quota_defs.h \
 	xfs_refcount.h \
 	xfs_refcount_btree.h \
@@ -90,6 +91,7 @@ CFILES = cache.c \
 	xfs_iext_tree.c \
 	xfs_inode_buf.c \
 	xfs_inode_fork.c \
+	xfs_inode_util.c \
 	xfs_ialloc_btree.c \
 	xfs_log_rlimit.c \
 	xfs_refcount.c \

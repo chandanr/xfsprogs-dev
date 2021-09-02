@@ -30,6 +30,7 @@
 #include "xfs_ag_resv.h"
 #include "xfs_refcount.h"
 #include "xfs_health.h"
+#include "xfs_inode_util.h"
 
 kmem_zone_t		*xfs_bmap_free_item_zone;
 
