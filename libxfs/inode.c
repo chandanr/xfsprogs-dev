@@ -179,7 +179,7 @@ xfs_inode_init(
  * Initialise a newly allocated inode and return the in-core inode to the
  * caller locked exclusively.
  */
-static int
+int
 libxfs_icreate(
 	struct xfs_trans	*tp,
 	xfs_ino_t		ino,
@@ -196,6 +196,22 @@ libxfs_icreate(
 	ASSERT(*ipp != NULL);
 	xfs_inode_init(tp, args, *ipp);
 	return 0;
+}
+
+/* Set up inode attributes for newly created internal files. */
+void
+libxfs_icreate_args_rootfile(
+	struct xfs_icreate_args	*args,
+	umode_t			mode)
+{
+	args->mnt_userns = NULL;
+	args->uid = make_kuid(0);
+	args->gid = make_kgid(0);
+	args->prid = 0;
+	args->mode = mode;
+	args->flags = XFS_ICREATE_ARGS_FORCE_UID |
+		      XFS_ICREATE_ARGS_FORCE_GID |
+		      XFS_ICREATE_ARGS_FORCE_MODE;
 }
 
 /*
@@ -261,66 +277,6 @@ libxfs_iflush_int(
 	/* generate the checksum. */
 	xfs_dinode_calc_crc(mp, dip);
 
-	return 0;
-}
-
-/*
- * Wrapper around call to libxfs_ialloc. Takes care of committing and
- * allocating a new transaction as needed.
- *
- * Originally there were two copies of this code - one in mkfs, the
- * other in repair - now there is just the one.
- */
-int
-libxfs_dir_ialloc(
-	struct xfs_trans	**tpp,
-	struct xfs_inode	*dp,
-	mode_t			mode,
-	nlink_t			nlink,
-	xfs_dev_t		rdev,
-	struct cred		*cr,
-	struct fsxattr		*fsx,
-	struct xfs_inode	**ipp)
-{
-	struct xfs_icreate_args	args = {
-		.pip		= dp,
-		.uid		= make_kuid(cr->cr_uid),
-		.gid		= make_kgid(cr->cr_gid),
-		.prid		= dp ? libxfs_get_initial_prid(dp) : 0,
-		.nlink		= nlink,
-		.rdev		= rdev,
-		.mode		= mode,
-		.flags		= XFS_ICREATE_ARGS_FORCE_UID |
-				  XFS_ICREATE_ARGS_FORCE_GID,
-	};
-	struct xfs_inode	*ip;
-	xfs_ino_t		parent_ino = dp ? dp->i_ino : 0;
-	xfs_ino_t		ino;
-	int			error;
-
-	/*
-	 * Call the space management code to pick the on-disk inode to be
-	 * allocated.
-	 */
-	error = xfs_dialloc(tpp, parent_ino, mode, &ino);
-	if (error)
-		return error;
-
-	error = libxfs_icreate(*tpp, ino, &args, ipp);
-	if (error || dp)
-		return error;
-
-	/* If there is no parent dir, initialize the file from fsxattr data. */
-	ip = *ipp;
-	ip->i_projid = fsx->fsx_projid;
-	ip->i_extsize = fsx->fsx_extsize;
-	ip->i_diflags = xfs_flags2diflags(ip, fsx->fsx_xflags);
-
-	if (xfs_has_v3inodes(ip->i_mount)) {
-		ip->i_diflags2 = xfs_flags2diflags2(ip, fsx->fsx_xflags);
-		ip->i_cowextsize = fsx->fsx_cowextsize;
-	}
-	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
 	return 0;
 }
 
