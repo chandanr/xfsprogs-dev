@@ -19,6 +19,7 @@ static void rsvfile(xfs_mount_t *mp, xfs_inode_t *ip, long long len);
 static int newfile(xfs_trans_t *tp, xfs_inode_t *ip, int symlink, int logit,
 			char *buf, int len);
 static char *newregfile(char **pp, int *len);
+static int metadir_init(struct xfs_mount *mp);
 static void rtinit(xfs_mount_t *mp);
 static long filesize(int fd);
 
@@ -624,8 +625,15 @@ parseproto(
 		 * RT initialization.  Do this here to ensure that
 		 * the RT inodes get placed after the root inode.
 		 */
-		if (isroot)
+		if (isroot) {
+			error = metadir_init(mp);
+			if (error)
+				fail(
+	_("Creation of the metadata directory inode failed"),
+					error);
+
 			rtinit(mp);
+		}
 		tp = NULL;
 		for (;;) {
 			name = getstr(pp);
@@ -657,6 +665,55 @@ parse_proto(
 	char		**pp)
 {
 	parseproto(mp, NULL, fsx, pp, NULL);
+}
+
+/* Create a new metadata directory. */
+static int
+metadir_init(
+	struct xfs_mount	*mp)
+{
+	struct xfs_imeta_end	ic;
+	struct xfs_trans	*tp;
+	struct xfs_inode	*ip;
+	int			error;
+
+	if (!xfs_has_metadir(mp))
+		return 0;
+
+	/*
+	 * The root of the metadata directory tree must be the next inode
+	 * after the root directory.  Reset the AGI rotor to satisfy this
+	 * requirement.
+	 */
+	mp->m_agirotor = 0;
+
+	/*
+	 * The metadata directory should always be the inode after the root
+	 * directory.  The chunk containing both of those inodes should already
+	 * exist, because we (re)create the root directory first.  So, no block
+	 * reservation is necessary.
+	 */
+	error = -libxfs_trans_alloc(mp, &M_RES(mp)->tr_imeta_create,
+			libxfs_imeta_create_space_res(mp), 0, 0, &tp);
+	if (error)
+		return error;
+
+	error = -libxfs_imeta_create(&tp, &XFS_IMETA_METADIR, S_IFDIR, 0, &ip,
+			&ic);
+	if (error)
+		goto out_cancel;
+
+	error = -libxfs_trans_commit(tp);
+	libxfs_imeta_end_update(mp, &ic, error);
+	if (error)
+		return error;
+
+	mp->m_metadirip = ip;
+	return 0;
+
+out_cancel:
+	libxfs_trans_cancel(tp);
+	return error;
 }
 
 /*
