@@ -32,16 +32,6 @@ static inline kgid_t make_kgid(gid_t gid)
 	return v;
 }
 
-static inline kuid_t current_fsuid(void)
-{
-	return make_kuid(0);
-}
-
-static inline kgid_t current_fsgid(void)
-{
-	return make_kgid(0);
-}
-
 /* These match kernel side includes */
 #include "xfs_inode_buf.h"
 #include "xfs_inode_fork.h"
@@ -101,6 +91,14 @@ static inline void i_gid_write(struct inode *inode, uint32_t gid)
 static inline void ihold(struct inode *inode)
 {
 	inode->i_count++;
+}
+
+static inline void
+inode_fsuid_set(
+	struct inode		*inode,
+	struct user_namespace	*mnt_userns)
+{
+	inode->i_uid = make_kuid(0);
 }
 
 typedef struct xfs_inode {
@@ -235,5 +233,19 @@ extern void	libxfs_irele(struct xfs_inode *ip);
 #define XFS_DEFAULT_COWEXTSZ_HINT 32
 
 #define XFS_INHERIT_GID(pip)		(VFS_I(pip)->i_mode & S_ISGID)
+
+static inline void
+inode_set_iversion(struct inode *inode, uint64_t version)
+{
+	inode->i_version = version;
+}
+
+#define xfs_inherit_noatime	(false)
+#define xfs_inherit_nodump	(false)
+#define xfs_inherit_sync	(false)
+#define xfs_inherit_nosymlinks	(false)
+#define xfs_inherit_nodefrag	(false)
+#define irix_sgid_inherit	(false)
+#define in_group_p(g)		(false)
 
 #endif /* __XFS_INODE_H__ */
