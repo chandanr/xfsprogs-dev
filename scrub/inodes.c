@@ -97,6 +97,7 @@ bulkstat_for_inumbers(
 struct scan_inodes {
 	scrub_inode_iter_fn	fn;
 	void			*arg;
+	unsigned int		flags;
 	bool			aborted;
 };
 
@@ -140,6 +141,9 @@ scan_ag_inodes(
 		si->aborted = true;
 		return;
 	}
+
+	if (si->flags & SCRUB_SCAN_METADIR)
+		breq->hdr.flags |= XFS_BULK_IREQ_METADIR;
 
 	error = -xfrog_inumbers_alloc_req(1, 0, &ireq);
 	if (error) {
@@ -237,10 +241,12 @@ int
 scrub_scan_all_inodes(
 	struct scrub_ctx	*ctx,
 	scrub_inode_iter_fn	fn,
+	unsigned int		flags,
 	void			*arg)
 {
 	struct scan_inodes	si = {
 		.fn		= fn,
+		.flags		= flags,
 		.arg		= arg,
 	};
 	xfs_agnumber_t		agno;
