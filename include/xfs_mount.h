@@ -150,6 +150,7 @@ typedef struct xfs_mount {
 #define XFS_FEAT_INOBTCNT	(1ULL << 23)	/* inobt block counts */
 #define XFS_FEAT_BIGTIME	(1ULL << 24)	/* large timestamps */
 #define XFS_FEAT_NEEDSREPAIR	(1ULL << 25)	/* needs xfs_repair */
+#define XFS_FEAT_ATOMIC_SWAP	(1ULL << 26)	/* extent swap log items */
 
 #define __XFS_HAS_FEAT(name, NAME) \
 static inline bool xfs_has_ ## name (struct xfs_mount *mp) \
@@ -193,6 +194,18 @@ __XFS_HAS_FEAT(realtime, REALTIME)
 __XFS_HAS_FEAT(inobtcounts, INOBTCNT)
 __XFS_HAS_FEAT(bigtime, BIGTIME)
 __XFS_HAS_FEAT(needsrepair, NEEDSREPAIR)
+__XFS_HAS_FEAT(atomicswap, ATOMIC_SWAP)
+
+/*
+ * Decide if this filesystem can use log-assisted ("atomic") extent swapping.
+ * The atomic swap log intent items depend on the block mapping log intent
+ * items introduced with reflink and rmap.  Realtime is not supported yet.
+ */
+static inline bool xfs_can_atomicswap(struct xfs_mount *mp)
+{
+	return (xfs_has_reflink(mp) || xfs_has_rmapbt(mp)) &&
+	       !xfs_has_realtime(mp);
+}
 
 /* Kernel mount features that we don't support */
 #define __XFS_UNSUPP_FEAT(name) \
