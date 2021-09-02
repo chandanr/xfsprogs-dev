@@ -162,6 +162,7 @@ bool				is_service;
 #define SCRUB_RET_UNOPTIMIZED	(2)	/* fs could be optimized */
 #define SCRUB_RET_OPERROR	(4)	/* operational problems */
 #define SCRUB_RET_SYNTAX	(8)	/* cmdline args rejected */
+#define SCRUB_RET_INCOMPLETE	(16)	/* operations were skipped */
 
 static void __attribute__((noreturn))
 usage(void)
@@ -533,6 +534,7 @@ report_outcome(
 
 	if (actionable_errors == 0 &&
 	    ctx->unfixable_errors == 0 &&
+	    ctx->slow_ops_skipped == 0 &&
 	    ctx->warnings_found == 0) {
 		log_info(ctx, _("No problems found."));
 		return;
@@ -563,6 +565,17 @@ report_outcome(
 		fprintf(stderr, _("%s: warnings found: %llu\n"), ctx->mntpoint,
 				ctx->warnings_found);
 		log_warn(ctx, _("warnings found: %llu"), ctx->warnings_found);
+	}
+
+	if (ctx->slow_ops_skipped > 0) {
+		fprintf(stderr, _("%s: slow operations skipped: %llu\n"),
+				ctx->mntpoint, ctx->slow_ops_skipped);
+		log_err(ctx, _("%s: slow operations skipped: %llu\n"),
+				ctx->mntpoint, ctx->slow_ops_skipped);
+		fprintf(stderr, _("%s: Re-run xfs_scrub without -q.\n"),
+				ctx->mntpoint);
+		log_err(ctx, _("%s: Re-run xfs_scrub without -q.\n"),
+				ctx->mntpoint);
 	}
 
 	/*
@@ -613,7 +626,8 @@ main(
 	pthread_mutex_init(&ctx.lock, NULL);
 	ctx.mode = SCRUB_MODE_REPAIR;
 	ctx.error_action = ERRORS_CONTINUE;
-	while ((c = getopt(argc, argv, "a:bC:de:km:nTvxV")) != EOF) {
+	ctx.freeze_ok = true;
+	while ((c = getopt(argc, argv, "a:bC:de:km:nqTvxV")) != EOF) {
 		switch (c) {
 		case 'a':
 			ctx.max_errors = cvt_u64(optarg, 10);
@@ -662,6 +676,9 @@ main(
 			break;
 		case 'n':
 			ctx.mode = SCRUB_MODE_DRY_RUN;
+			break;
+		case 'q':
+			ctx.freeze_ok = false;
 			break;
 		case 'T':
 			display_rusage = true;
@@ -791,6 +808,8 @@ out:
 		ret |= SCRUB_RET_UNOPTIMIZED;
 	if (ctx.runtime_errors)
 		ret |= SCRUB_RET_OPERROR;
+	if (ctx.slow_ops_skipped)
+		ret |= SCRUB_RET_INCOMPLETE;
 	phase_end(&all_pi, 0);
 	if (progress_fp)
 		fclose(progress_fp);
