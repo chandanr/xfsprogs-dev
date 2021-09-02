@@ -32,6 +32,11 @@ static inline kgid_t make_kgid(gid_t gid)
 	return v;
 }
 
+#define KUIDT_INIT(value) (kuid_t){ value }
+#define KGIDT_INIT(value) (kgid_t){ value }
+#define GLOBAL_ROOT_UID KUIDT_INIT(0)
+#define GLOBAL_ROOT_GID KGIDT_INIT(0)
+
 /* These match kernel side includes */
 #include "xfs_inode_buf.h"
 #include "xfs_inode_fork.h"
@@ -256,5 +261,8 @@ inode_set_iversion(struct inode *inode, uint64_t version)
 #define xfs_inherit_nodefrag	(false)
 #define irix_sgid_inherit	(false)
 #define in_group_p(g)		(false)
+
+int libxfs_ifree_cluster(struct xfs_trans *tp, struct xfs_perag *pag,
+		struct xfs_inode *free_ip, struct xfs_icluster *xic);
 
 #endif /* __XFS_INODE_H__ */

@@ -340,5 +340,11 @@
 #define trace_xfs_imeta_sb_create(...)		((void) 0)
 #define trace_xfs_imeta_sb_unlink(...)		((void) 0)
 #define trace_xfs_imeta_end_update(...)		((void) 0)
+#define trace_xfs_imeta_dir_link(...)		((void) 0)
+#define trace_xfs_imeta_dir_lookup_component(...) ((void) 0)
+#define trace_xfs_imeta_dir_lookup_found(...)	((void) 0)
+#define trace_xfs_imeta_dir_try_create(...)	((void) 0)
+#define trace_xfs_imeta_dir_created(...)	((void) 0)
+#define trace_xfs_imeta_dir_unlinked(...)	((void) 0)
 
 #endif /* __TRACE_H__ */
