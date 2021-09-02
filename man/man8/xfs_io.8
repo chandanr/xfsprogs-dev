@@ -1317,23 +1317,29 @@ Currently supported versions are 1 and 5.
 .RE
 .PD
 .TP
-.BI "scrub " type " [ " agnumber " | " "ino" " " "gen" " ]"
+.BI "scrub [ \-f ] " type " [ " agnumber " | " "ino" " " "gen" " ]"
 Scrub internal XFS filesystem metadata.  The
 .BI type
 parameter specifies which type of metadata to scrub.
 For AG metadata, one AG number must be specified.
 For file metadata, the scrub is applied to the open file unless the
 inode number and generation number are specified.
+The
+.B \-f
+option enables operations that require filesystem freezing.
 .RE
 .PD
 .TP
-.BI "repair " type " [ " agnumber " | " "ino" " " "gen" " ]"
+.BI "repair [ \-f ] " type " [ " agnumber " | " "ino" " " "gen" " ]"
 Repair internal XFS filesystem metadata.  The
 .BI type
 parameter specifies which type of metadata to repair.
 For AG metadata, one AG number must be specified.
 For file metadata, the repair is applied to the open file unless the
 inode number and generation number are specified.
+The
+.B \-f
+option enables operations that require filesystem freezing.
 .TP
 .BI "label" " " "[ -c | -s " label " ] "
 On filesystems that support online label manipulation, get, set, or clear the

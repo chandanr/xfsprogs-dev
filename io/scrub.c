@@ -46,7 +46,8 @@ scrub_ioctl(
 	int				fd,
 	int				type,
 	uint64_t			control,
-	uint32_t			control2)
+	uint32_t			control2,
+	uint32_t			flags)
 {
 	struct xfs_scrub_metadata	meta;
 	const struct xfrog_scrub_descr	*sc;
@@ -70,11 +71,15 @@ scrub_ioctl(
 		/* no control parameters */
 		break;
 	}
-	meta.sm_flags = 0;
+	meta.sm_flags = flags;
 
 	error = ioctl(fd, XFS_IOC_SCRUB_METADATA, &meta);
-	if (error)
-		perror("scrub");
+	if (error) {
+		if (errno == EUSERS)
+			printf(_("Freeze required; try again with -f.\n"));
+		else
+			perror("scrub");
+	}
 	if (meta.sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		printf(_("Corruption detected.\n"));
 	if (meta.sm_flags & XFS_SCRUB_OFLAG_PREEN)
@@ -92,17 +97,22 @@ parse_args(
 	int				argc,
 	char				**argv,
 	struct cmdinfo			*cmdinfo,
-	void				(*fn)(int, int, uint64_t, uint32_t))
+	void				(*fn)(int, int, uint64_t, uint32_t,
+					      uint32_t))
 {
 	char				*p;
 	int				type = -1;
 	int				i, c;
 	uint64_t			control = 0;
+	uint32_t			flags = 0;
 	uint32_t			control2 = 0;
 	const struct xfrog_scrub_descr	*d = NULL;
 
-	while ((c = getopt(argc, argv, "")) != EOF) {
+	while ((c = getopt(argc, argv, "f")) != EOF) {
 		switch (c) {
+		case 'f':
+			flags |= XFS_SCRUB_IFLAG_FREEZE_OK;
+			break;
 		default:
 			return command_usage(cmdinfo);
 		}
@@ -175,7 +185,7 @@ parse_args(
 		ASSERT(0);
 		break;
 	}
-	fn(file->fd, type, control, control2);
+	fn(file->fd, type, control, control2, flags);
 
 	return 0;
 }
@@ -197,7 +207,7 @@ scrub_init(void)
 	scrub_cmd.argmin = 1;
 	scrub_cmd.argmax = -1;
 	scrub_cmd.flags = CMD_NOMAP_OK;
-	scrub_cmd.args = _("type [agno|ino gen]");
+	scrub_cmd.args = _("type [agno|ino gen] [-f]");
 	scrub_cmd.oneline = _("scrubs filesystem metadata");
 	scrub_cmd.help = scrub_help;
 
@@ -233,7 +243,8 @@ repair_ioctl(
 	int				fd,
 	int				type,
 	uint64_t			control,
-	uint32_t			control2)
+	uint32_t			control2,
+	uint32_t			flags)
 {
 	struct xfs_scrub_metadata	meta;
 	const struct xfrog_scrub_descr	*sc;
@@ -257,11 +268,15 @@ repair_ioctl(
 		/* no control parameters */
 		break;
 	}
-	meta.sm_flags = XFS_SCRUB_IFLAG_REPAIR;
+	meta.sm_flags = flags | XFS_SCRUB_IFLAG_REPAIR;
 
 	error = ioctl(fd, XFS_IOC_SCRUB_METADATA, &meta);
-	if (error)
-		perror("repair");
+	if (error) {
+		if (errno == EUSERS)
+			printf(_("Freeze required; try again with -f.\n"));
+		else
+			perror("repair");
+	}
 	if (meta.sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		printf(_("Corruption remains.\n"));
 	if (meta.sm_flags & XFS_SCRUB_OFLAG_PREEN)
@@ -295,7 +310,7 @@ repair_init(void)
 	repair_cmd.argmin = 1;
 	repair_cmd.argmax = -1;
 	repair_cmd.flags = CMD_NOMAP_OK;
-	repair_cmd.args = _("type [agno|ino gen]");
+	repair_cmd.args = _("type [agno|ino gen] [-f]");
 	repair_cmd.oneline = _("repairs filesystem metadata");
 	repair_cmd.help = repair_help;
 
