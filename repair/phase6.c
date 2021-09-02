@@ -3456,6 +3456,118 @@ update_missing_dotdot_entries(
 	}
 }
 
+static int
+reattach_quota_inode(
+	struct xfs_mount		*mp,
+	xfs_ino_t			ino,
+	const struct xfs_imeta_path	*path)
+{
+	struct xfs_inode		*ip;
+	struct xfs_trans		*tp;
+	struct xfs_imeta_end		*cleanup;
+	unsigned int			resblks;
+	int				error;
+
+	error = ensure_imeta_dirpath(mp, path);
+	if (error) {
+		do_warn(
+_("Couldn't create quota metadata directory, error %d\n"), error);
+		return error;
+	}
+
+	cleanup = malloc(sizeof(struct xfs_imeta_end));
+	if (!cleanup) {
+		do_warn(
+_("Couldn't allocate metadir inode cleanup info -- error - %d\n"),
+			ENOMEM);
+		return error;
+	}
+
+	error = -libxfs_imeta_iget(mp, ino, XFS_DIR3_FT_REG_FILE, &ip);
+	if (error) {
+		do_warn(
+_("Couldn't grab quota inode 0x%llx, error %d\n"),
+				(unsigned long long)ino, error);
+		goto cleanup;
+	}
+
+	resblks = libxfs_imeta_create_space_res(mp);
+	error = -libxfs_trans_alloc(mp, &M_RES(mp)->tr_imeta_create,
+			resblks, 0, 0, &tp);
+	if (error) {
+		do_warn(
+_("Couldn't allocate transaction to attach quota inode 0x%llx, error %d\n"),
+				(unsigned long long)ino, error);
+		goto rele;
+	}
+
+	error = -libxfs_imeta_link(tp, path, ip, cleanup);
+	if (error) {
+		do_warn(
+_("Couldn't link quota inode 0x%llx, error %d\n"),
+				(unsigned long long)ino, error);
+		libxfs_trans_cancel(tp);
+		goto rele;
+	}
+
+	set_nlink(VFS_I(ip), 1);
+	libxfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	error = -libxfs_trans_commit(tp);
+	if (error) {
+		do_warn(
+_("Couldn't commit quota inode 0x%llx reattachment transaction, error %d\n"),
+				(unsigned long long)ino, error);
+	}
+
+rele:
+	libxfs_irele(ip);
+cleanup:
+	libxfs_imeta_end_update(mp, cleanup, error);
+	free(cleanup);
+	return error;
+}
+
+/*
+ * Reattach quota inodes to the metadata directory if we rebuilt the metadata
+ * directory tree.
+ */
+static inline void
+reattach_metadir_quota_inodes(
+	struct xfs_mount	*mp)
+{
+	int			error;
+
+	if (!xfs_has_metadir(mp) || no_modify)
+		return;
+
+	if (mp->m_sb.sb_uquotino != NULLFSINO) {
+		error = reattach_quota_inode(mp, mp->m_sb.sb_uquotino,
+				&XFS_IMETA_USRQUOTA);
+		if (error) {
+			mp->m_sb.sb_uquotino = NULLFSINO;
+			lost_uquotino = 1;
+		}
+	}
+
+	if (mp->m_sb.sb_gquotino != NULLFSINO) {
+		error = reattach_quota_inode(mp, mp->m_sb.sb_gquotino,
+				&XFS_IMETA_GRPQUOTA);
+		if (error) {
+			mp->m_sb.sb_gquotino = NULLFSINO;
+			lost_gquotino = 1;
+		}
+	}
+
+	if (mp->m_sb.sb_pquotino != NULLFSINO) {
+		error = reattach_quota_inode(mp, mp->m_sb.sb_pquotino,
+				&XFS_IMETA_PRJQUOTA);
+		if (error) {
+			mp->m_sb.sb_pquotino = NULLFSINO;
+			lost_pquotino = 1;
+		}
+	}
+}
+
 static void
 traverse_ags(
 	struct xfs_mount	*mp)
@@ -3538,6 +3650,8 @@ _("        - resetting contents of realtime bitmap and summary inodes\n"));
 			_("Warning:  realtime bitmap may be inconsistent\n"));
 		}
 	}
+
+	reattach_metadir_quota_inodes(mp);
 
 	mark_standalone_inodes(mp);
 
