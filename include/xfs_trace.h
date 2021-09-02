@@ -335,5 +335,10 @@
 #define trace_xfs_iunlink(...)			((void) 0)
 #define trace_xfs_iunlink_remove(...)		((void) 0)
 #define trace_xfs_iunlink_map_prev_fallback(...)	((void) 0)
+#define trace_xfs_imeta_sb_link(...)		((void) 0)
+#define trace_xfs_imeta_sb_lookup(...)		((void) 0)
+#define trace_xfs_imeta_sb_create(...)		((void) 0)
+#define trace_xfs_imeta_sb_unlink(...)		((void) 0)
+#define trace_xfs_imeta_end_update(...)		((void) 0)
 
 #endif /* __TRACE_H__ */

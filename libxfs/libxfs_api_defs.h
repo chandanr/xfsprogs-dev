@@ -120,6 +120,8 @@
 #define xfs_highbit32			libxfs_highbit32
 #define xfs_highbit64			libxfs_highbit64
 #define xfs_ialloc_calc_rootino		libxfs_ialloc_calc_rootino
+#define xfs_icreate			libxfs_icreate
+#define xfs_icreate_args_rootfile	libxfs_icreate_args_rootfile
 #define xfs_idata_realloc		libxfs_idata_realloc
 #define xfs_idestroy_fork		libxfs_idestroy_fork
 #define xfs_iext_first			libxfs_iext_first
@@ -127,6 +129,14 @@
 #define xfs_iext_lookup_extent		libxfs_iext_lookup_extent
 #define xfs_iext_next			libxfs_iext_next
 #define xfs_imap_to_bp			libxfs_imap_to_bp
+
+#define xfs_imeta_create		libxfs_imeta_create
+#define xfs_imeta_end_update		libxfs_imeta_end_update
+#define xfs_imeta_link			libxfs_imeta_link
+#define xfs_imeta_lookup		libxfs_imeta_lookup
+#define xfs_imeta_mount			libxfs_imeta_mount
+#define xfs_imeta_unlink		libxfs_imeta_unlink
+
 #define xfs_initialize_perag		libxfs_initialize_perag
 #define xfs_initialize_perag_data	libxfs_initialize_perag_data
 #define xfs_init_local_fork		libxfs_init_local_fork
@@ -142,6 +152,7 @@
 
 #define xfs_iread_extents		libxfs_iread_extents
 #define xfs_irele			libxfs_irele
+#define xfs_is_meta_ino			libxfs_is_meta_ino
 #define xfs_log_calc_minimum_size	libxfs_log_calc_minimum_size
 #define xfs_log_get_max_trans_res	libxfs_log_get_max_trans_res
 #define xfs_log_sb			libxfs_log_sb
