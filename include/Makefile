@@ -12,6 +12,7 @@ LIBHFILES = libxfs.h \
 	atomic.h \
 	bitops.h \
 	cache.h \
+	completion.h \
 	hlist.h \
 	kmem.h \
 	list.h \
