@@ -50,6 +50,7 @@
 #include "atomic.h"
 #include "spinlock.h"
 #include "completion.h"
+#include "sema.h"
 
 #include "xfs_types.h"
 #include "xfs_arch.h"
