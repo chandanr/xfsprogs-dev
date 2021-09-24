@@ -23,8 +23,8 @@ typedef	int64_t	atomic64_t;
 
 #define atomic_read(a)		uatomic_read(a)
 #define atomic_set(a, v)	uatomic_set(a, v)
-#define atomic_add(a, v)	uatomic_add(a, v)
-#define atomic_sub(a, v)	uatomic_sub(a, v)
+#define atomic_add(v, a)	uatomic_add(a, v)
+#define atomic_sub(v, a)	uatomic_sub(a, v)
 #define atomic_inc(a)		uatomic_inc(a)
 #define atomic_dec(a)		uatomic_dec(a)
 #define atomic_inc_return(a)	uatomic_add_return(a, 1)
@@ -62,8 +62,8 @@ static inline bool atomic_dec_and_lock(atomic_t *a, spinlock_t *lock)
 
 #define atomic64_read(x)	uatomic_read(x)
 #define atomic64_set(x, v)	uatomic_set(x, v)
-#define atomic64_add(a, v)	uatomic_add(a, v)
-#define atomic64_sub(a, v)	uatomic_sub(a, v)
+#define atomic64_add(v, a)	uatomic_add(a, v)
+#define atomic64_sub(v, a)	uatomic_sub(a, v)
 #define atomic64_inc(a)		uatomic_inc(a)
 #define atomic64_dec(a)		uatomic_dec(a)
 
