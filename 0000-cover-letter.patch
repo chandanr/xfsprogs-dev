@@ -1,0 +1,67 @@
+From 43a1a4482b368d8f662dbd151fe79bedff9e4b5c Mon Sep 17 00:00:00 2001
+From: Chandan Babu R <chandan.babu@oracle.com>
+Date: Fri, 24 Sep 2021 12:43:33 +0000
+Subject: [PATCH V2 0/5] xfsprogs: generic serialisation primitives
+
+This patchset provides userspace equivalents for spinlocks, atomics,
+completion and semaphores that the shared libxfs code depends on in
+the kernel.
+
+I have executed fstests on a 4k block sized filesystem which has
+reflink and rmap enabled.
+
+Changelog:
+V1 -> V2:
+1. Provide m4 macros to detect availability of liburcu on the system
+   where xfsprogs is being built.
+2. Initialize inode log item's spin lock.
+3. Swap order of arguments provided to atomic[64]_[add|sub]().
+
+Dave Chinner (5):
+  xfsprogs: introduce liburcu support
+  libxfs: add spinlock_t wrapper
+  atomic: convert to uatomic
+  libxfs: add kernel-compatible completion API
+  libxfs: add wrappers for kernel semaphores
+
+ configure.ac               |  3 ++
+ copy/Makefile              |  3 +-
+ copy/xfs_copy.c            |  3 ++
+ db/Makefile                |  3 +-
+ debian/control             |  2 +-
+ growfs/Makefile            |  3 +-
+ include/Makefile           |  3 ++
+ include/atomic.h           | 65 +++++++++++++++++++++++++++++++-------
+ include/builddefs.in       |  4 ++-
+ include/completion.h       | 61 +++++++++++++++++++++++++++++++++++
+ include/libxfs.h           |  3 ++
+ include/platform_defs.h.in |  1 +
+ include/sema.h             | 35 ++++++++++++++++++++
+ include/spinlock.h         | 25 +++++++++++++++
+ include/xfs_inode.h        |  1 +
+ include/xfs_mount.h        |  2 ++
+ include/xfs_trans.h        |  1 +
+ libfrog/workqueue.c        |  3 ++
+ libxfs/init.c              |  7 +++-
+ libxfs/libxfs_priv.h       |  9 +++---
+ libxfs/logitem.c           |  4 ++-
+ libxfs/rdwr.c              |  2 ++
+ logprint/Makefile          |  3 +-
+ m4/Makefile                |  1 +
+ m4/package_urcu.m4         | 24 ++++++++++++++
+ mdrestore/Makefile         |  3 +-
+ mkfs/Makefile              |  2 +-
+ repair/Makefile            |  2 +-
+ repair/prefetch.c          |  9 ++++--
+ repair/progress.c          |  4 ++-
+ scrub/Makefile             |  3 +-
+ scrub/progress.c           |  2 ++
+ 32 files changed, 265 insertions(+), 31 deletions(-)
+ create mode 100644 include/completion.h
+ create mode 100644 include/sema.h
+ create mode 100644 include/spinlock.h
+ create mode 100644 m4/package_urcu.m4
+
+-- 
+2.25.1
+
