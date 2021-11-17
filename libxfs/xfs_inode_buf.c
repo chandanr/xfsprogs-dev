@@ -250,6 +250,12 @@ xfs_inode_from_disk(
 	}
 	if (xfs_is_reflink_inode(ip))
 		xfs_ifork_init_cow(ip);
+
+	if ((from->di_version == 3) &&
+		xfs_sb_version_hasnrext64(&ip->i_mount->m_sb) &&
+		!xfs_dinode_has_nrext64(from))
+		ip->i_diflags2 |= XFS_DIFLAG2_NREXT64;
+
 	return 0;
 
 out_destroy_data_fork:
