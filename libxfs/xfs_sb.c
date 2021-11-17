@@ -1020,6 +1020,9 @@ xfs_fs_geometry(
 		geo->logsectsize = sbp->sb_logsectsize;
 	else
 		geo->logsectsize = BBSIZE;
+	if (xfs_sb_version_hasnrext64(sbp))
+		geo->flags |= XFS_FSOP_GEOM_FLAGS_NREXT64;
+
 	geo->rtsectsize = sbp->sb_blocksize;
 	geo->dirblocksize = xfs_dir2_dirblock_bytes(sbp);
 
