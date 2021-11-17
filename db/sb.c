@@ -704,6 +704,8 @@ version_string(
 		strcat(s, ",BIGTIME");
 	if (xfs_sb_version_needsrepair(sbp))
 		strcat(s, ",NEEDSREPAIR");
+	if (xfs_sb_version_hasnrext64(sbp))
+		strcat(s, ",NREXT64");
 	return s;
 }
 
