@@ -50,7 +50,7 @@ rmap_needs_work(
 	struct xfs_mount	*mp)
 {
 	return xfs_has_reflink(mp) || add_reflink ||
-	       xfs_has_rmapbt(mp);
+	       xfs_has_rmapbt(mp) || add_rmapbt;
 }
 
 /*
@@ -988,8 +988,9 @@ rmaps_verify_btree(
 	int			have;
 	int			error;
 
-	if (!xfs_has_rmapbt(mp))
+	if (!xfs_has_rmapbt(mp) || add_rmapbt)
 		return 0;
+
 	if (rmapbt_suspect) {
 		if (no_modify && agno == 0)
 			do_warn(_("would rebuild corrupt rmap btrees.\n"));
