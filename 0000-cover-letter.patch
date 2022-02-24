@@ -1,0 +1,144 @@
+From b856b8b8a9a1603719e2d5501ac243a0d879237f Mon Sep 17 00:00:00 2001
+From: Chandan Babu R <chandan.babu@oracle.com>
+Date: Thu, 24 Feb 2022 18:23:51 +0530
+Subject: [PATCH V6 00/19] xfsprogs: Extend per-inode extent counters
+To: linux-xfs@vger.kernel.org
+Cc: djwong@kernel.org,
+    david@fromorbit.com
+
+This patchset implements the changes to userspace programs that are
+required to support extending inode's data and attr fork extent
+counter fields. These changes allow programs in xfsprogs to be able to
+create and work with filesystem instances with 64-bit data fork extent
+counter and 32-bit attr fork extent counter fields.
+
+The patchset can also be obtained from
+https://github.com/chandanr/xfsprogs-dev.git at branch
+xfs-incompat-extend-extcnt-v6.
+
+Changelog:
+V5 -> V6:
+1. Sync changes made to files under libxfs/.
+2. Apply trivial changes suggested during review of V5 patchset.
+
+V4 -> V5:
+1. Rebase on Darrick's upgrade-older-features branch.
+2. Recompute transaction reservation values before checking if
+   upgrading an fs to a new feature would succeed.
+3. xfs_db: Revert back display names of per-inode extent counter
+   fields to nextents and naextents. Use the value from the appropriate
+   field of disk inode based on whether the inode has nrext64 feature
+   bit set or not.
+4. Skip nrext64_pad when printing entire inode.   
+5. Report nrext64 support through xfs_db's version command.
+6. Update xfs_admin's manual page to show that xfs_admin can try to
+   upgrade an fs to nrext64 feature.
+
+V3 -> V4:
+1. Rebase patchset on top of Darrick's "xfs: kill XFS_BTREE_MAXLEVELS"
+   patchset. 
+2. Carve out a 64-bit inode field out of the existing di_pad and
+   di_flushiter fields to hold the 64-bit data fork extent counter.
+3. Use the existing 32-bit inode data fork extent counter to hold the
+   attr fork extent counter.
+4. Pass XFS_BULK_IREQ_NREXT64 flag to the bulkstat ioctl if the
+   underlying filesystem support for large exent counters is detected
+   by the presence of XFS_FSOP_GEOM_FLAGS_NREXT64 bit.
+
+V2 -> V3:
+1. Introduce the ability to upgrade existing filesystems to use 64-bit
+   extent counters if it is feasible to do so.
+2. Report presence of 64-bit extent counters via xfs_info.
+3. Add XFS_SB_FEAT_INCOMPAT_NREXT64 to XFS_SB_FEAT_INCOMPAT_ALL in a
+   separate patch.
+4. Rename mkfs.xfs option from extcnt64bit to nrext64.
+
+V1 -> V2:
+1. Rebase patches on top of Darrick's btree-dynamic-depth branch.
+2. Add support for using the new bulkstat ioctl version to support
+   64-bit data fork extent counter field.
+
+Chandan Babu R (18):
+  xfsprogs: Move extent count limits to xfs_format.h
+  xfsprogs: Introduce xfs_iext_max_nextents() helper
+  xfsprogs: Use xfs_extnum_t instead of basic data types
+  xfsprogs: Introduce xfs_dfork_nextents() helper
+  xfsprogs: Use basic types to define xfs_log_dinode's di_nextents and
+    di_anextents
+  xfsprogs: Promote xfs_extnum_t and xfs_aextnum_t to 64 and 32-bits
+    respectively
+  xfsprogs: Introduce XFS_SB_FEAT_INCOMPAT_NREXT64 and associated per-fs
+    feature bit
+  xfsprogs: Introduce XFS_FSOP_GEOM_FLAGS_NREXT64
+  xfsprogs: Introduce XFS_DIFLAG2_NREXT64 and associated helpers
+  xfsprogs: Use xfs_rfsblock_t to count maximum blocks that can be used
+    by BMBT
+  xfsprogs: Introduce macros to represent new maximum extent counts for
+    data/attr forks
+  xfsprogs: Introduce per-inode 64-bit extent counters
+  xfsprogs: Enable bulkstat ioctl to support 64-bit extent counters
+  xfsprogs: Add XFS_SB_FEAT_INCOMPAT_NREXT64 to the list of supported
+    flags
+  xfsprogs: xfs_info: Report NREXT64 feature status
+  mkfs: add option to create filesystem with large extent counters
+  xfsprogs: Add support for upgrading to NREXT64 feature
+  xfsprogs: Define max extent length based on on-disk format definition
+
+Darrick J. Wong (1):
+  xfs_repair: check filesystem geometry before allowing upgrades
+
+ db/bmap.c                     |   8 +-
+ db/btdump.c                   |   4 +-
+ db/check.c                    |  28 +++--
+ db/field.c                    |   4 -
+ db/field.h                    |   2 -
+ db/frag.c                     |   8 +-
+ db/inode.c                    | 224 +++++++++++++++++++++++++++++++--
+ db/metadump.c                 |   6 +-
+ db/sb.c                       |   2 +
+ fsr/xfs_fsr.c                 |   4 +-
+ include/libxfs.h              |   1 +
+ include/xfs_inode.h           |   5 +
+ include/xfs_mount.h           |   3 +
+ io/bulkstat.c                 |   1 +
+ libfrog/bulkstat.c            |  29 ++++-
+ libfrog/fsgeom.c              |   6 +-
+ libxfs/init.c                 |  24 ++--
+ libxfs/libxfs_api_defs.h      |   3 +
+ libxfs/xfs_bmap.c             |  77 ++++++------
+ libxfs/xfs_bmap_btree.c       |   2 +-
+ libxfs/xfs_format.h           |  71 +++++++++--
+ libxfs/xfs_fs.h               |  21 +++-
+ libxfs/xfs_ialloc.c           |   2 +
+ libxfs/xfs_inode_buf.c        |  78 +++++++++---
+ libxfs/xfs_inode_fork.c       |  13 +-
+ libxfs/xfs_inode_fork.h       |  59 ++++++++-
+ libxfs/xfs_log_format.h       |  33 ++++-
+ libxfs/xfs_sb.c               |   6 +
+ libxfs/xfs_trans_resv.c       |  10 +-
+ libxfs/xfs_types.h            |  11 +-
+ logprint/log_misc.c           |  20 ++-
+ logprint/log_print_all.c      |  18 ++-
+ man/man2/ioctl_xfs_bulkstat.2 |  11 +-
+ man/man8/mkfs.xfs.8.in        |   7 ++
+ man/man8/xfs_admin.8          |   7 ++
+ mkfs/lts_4.19.conf            |   1 +
+ mkfs/lts_5.10.conf            |   1 +
+ mkfs/lts_5.15.conf            |   1 +
+ mkfs/lts_5.4.conf             |   1 +
+ mkfs/xfs_mkfs.c               |  29 ++++-
+ repair/attr_repair.c          |   2 +-
+ repair/dinode.c               |  95 ++++++++------
+ repair/dinode.h               |   4 +-
+ repair/globals.c              |   1 +
+ repair/globals.h              |   1 +
+ repair/phase2.c               | 230 ++++++++++++++++++++++++++++++++--
+ repair/phase4.c               |   2 +-
+ repair/prefetch.c             |   2 +-
+ repair/scan.c                 |   6 +-
+ repair/xfs_repair.c           |  11 ++
+ 50 files changed, 981 insertions(+), 214 deletions(-)
+
+-- 
+2.30.2
+
