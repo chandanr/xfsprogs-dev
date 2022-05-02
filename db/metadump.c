@@ -3011,8 +3011,16 @@ metadump_f(
 			mp->m_sb.sb_logblocks * blkbb, DB_RING_IGN, NULL);
 		if (iocur_top->data) {	/* best effort */
 			struct xlog	log;
+			int		dirty_log;
 
-			if (xlog_is_dirty(mp, &log, &x, 0))
+			dirty_log = xlog_is_dirty(mp, &log, &x, 0);
+
+                        if (dirty_log == -1) {
+				free(metablock);
+				return 0;
+			}
+
+			if (dirty_log)
 				metablock->mb_info |= XFS_METADUMP_DIRTYLOG;
 		}
 		pop_cur();
