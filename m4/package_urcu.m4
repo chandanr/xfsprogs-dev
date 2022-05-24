@@ -10,13 +10,11 @@ AC_DEFUN([AC_PACKAGE_NEED_URCU_H],
 
 AC_DEFUN([AC_PACKAGE_NEED_RCU_INIT],
   [ AC_MSG_CHECKING([for liburcu])
-    AC_COMPILE_IFELSE(
-    [	AC_LANG_PROGRAM([[
+    AC_TRY_COMPILE([
 #define _GNU_SOURCE
 #include <urcu.h>
-	]], [[
-rcu_init();
-	]])
+    ], [
+       rcu_init();
     ], liburcu=-lurcu
        AC_MSG_RESULT(yes),
        AC_MSG_RESULT(no))
@@ -30,14 +28,12 @@ rcu_init();
 #
 AC_DEFUN([AC_HAVE_LIBURCU_ATOMIC64],
   [ AC_MSG_CHECKING([for atomic64_t support in liburcu])
-    AC_LINK_IFELSE(
-    [	AC_LANG_PROGRAM([[
+    AC_TRY_LINK([
 #define _GNU_SOURCE
 #include <urcu.h>
-	]], [[
-long long f = 3;
-uatomic_inc(&f);
-	]])
+    ], [
+       long long f = 3;
+       uatomic_inc(&f);
     ], have_liburcu_atomic64=yes
        AC_MSG_RESULT(yes),
        AC_MSG_RESULT(no))
