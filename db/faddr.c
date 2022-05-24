@@ -69,7 +69,7 @@ fa_attrblock(
 	bmap_ext_t	bm;
 	uint32_t	bno;
 	xfs_fsblock_t	dfsbno;
-	int		nex;
+	xfs_extnum_t	nex;
 
 	bno = (uint32_t)getbitval(obj, bit, bitsz(bno), BVUNSIGNED);
 	if (bno == 0) {
@@ -97,7 +97,7 @@ fa_cfileoffa(
 	bmap_ext_t	bm;
 	xfs_fileoff_t	bno;
 	xfs_fsblock_t	dfsbno;
-	int		nex;
+	xfs_extnum_t	nex;
 
 	bno = (xfs_fileoff_t)getbitval(obj, bit, BMBT_STARTOFF_BITLEN,
 		BVUNSIGNED);
@@ -128,7 +128,7 @@ fa_cfileoffd(
 	xfs_fileoff_t	bno;
 	xfs_fsblock_t	dfsbno;
 	int		nb;
-	int		nex;
+	xfs_extnum_t	nex;
 
 	bno = (xfs_fileoff_t)getbitval(obj, bit, BMBT_STARTOFF_BITLEN,
 		BVUNSIGNED);
@@ -183,7 +183,7 @@ fa_dfiloffa(
 	bmap_ext_t	bm;
 	xfs_fileoff_t	bno;
 	xfs_fsblock_t	dfsbno;
-	int		nex;
+	xfs_extnum_t	nex;
 
 	bno = (xfs_fileoff_t)getbitval(obj, bit, bitsz(bno), BVUNSIGNED);
 	if (bno == NULLFILEOFF) {
@@ -213,7 +213,7 @@ fa_dfiloffd(
 	xfs_fileoff_t	bno;
 	xfs_fsblock_t	dfsbno;
 	int		nb;
-	int		nex;
+	xfs_extnum_t	nex;
 
 	bno = (xfs_fileoff_t)getbitval(obj, bit, bitsz(bno), BVUNSIGNED);
 	if (bno == NULLFILEOFF) {
@@ -266,7 +266,7 @@ fa_dirblock(
 	bmap_ext_t	*bmp;
 	uint32_t	bno;
 	xfs_fsblock_t	dfsbno;
-	int		nex;
+	xfs_extnum_t	nex;
 
 	bno = (uint32_t)getbitval(obj, bit, bitsz(bno), BVUNSIGNED);
 	if (bno == 0) {
