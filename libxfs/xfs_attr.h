@@ -28,9 +28,14 @@ struct xfs_attr_list_context;
  */
 #define	ATTR_MAX_VALUELEN	(64*1024)	/* max length of a value */
 
+/* XXX: move to xfs_mount.h */
 static inline bool xfs_has_larp(struct xfs_mount *mp)
 {
+#ifdef KERNEL_DEBUG
+	return xfs_globals.larp;
+#else
 	return false;
+#endif
 }
 
 /*
