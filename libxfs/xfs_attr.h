@@ -585,7 +585,6 @@ xfs_attr_is_shortform(
 static inline enum xfs_delattr_state
 xfs_attr_init_add_state(struct xfs_da_args *args)
 {
-
 	/*
 	 * When called from the completion of a attr remove to determine the
 	 * next state, the attribute fork may be null. This can occur only occur
@@ -596,6 +595,8 @@ xfs_attr_init_add_state(struct xfs_da_args *args)
 	 */
 	if (!args->dp->i_afp)
 		return XFS_DAS_DONE;
+
+	args->op_flags |= XFS_DA_OP_ADDNAME;
 	if (xfs_attr_is_shortform(args->dp))
 		return XFS_DAS_SF_ADD;
 	if (xfs_attr_is_leaf(args->dp))
@@ -606,6 +607,7 @@ xfs_attr_init_add_state(struct xfs_da_args *args)
 static inline enum xfs_delattr_state
 xfs_attr_init_remove_state(struct xfs_da_args *args)
 {
+	args->op_flags |= XFS_DA_OP_REMOVE;
 	if (xfs_attr_is_shortform(args->dp))
 		return XFS_DAS_SF_REMOVE;
 	if (xfs_attr_is_leaf(args->dp))
@@ -616,6 +618,7 @@ xfs_attr_init_remove_state(struct xfs_da_args *args)
 static inline enum xfs_delattr_state
 xfs_attr_init_replace_state(struct xfs_da_args *args)
 {
+	args->op_flags |= XFS_DA_OP_ADDNAME | XFS_DA_OP_REPLACE;
 	return xfs_attr_init_add_state(args);
 }
 
