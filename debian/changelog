@@ -1,3 +1,9 @@
+xfsprogs (5.18.0-rc1-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Dave Chinner <david@fromorbit.com>  Mon, 16 May 2022 16:53:37 +1100
+
 xfsprogs (5.16.0-1) unstable; urgency=medium
 
   * New upstream release
