@@ -132,7 +132,7 @@ bmap_f(
 	struct xfs_dinode	*dip;
 	xfs_fileoff_t		eo;
 	xfs_filblks_t		len;
-	int			nex;
+	xfs_extnum_t		nex;
 	char			*p;
 	int			whichfork;
 
