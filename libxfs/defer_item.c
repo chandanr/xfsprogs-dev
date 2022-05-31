@@ -486,8 +486,8 @@ xfs_attr_create_done(
 }
 
 static void
-xfs_attr_free_item(
-	struct xfs_attr_item	*attr)
+xfs_attr_free_intent(
+	struct xfs_attr_intent	*attr)
 {
 	if (attr->xattri_da_state)
 		xfs_da_state_free(attr->xattri_da_state);
@@ -505,11 +505,11 @@ xfs_attr_finish_item(
 	struct list_head	*item,
 	struct xfs_btree_cur	**state)
 {
-	struct xfs_attr_item	*attr;
+	struct xfs_attr_intent	*attr;
 	struct xfs_da_args	*args;
 	int			error;
 
-	attr = container_of(item, struct xfs_attr_item, xattri_list);
+	attr = container_of(item, struct xfs_attr_intent, xattri_list);
 	args = attr->xattri_da_args;
 
 	/*
@@ -528,7 +528,7 @@ xfs_attr_finish_item(
 		error = -EAGAIN;
 out:
 	if (error != -EAGAIN)
-		xfs_attr_free_item(attr);
+		xfs_attr_free_intent(attr);
 
 	return error;
 }
@@ -538,10 +538,10 @@ static void
 xfs_attr_cancel_item(
 	struct list_head	*item)
 {
-	struct xfs_attr_item	*attr;
+	struct xfs_attr_intent	*attr;
 
-	attr = container_of(item, struct xfs_attr_item, xattri_list);
-	xfs_attr_free_item(attr);
+	attr = container_of(item, struct xfs_attr_intent, xattri_list);
+	xfs_attr_free_intent(attr);
 }
 
 const struct xfs_defer_op_type xfs_attr_defer_type = {
