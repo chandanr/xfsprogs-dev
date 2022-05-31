@@ -32,7 +32,7 @@ bmap(
 	xfs_fileoff_t		offset,
 	xfs_filblks_t		len,
 	int			whichfork,
-	int			*nexp,
+	xfs_extnum_t		*nexp,
 	bmap_ext_t		*bep)
 {
 	struct xfs_btree_block	*block;
