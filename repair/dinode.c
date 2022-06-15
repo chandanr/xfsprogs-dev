@@ -759,7 +759,7 @@ process_btinode(
 	int			type,
 	int			*dirty,
 	xfs_rfsblock_t		*tot,
-	uint64_t		*nex,
+	xfs_extnum_t		*nex,
 	blkmap_t		**blkmapp,
 	int			whichfork,
 	int			check_dups)
@@ -773,7 +773,7 @@ process_btinode(
 	char			*forkname = get_forkname(whichfork);
 	int			i;
 	int			level;
-	int			numrecs;
+	xfs_extnum_t		numrecs;
 	bmap_cursor_t		cursor;
 	uint64_t		magic;
 
@@ -934,7 +934,7 @@ process_exinode(
 	int			type,
 	int			*dirty,
 	xfs_rfsblock_t		*tot,
-	uint64_t		*nex,
+	xfs_extnum_t		*nex,
 	blkmap_t		**blkmapp,
 	int			whichfork,
 	int			check_dups)
@@ -1794,8 +1794,8 @@ static int
 process_inode_blocks_and_extents(
 	struct xfs_dinode	*dino,
 	xfs_rfsblock_t		nblocks,
-	uint64_t		nextents,
-	uint64_t		anextents,
+	xfs_extnum_t		nextents,
+	xfs_extnum_t		anextents,
 	xfs_ino_t		lino,
 	int			*dirty)
 {
@@ -1894,7 +1894,7 @@ process_inode_data_fork(
 	int			type,
 	int			*dirty,
 	xfs_rfsblock_t		*totblocks,
-	uint64_t		*nextents,
+	xfs_extnum_t		*nextents,
 	blkmap_t		**dblkmap,
 	int			check_dups)
 {
@@ -2003,7 +2003,7 @@ process_inode_attr_fork(
 	int			type,
 	int			*dirty,
 	xfs_rfsblock_t		*atotblocks,
-	uint64_t		*anextents,
+	xfs_extnum_t		*anextents,
 	int			check_dups,
 	int			extra_attr_check,
 	int			*retval)
@@ -2288,8 +2288,8 @@ process_dinode_int(xfs_mount_t *mp,
 	int			di_mode;
 	int			type;
 	int			retval = 0;
-	uint64_t		nextents;
-	uint64_t		anextents;
+	xfs_extnum_t		nextents;
+	xfs_extnum_t		anextents;
 	xfs_ino_t		lino;
 	const int		is_free = 0;
 	const int		is_used = 1;
