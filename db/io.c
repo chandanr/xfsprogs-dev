@@ -516,6 +516,7 @@ set_cur(
 	int		ring_flag,
 	bbmap_t		*bbmap)
 {
+	struct xfs_buftarg	*btargp;
 	struct xfs_buf	*bp;
 	xfs_ino_t	dirino;
 	xfs_ino_t	ino;
@@ -534,7 +535,14 @@ set_cur(
 	pop_cur();
 	push_cur();
 
+	btargp = mp->m_ddev_targp;
+	if (type->typnm == TYP_ELOG) {
+		ASSERT(mp->m_ddev_targp != mp->m_logdev_targp);
+		btargp = mp->m_logdev_targp;
+	}
+
 	if (bbmap) {
+		ASSERT(btargp == mp->m_ddev_targp);
 #ifdef DEBUG_BBMAP
 		int i;
 		printf(_("xfs_db got a bbmap for %lld\n"), (long long)blknum);
@@ -548,11 +556,11 @@ set_cur(
 		if (!iocur_top->bbmap)
 			return;
 		memcpy(iocur_top->bbmap, bbmap, sizeof(struct bbmap));
-		error = -libxfs_buf_read_map(mp->m_ddev_targp, bbmap->b,
+		error = -libxfs_buf_read_map(btargp, bbmap->b,
 				bbmap->nmaps, LIBXFS_READBUF_SALVAGE, &bp,
 				ops);
 	} else {
-		error = -libxfs_buf_read(mp->m_ddev_targp, blknum, len,
+		error = -libxfs_buf_read(btargp, blknum, len,
 				LIBXFS_READBUF_SALVAGE, &bp, ops);
 		iocur_top->bbmap = NULL;
 	}
