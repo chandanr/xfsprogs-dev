@@ -3056,6 +3056,41 @@ init_md1(void)
         return 0;
 }
 
+struct xfs_metadump_header {
+        __be32 xmh_magic;
+        __be32 xmh_version;
+        __be32 xmh_compat_flags;
+        __be32 xmh_incompat_flags;
+        __be64 xmh_reserved;
+} __packed;
+
+static int
+init_md2(void)
+{
+	struct xfs_metadump_header xmh = {0};
+	u32 compat_flags = 0;
+
+	xmh.xmh_magic = cpu_to_be32(XFS_MD_MAGIC_V2);
+	xmh.xmh_version = cpu_to_be32(1);
+
+	if (metadump.obfuscate)
+		compat_flags |= XFS_MD2_INCOMPAT_OBFUSCATED;
+	if (metadump.zero_stale_data)
+		compat_flags |= XFS_MD2_INCOMPAT_FULLBLOCKS;
+	if (metadump.dirty_log)
+		compat_flags |= XFS_MD2_INCOMPAT_DIRTYLOG;
+
+	xmh.xmh_compat_flags = cpu_to_be32(compat_flags);
+
+	if (fwrite(&xmh, sizeof(xmh), 1, metadump.outf) != 1) {
+		print_warning("error writing to target file");
+		return -1;
+	}
+
+	return 0;
+}
+
+
 static void
 release_md1(void)
 {
@@ -3212,6 +3247,12 @@ metadump_f(
 	switch (metadump.version) {
 	case 1:
 		ret = init_md1(void);
+		if (ret)
+			return 0;
+		break;
+
+	case 2:
+		ret = init_md2(void);
 		if (ret)
 			return 0;
 		break;
