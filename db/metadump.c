@@ -3165,20 +3165,12 @@ metadump_f(
 		pop_cur();
 	}
 
-	if (metadump.version == 1) {
-		ret = init_md1(dirty_log);
-		if (ret)
-			return 0;
-	}
-
 	start_iocur_sp = iocur_sp;
 
 	if (strcmp(argv[optind], "-") == 0) {
 		if (isatty(fileno(stdout))) {
 			print_warning("cannot write to a terminal");
-			if (metadump.version == 1)
-				release_md1();
-			return 0;
+			goto out;
 		}
 		/*
 		 * Redirect stdout to stderr for the duration of the
@@ -3215,6 +3207,18 @@ metadump_f(
 			print_warning("cannot create dump file");
 			goto out;
 		}
+	}
+
+	switch (metadump.version) {
+	case 1:
+		ret = init_md1(void);
+		if (ret)
+			return 0;
+		break;
+
+	default:
+		ASSERT(0);
+		break;
 	}
 
 	exitcode = 0;
@@ -3256,9 +3260,10 @@ metadump_f(
 	/* cleanup iocur stack */
 	while (iocur_sp > start_iocur_sp)
 		pop_cur();
-out:
-	if (metadump.version == 1)
+
+        if (metadump.version == 1)
 		release_md1();
 
+out:
 	return 0;
 }
