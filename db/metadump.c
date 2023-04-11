@@ -50,6 +50,7 @@ static struct metadump {
 	int		zero_stale_data;
 	int		show_warnings;
 	int		progress_since_warning;
+	bool		dirty_log;
 	bool		stdout_metadump;
 	/* Metadump file */
         FILE            *outf;
@@ -3012,7 +3013,7 @@ done:
 }
 
 static int
-init_md1(bool dirty_log)
+init_md1(void)
 {
 	struct metadump_v1 *md1 = &metadump.md1;
 
@@ -3030,7 +3031,7 @@ init_md1(bool dirty_log)
 		md1->metablock->mb_info |= XFS_METADUMP_OBFUSCATED;
 	if (!metadump.zero_stale_data)
 		md1->metablock->mb_info |= XFS_METADUMP_FULLBLOCKS;
-	if (dirty_log)
+	if (metadump.dirty_log)
 		metablock->mb_info |= XFS_METADUMP_DIRTYLOG;
 
 	md1->block_index = (__be64 *)((char *)md1->metablock +
@@ -3074,7 +3075,6 @@ metadump_f(
 	int		outfd = -1;
 	int		ret;
 	char		*p;
-	bool		dirty_log = false;
 
 	exitcode = 1;
 	metadump.version = 1;
@@ -3146,7 +3146,8 @@ metadump_f(
 	}
 
 	/* If we'll copy the log, see if the log is dirty */
-	if (mp->m_sb.sb_logstart || metadump.version == 2) {
+	metadump.dirty_log = false;
+        if (mp->m_sb.sb_logstart || metadump.version == 2) {
 		log_type = TYP_LOG;
 		if (mp->m_sb.sb_logstart == 0)
 			log_type = TYP_ELOG;
@@ -3159,7 +3160,7 @@ metadump_f(
 			struct xlog	log;
 
 			if (xlog_is_dirty(mp, &log, &x, 0))
-				dirty_log = true;
+				metadump.dirty_log = true;
 		}
 		pop_cur();
 	}
