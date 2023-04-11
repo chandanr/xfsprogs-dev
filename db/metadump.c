@@ -191,13 +191,50 @@ write_buf_segment_md1(
         return 0;
 }
 
+struct xfs_meta_extent {
+        /*
+	 * Lowest 54 bits are used to store 512 byte addresses.
+	 * Next 2 bits is used for indicating the device.
+	 * 00 - Data device
+	 * 01 - External log
+	 */
+        __be64 xme_addr;
+        /* In units of 512 byte blocks */
+        __be32 xme_len;
+} __packed;
+
+#define XME_ADDR_DATA_DEVICE	(1 << 54)
+#define XME_ADDR_LOG_DEVICE	(1 << 55)
+
 static int
 write_buf_segment_md2(
+	enum typnm	type,
 	char	*data,
 	int64_t	off,
 	int	len)
 {
-	/* chandan: Fill in the blanks */
+	struct xfs_meta_extent xme;
+	uint64_t addr;
+
+	addr = off;
+	if (type == TYP_ELOG)
+		addr |= XME_ADDR_LOG_DEVICE;
+	else
+		addr |= XME_ADDR_DATA_DEVICE;
+
+	xme.xme_addr = cpu_to_be64(addr);
+	xme.xme_len = cpu_to_be32(len);
+
+	if (fwrite(&xme, sizeof(xme), 1, metadump.outf) != 1) {
+		print_warning("error writing to target file");
+		return -EIO;
+	}
+
+	if (fwrite(data, len << BBSHIFT, 1, metadump.outf) != 1) {
+		print_warning("error writing to target file");
+		return -EIO;
+	}
+
 	return 0;
 }
 
@@ -206,6 +243,7 @@ write_buf_segment_md2(
  */
 static int
 write_buf_segment(
+	enum typnm	type,
 	char		*data,
 	int64_t		off,
 	int		len)
@@ -214,7 +252,7 @@ write_buf_segment(
 		return write_buf_segment_md1(data, off, len);
 	}
 
-	return write_buf_segment_md2(data, off, len);
+	return write_buf_segment_md2(type, data, off, len);
 }
 
 
@@ -254,13 +292,15 @@ write_buf(
 
 	/* handle discontiguous buffers */
 	if (!buf->bbmap) {
-		ret = write_buf_segment(buf->data, buf->bb, buf->blen);
+		ret = write_buf_segment(buf->typ->typnm, buf->data, buf->bb,
+					buf->blen);
 		if (ret)
 			return ret;
 	} else {
 		int	len = 0;
 		for (i = 0; i < buf->bbmap->nmaps; i++) {
-			ret = write_buf_segment(buf->data + BBTOB(len),
+			ret = write_buf_segment(buf->typ->typnm,
+						buf->data + BBTOB(len),
 						buf->bbmap->b[i].bm_bn,
 						buf->bbmap->b[i].bm_len);
 			if (ret)
