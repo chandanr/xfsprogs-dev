@@ -2921,7 +2921,7 @@ copy_sb_inodes(void)
 }
 
 static int
-copy_log(void)
+copy_log(enum typnm log_type)
 {
 	struct xlog	log;
 	int		dirty;
@@ -2934,7 +2934,7 @@ copy_log(void)
 		print_progress("Copying log");
 
 	push_cur();
-	set_cur(&typtab[TYP_LOG], XFS_FSB_TO_DADDR(mp, mp->m_sb.sb_logstart),
+	set_cur(&typtab[log_type], XFS_FSB_TO_DADDR(mp, mp->m_sb.sb_logstart),
 			mp->m_sb.sb_logblocks * blkbb, DB_RING_IGN, NULL);
 	if (iocur_top->data == NULL) {
 		pop_cur();
@@ -3038,6 +3038,7 @@ metadump_f(
 	char 		**argv)
 {
 	xfs_agnumber_t	agno;
+	enum typnm	log_type;
 	int		c;
 	int		start_iocur_sp;
 	int		outfd = -1;
@@ -3110,9 +3111,13 @@ metadump_f(
 	}
 
 	/* If we'll copy the log, see if the log is dirty */
-	if (mp->m_sb.sb_logstart) {
+	if (mp->m_logdev_targp == mp->m_ddev_targp || metadump.version == 2) {
+		log_type = TYP_LOG;
+		if (mp->m_logdev_targp != mp->m_ddev_targp)
+			log_type = TYP_ELOG;
+
 		push_cur();
-		set_cur(&typtab[TYP_LOG],
+		set_cur(&typtab[log_type],
 			XFS_FSB_TO_DADDR(mp, mp->m_sb.sb_logstart),
 			mp->m_sb.sb_logblocks * blkbb, DB_RING_IGN, NULL);
 		if (iocur_top->data) {	/* best effort */
@@ -3185,9 +3190,10 @@ metadump_f(
 	if (!exitcode)
 		exitcode = !copy_sb_inodes();
 
-	/* copy log if it's internal */
-	if ((mp->m_sb.sb_logstart != 0) && !exitcode)
-		exitcode = !copy_log();
+	/* copy log */
+	if (!exitcode && (mp->m_logdev_targp == mp->m_ddev_targp ||
+				metadump.version == 2))
+		exitcode = !copy_log(log_type);
 
 	/* write the remaining index */
 	if (!exitcode)
