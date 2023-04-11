@@ -149,7 +149,7 @@ write_md1_index(void)
 	 * write index block and following data blocks (streaming)
 	 */
 	metablock->mb_count = cpu_to_be16(cur_index);
-	if (fwrite(metablock, (cur_index + 1) << BBSHIFT, 1, outf) != 1) {
+	if (fwrite(metablock, (cur_index + 1) << BBSHIFT, 1, metadump.outf) != 1) {
 		print_warning("error writing to target file");
 		return -1;
 	}
@@ -3200,8 +3200,8 @@ metadump_f(
 			close(outfd);
 			goto out;
 		}
-		outf = fdopen(outfd, "a");
-		if (outf == NULL) {
+		metadump.outf = fdopen(outfd, "a");
+		if (metadump.outf == NULL) {
 			fprintf(stderr, "cannot create dump stream\n");
 			dup2(outfd, STDOUT_FILENO);
 			close(outfd);
@@ -3209,8 +3209,8 @@ metadump_f(
 		}
 		metadump.stdout_metadump = true;
 	} else {
-		outf = fopen(argv[optind], "wb");
-		if (outf == NULL) {
+		metadump.outf = fopen(argv[optind], "wb");
+		if (metadump.outf == NULL) {
 			print_warning("cannot create dump file");
 			goto out;
 		}
