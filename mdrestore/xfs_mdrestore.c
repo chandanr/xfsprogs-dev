@@ -76,7 +76,7 @@ open_device(char *path, bool *is_file)
 		 * check to make sure a filesystem isn't mounted on the device
 		 */
 		if (platform_check_ismounted(path, NULL, &statbuf, 0))
-			fatal("a filesystem is mounted on device \"%s\","
+			fatal("a filesystem is mounted on target device \"%s\","
 				" cannot restore to a mounted filesystem.\n",
 				path);
 	}
@@ -248,7 +248,7 @@ void read_header2(void *header, FILE *mdfp)
 
 	if (fread(xmh, sizeof(*xmh), 1, mdfp) != 1)
 		fatal("error reading from metadump file\n");
-	if (xmh->xmh_magic != XFS_MD_MAGIC_V2)
+	if (xmh->xmh_magic != cpu_to_be32(XFS_MD_MAGIC_V2))
 		fatal("specified file is not a metadata dump\n");
 }
 
@@ -269,7 +269,7 @@ void restore2(FILE *mdfp, int data_fd, bool is_data_target_file,
 {
 	struct xfs_sb sb;
 	struct xfs_meta_extent		xme;
-	uint8_t *block_buffer;
+	char *block_buffer;
 	int64_t bytes_read;
 	uint64_t offset;
 	int prev_len;
@@ -279,6 +279,7 @@ void restore2(FILE *mdfp, int data_fd, bool is_data_target_file,
 		fatal("error reading from metadump file\n");
 
 	len = be32_to_cpu(xme.xme_len);
+	len <<= BBSHIFT;
 	block_buffer = calloc(1, len);
 	if (block_buffer == NULL)
 		fatal("memory allocation failure\n");
@@ -339,6 +340,7 @@ void restore2(FILE *mdfp, int data_fd, bool is_data_target_file,
 			print_progress("%lld MB read", bytes_read >> 20);
 
 		offset = be64_to_cpu(xme.xme_addr) & XME_ADDR_DEVICE_MASK;
+		offset <<= BBSHIFT;
 
 		if (be64_to_cpu(xme.xme_addr) & XME_ADDR_DATA_DEVICE)
 			fd = data_fd;
@@ -360,6 +362,7 @@ void restore2(FILE *mdfp, int data_fd, bool is_data_target_file,
 
 		prev_len = len;
 		len = be32_to_cpu(xme.xme_len);
+		len <<= BBSHIFT;
 		if (len > prev_len) {
 			void *p;
 			p = realloc(block_buffer, len);
@@ -375,6 +378,22 @@ void restore2(FILE *mdfp, int data_fd, bool is_data_target_file,
 
 		bytes_read += len;
 	} while (1);
+
+	if (progress_since_warning)
+		putchar('\n');
+
+        memset(block_buffer, 0, sb.sb_sectsize);
+	sb.sb_inprogress = 0;
+	libxfs_sb_to_disk((struct xfs_dsb *)block_buffer, &sb);
+	if (xfs_sb_version_hascrc(&sb)) {
+		xfs_update_cksum(block_buffer, sb.sb_sectsize,
+				 offsetof(struct xfs_sb, sb_crc));
+	}
+
+	if (pwrite(data_fd, block_buffer, sb.sb_sectsize, 0) < 0)
+		fatal("error writing primary superblock: %s\n", strerror(errno));
+
+	free(block_buffer);
 
 	return;
 }
@@ -396,7 +415,7 @@ main(
 	int		c;
 	bool		is_data_dev_file;
 	bool		is_log_dev_file;
-	int		version;
+	int		version = 1;
 	struct xfs_metablock	mb;
 	struct xfs_metadump_header xmh;
 	struct mdrestore_ops *ops;
