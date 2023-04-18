@@ -53,4 +53,6 @@ struct xfs_meta_extent {
 #define XME_ADDR_DATA_DEVICE	(1UL << 54)
 #define XME_ADDR_LOG_DEVICE	(1UL << 55)
 
+#define XME_ADDR_DEVICE_MASK (~(XME_ADDR_DATA_DEVICE | XME_ADDR_LOG_DEVICE))
+
 #endif /* _XFS_METADUMP_H_ */
