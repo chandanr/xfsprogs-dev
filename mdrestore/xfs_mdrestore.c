@@ -435,8 +435,6 @@ main(
 				break;
 			case 'l':
 				logdev = optarg;
-				/* chandan: Remove this later */
-				fprintf(stderr, "logdev = %s\n", logdev);
 				break;
 			case 'v':
 				version = (int)strtol(optarg, &p, 0);
