@@ -30,6 +30,21 @@ fatal(const char *msg, ...)
 }
 
 static void
+print_warning(const char *fmt, ...)
+{
+	char		buf[200];
+	va_list		ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	buf[sizeof(buf)-1] = '\0';
+
+	fprintf(stderr, "%s%s\n", progress_since_warning ? "\n" : "", buf);
+	progress_since_warning = 0;
+}
+
+static void
 print_progress(const char *fmt, ...)
 {
 	char		buf[60];
@@ -439,11 +454,8 @@ main(
 			case 'v':
 				version = (int)strtol(optarg, &p, 0);
 				if (*p != '\0' || (version != 1 && version != 2)) {
-					/* chandan: Define print_warning() */
-					/*
-					 * print_warning("bad metadump version: %s",
-					 * 	optarg);
-					 */
+					print_warning("bad metadump version: %s",
+						optarg);
 					return 0;
 				}
 				break;
