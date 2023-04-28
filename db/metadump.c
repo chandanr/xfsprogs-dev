@@ -38,8 +38,16 @@ static void	metadump_help(void);
 
 static const cmdinfo_t	metadump_cmd =
 	{ "metadump", NULL, metadump_f, 0, -1, 0,
-		N_("[-a] [-e] [-g] [-m max_extent] [-w] [-o] filename"),
+		N_("[-a] [-e] [-g] [-m max_extent] [-w] [-o] [-v 1|2] filename"),
 		N_("dump metadata to a file"), metadump_help };
+
+struct metadump_ops {
+	int (*init_metadump)(void);
+	int (*write_metadump)(enum typnm type, char *data, int64_t off,
+		int len);
+	int (*end_write_metadump)(void);
+	void (*release_metadump)(void);
+};
 
 static struct metadump {
 	int		version;
@@ -56,6 +64,7 @@ static struct metadump {
 
         /* Metadump file */
         FILE            *outf;
+	struct metadump_ops	*mdops;
 
         /* metadump v1 */
 	xfs_metablock_t  *metablock;
@@ -287,17 +296,16 @@ write_buf(
 
 	/* handle discontiguous buffers */
 	if (!buf->bbmap) {
-		ret = write_buf_segment(buf->typ->typnm, buf->data, buf->bb,
-					buf->blen);
+		ret = metadump.mdops->write_metadump(buf->typ->typnm, buf->data,
+				buf->bb, buf->blen);
 		if (ret)
 			return ret;
 	} else {
 		int	len = 0;
 		for (i = 0; i < buf->bbmap->nmaps; i++) {
-			ret = write_buf_segment(buf->typ->typnm,
-						buf->data + BBTOB(len),
-						buf->bbmap->b[i].bm_bn,
-						buf->bbmap->b[i].bm_len);
+			ret = metadump.mdops->write_metadump(buf->typ->typnm,
+				buf->data + BBTOB(len), buf->bbmap->b[i].bm_bn,
+				buf->bbmap->b[i].bm_len);
 			if (ret)
 				return ret;
 			len += buf->bbmap->b[i].bm_len;
@@ -3048,7 +3056,7 @@ done:
 }
 
 static int
-init_md1(void)
+init_metadump1(void)
 {
 	metadump.metablock = (xfs_metablock_t *)calloc(BBSIZE + 1, BBSIZE);
 	if (metadump.metablock == NULL) {
@@ -3096,19 +3104,71 @@ struct xfs_metadump_header {
         __be32 xmh_incompat_flags;
         __be64 xmh_reserved;
 } __packed;
+static int
+end_write_metadump1(void)
+{
+	/*
+	 * write index block and following data blocks (streaming)
+	 */
+	metadump.metablock->mb_count = cpu_to_be16(metadump.cur_index);
+	if (fwrite(metadump.metablock, (metadump.cur_index + 1) << BBSHIFT, 1, metadump.outf) != 1) {
+		print_warning("error writing to target file");
+		return -1;
+	}
+
+	memset(metadump.block_index, 0, metadump.num_indices * sizeof(__be64));
+	metadump.cur_index = 0;
+	return 0;
+}
 
 static int
-init_md2(void)
+write_metadump1(
+	enum typnm type,
+	char	*data,
+	int64_t	off,
+	int	len)
+{
+	int		i;
+	int		ret;
+
+        for (i = 0; i < len; i++, off++, data += BBSIZE) {
+		metadump.block_index[metadump.cur_index] = cpu_to_be64(off);
+		memcpy(&metadump.block_buffer[metadump.cur_index << BBSHIFT], data, BBSIZE);
+		if (++metadump.cur_index == metadump.num_indices) {
+			ret = end_write_metadump1();
+			if (ret)
+				return -EIO;
+		}
+	}
+
+        return 0;
+}
+
+static void
+release_metadump1(void)
+{
+	free(metadump.metablock);
+}
+
+struct metadump_ops metadump1_ops = {
+    .init_metadump = init_metadump1,
+    .write_metadump = write_metadump1,
+    .end_write_metadump = end_write_metadump1,
+    .release_metadump = release_metadump1,
+};
+
+static int
+init_metadump2(void)
 {
 	struct xfs_metadump_header xmh = {0};
-	u32 compat_flags = 0;
+	uint32_t compat_flags = 0;
 
 	xmh.xmh_magic = cpu_to_be32(XFS_MD_MAGIC_V2);
-	xmh.xmh_version = cpu_to_be32(1);
+	xmh.xmh_version = 2;
 
 	if (metadump.obfuscate)
 		compat_flags |= XFS_MD2_INCOMPAT_OBFUSCATED;
-	if (metadump.zero_stale_data)
+	if (!metadump.zero_stale_data)
 		compat_flags |= XFS_MD2_INCOMPAT_FULLBLOCKS;
 	if (metadump.dirty_log)
 		compat_flags |= XFS_MD2_INCOMPAT_DIRTYLOG;
@@ -3123,13 +3183,50 @@ init_md2(void)
 	return 0;
 }
 
-
-static void
-release_md1(void)
+/*
+ * A complete dump file will have a "zero" entry in the last index block,
+ * even if the dump is exactly aligned, the last index will be full of
+ * zeros. If the last index entry is non-zero, the dump is incomplete.
+ * Correspondingly, the last chunk will have a count < num_indices.
+ *
+ * Return 0 for success, -1 for failure.
+ */
+static int
+write_metadump2(
+	enum typnm	type,
+	char	*data,
+	int64_t	off,
+	int	len)
 {
-	free(metadump.md1.metablock);
+	struct xfs_meta_extent xme;
+	uint64_t addr;
+
+	addr = off;
+	if (type == TYP_ELOG)
+		addr |= XME_ADDR_LOG_DEVICE;
+	else
+		addr |= XME_ADDR_DATA_DEVICE;
+
+	xme.xme_addr = cpu_to_be64(addr);
+	xme.xme_len = cpu_to_be32(len);
+
+	if (fwrite(&xme, sizeof(xme), 1, metadump.outf) != 1) {
+		print_warning("error writing to target file");
+		return -EIO;
+	}
+
+	if (fwrite(data, len << BBSHIFT, 1, metadump.outf) != 1) {
+		print_warning("error writing to target file");
+		return -EIO;
+	}
+
+	return 0;
 }
 
+struct metadump_ops metadump2_ops = {
+    .init_metadump = init_metadump2,
+    .write_metadump = write_metadump2,
+};
 
 static int
 metadump_f(
@@ -3170,7 +3267,7 @@ metadump_f(
 		return 0;
 	}
 
-	while ((c = getopt(argc, argv, "aegm:ow")) != EOF) {
+	while ((c = getopt(argc, argv, "aegm:ov:w")) != EOF) {
 		switch (c) {
 			case 'a':
 				metadump.zero_stale_data = 0;
@@ -3194,7 +3291,7 @@ metadump_f(
 				break;
 			case 'v':
 				metadump.version = (int)strtol(optarg, &p, 0);
-				if (*p != '\0' || (metadump_version != 1 && metadump_version != 2)) {
+				if (*p != '\0' || (metadump.version != 1 && metadump.version != 2)) {
 					print_warning("bad metadump version: %s",
 						optarg);
 					return 0;
@@ -3278,23 +3375,15 @@ metadump_f(
 		}
 	}
 
-	switch (metadump.version) {
-	case 1:
-		ret = init_md1(void);
-		if (ret)
-			return 0;
-		break;
-
-	case 2:
-		ret = init_md2(void);
-		if (ret)
-			return 0;
-		break;
-
-	default:
-		ASSERT(0);
-		break;
+	if (metadump.version == 1) {
+		metadump.mdops = &metadump1_ops;
+	} else {
+		metadump.mdops = &metadump2_ops;
 	}
+
+	ret = metadump.mdops->init_metadump();
+	if (ret)
+		goto out;
 
 	exitcode = 0;
 
@@ -3314,10 +3403,8 @@ metadump_f(
 		exitcode = !copy_log(log_type);
 
 	/* write the remaining index */
-	if (!exitcode) {
-		if (metadump.version == 1)
-			exitcode = write_md1_index() < 0;
-	}
+	if (!exitcode && metadump.mdops->end_write_metadump)
+		exitcode = metadump.mdops->end_write_metadump() < 0;
 
 	if (metadump.progress_since_warning)
 		fputc('\n', metadump.stdout_metadump ? stderr : stdout);
@@ -3336,8 +3423,8 @@ metadump_f(
 	while (iocur_sp > start_iocur_sp)
 		pop_cur();
 
-        if (metadump.version == 1)
-		release_md1();
+        if (metadump.mdops->release_metadump)
+		metadump.mdops->release_metadump();
 
 out:
 	return 0;
