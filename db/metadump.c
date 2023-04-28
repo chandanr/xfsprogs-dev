@@ -40,6 +40,14 @@ static const cmdinfo_t	metadump_cmd =
 		N_("[-a] [-e] [-g] [-m max_extent] [-w] [-o] filename"),
 		N_("dump metadata to a file"), metadump_help };
 
+struct metadump_ops {
+	int (*init_metadump)(void);
+	int (*write_metadump)(enum typnm type, char *data, int64_t off,
+		int len);
+	int (*end_write_metadump)(void);
+	void (*release_metadump)(void);
+};
+
 static struct metadump {
 	int			version;
 	int			show_progress;
@@ -54,6 +62,7 @@ static struct metadump {
 	xfs_ino_t		cur_ino;
 	/* Metadump file */
 	FILE			*outf;
+	struct metadump_ops	*mdops;
 	/* header + index + buffers */
 	struct xfs_metablock	*metablock;
 	__be64			*block_index;
