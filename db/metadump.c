@@ -46,28 +46,23 @@ static struct metadump {
 	int		show_progress;
 	int		stop_on_read_error;
 	int		max_extent_size;
+	int		show_warnings;
 	int		obfuscate;
 	int		zero_stale_data;
-	int		show_warnings;
-	int		progress_since_warning;
+        int		progress_since_warning;
 	bool		dirty_log;
 	bool		stdout_metadump;
-	/* Metadump file */
+        xfs_ino_t        cur_ino;
+
+        /* Metadump file */
         FILE            *outf;
-	xfs_ino_t        cur_ino;
-        union {
-                struct metadump_v1 {
-			/* header + index + buffers */
-                        xfs_metablock_t  *metablock;
-                        __be64           *block_index;
-                        char             *block_buffer;
-                        int              num_indices;
-                        int              cur_index;
-                } md1;
-                struct metadump_v2 {
-                        /* Nothing to track here .. yet. */
-                } md2;
-        };
+
+        /* metadump v1 */
+	xfs_metablock_t  *metablock;
+	__be64           *block_index;
+	char             *block_buffer;
+	int              num_indices;
+	int              cur_index;
 } metadump;
 
 void
@@ -108,9 +103,9 @@ print_warning(const char *fmt, ...)
 	va_end(ap);
 	buf[sizeof(buf)-1] = '\0';
 
-	fprintf(stderr, "%s%s: %s\n", progress_since_warning ? "\n" : "",
+	fprintf(stderr, "%s%s: %s\n", metadump.progress_since_warning ? "\n" : "",
 			progname, buf);
-	progress_since_warning = 0;
+	metadump.progress_since_warning = 0;
 }
 
 static void
@@ -128,10 +123,10 @@ print_progress(const char *fmt, ...)
 	va_end(ap);
 	buf[sizeof(buf)-1] = '\0';
 
-	f = stdout_metadump ? stderr : stdout;
+	f = metadump.stdout_metadump ? stderr : stdout;
 	fprintf(f, "\r%-59s", buf);
 	fflush(f);
-	progress_since_warning = 1;
+	metadump.progress_since_warning = 1;
 }
 
 /*
@@ -1701,7 +1696,7 @@ process_dir_data_block(
 				dir_offset)
 			return;
 
-		if (obfuscate)
+		if (metadump.obfuscate)
 			generate_obfuscated_name(be64_to_cpu(dep->inumber),
 					 dep->namelen, &dep->name[0]);
 		dir_offset += length;
@@ -1751,7 +1746,7 @@ process_symlink_block(
 	if (xfs_has_crc((mp)))
 		link += sizeof(struct xfs_dsymlink_hdr);
 
-	if (obfuscate)
+	if (metadump.obfuscate)
 		obfuscate_path_components(link, XFS_SYMLINK_BUF_SPACE(mp,
 							mp->m_sb.sb_blocksize));
 	if (metadump.zero_stale_data) {
@@ -2170,7 +2165,7 @@ process_bmbt_reclist(
 			break;
 		}
 
-		if (c > max_extent_size) {
+		if (c > metadump.max_extent_size) {
 			/*
 			 * since we are only processing non-data extents,
 			 * large numbers of blocks in a metadata extent is
@@ -2441,7 +2436,7 @@ process_dev_inode(
 	struct xfs_dinode		*dip)
 {
 	if (xfs_dfork_data_extents(dip)) {
-		if (show_warnings)
+		if (metadump.show_warnings)
 			print_warning("inode %llu has unexpected extents",
 				      (unsigned long long)metadump.cur_ino);
 		return;
@@ -2459,7 +2454,7 @@ process_dev_inode(
 		return;
 	}
 
-	if (zero_stale_data) {
+	if (metadump.zero_stale_data) {
 		unsigned int	size = sizeof(xfs_dev_t);
 
 		memset(XFS_DFORK_DPTR(dip) + size, 0,
@@ -3055,43 +3050,41 @@ done:
 static int
 init_md1(void)
 {
-	struct metadump_v1 *md1 = &metadump.md1;
-
-	md1->metablock = (xfs_metablock_t *)calloc(BBSIZE + 1, BBSIZE);
-	if (md1->metablock == NULL) {
+	metadump.metablock = (xfs_metablock_t *)calloc(BBSIZE + 1, BBSIZE);
+	if (metadump.metablock == NULL) {
 		print_warning("memory allocation failure");
 		return -1;
 	}
-	md1->metablock->mb_blocklog = BBSHIFT;
-	md1->metablock->mb_magic = cpu_to_be32(XFS_MD_MAGIC);
+	metadump.metablock->mb_blocklog = BBSHIFT;
+	metadump.metablock->mb_magic = cpu_to_be32(XFS_MD_MAGIC);
 
 	/* Set flags about state of metadump */
-	md1->metablock->mb_info = XFS_METADUMP_INFO_FLAGS;
+	metadump.metablock->mb_info = XFS_METADUMP_INFO_FLAGS;
 	if (metadump.obfuscate)
-		md1->metablock->mb_info |= XFS_METADUMP_OBFUSCATED;
+		metadump.metablock->mb_info |= XFS_METADUMP_OBFUSCATED;
 	if (!metadump.zero_stale_data)
-		md1->metablock->mb_info |= XFS_METADUMP_FULLBLOCKS;
+		metadump.metablock->mb_info |= XFS_METADUMP_FULLBLOCKS;
 	if (metadump.dirty_log)
-		metablock->mb_info |= XFS_METADUMP_DIRTYLOG;
+		metadump.metablock->mb_info |= XFS_METADUMP_DIRTYLOG;
 
-	md1->block_index = (__be64 *)((char *)md1->metablock +
+	metadump.block_index = (__be64 *)((char *)metadump.metablock +
 				sizeof(xfs_metablock_t));
-	md1->block_buffer = (char *)(md1->metablock) + BBSIZE;
-	md1->num_indices = (BBSIZE - sizeof(xfs_metablock_t)) / sizeof(__be64);
+	metadump.block_buffer = (char *)(metadump.metablock) + BBSIZE;
+	metadump.num_indices = (BBSIZE - sizeof(xfs_metablock_t)) / sizeof(__be64);
 
 	/*
 	 * A metadump block can hold at most num_indices of BBSIZE sectors;
 	 * do not try to dump a filesystem with a sector size which does not
 	 * fit within num_indices (i.e. within a single metablock).
 	 */
-	if (mp->m_sb.sb_sectsize > md1->num_indices * BBSIZE) {
+	if (mp->m_sb.sb_sectsize > metadump.num_indices * BBSIZE) {
 		print_warning("Cannot dump filesystem with sector size %u",
 			      mp->m_sb.sb_sectsize);
-		free(md1->metablock);
+		free(metadump.metablock);
 		return -1;
 	}
 
-	md1->cur_index = 0;
+	metadump.cur_index = 0;
 
         return 0;
 }
@@ -3152,13 +3145,14 @@ metadump_f(
 	char		*p;
 
 	exitcode = 1;
-	metadump.version = 1;
+
+        metadump.version = 1;
 	metadump.show_progress = 0;
-	metadump.show_warnings = 0;
 	metadump.stop_on_read_error = 0;
-	metadump.zero_stale_data = 1;
 	metadump.max_extent_size = DEFAULT_MAX_EXT_SIZE;
+	metadump.show_warnings = 0;
 	metadump.obfuscate = 1;
+	metadump.zero_stale_data = 1;
 
 	if (mp->m_sb.sb_magicnum != XFS_SB_MAGIC) {
 		print_warning("bad superblock magic number %x, giving up",
@@ -3326,7 +3320,7 @@ metadump_f(
 	}
 
 	if (metadump.progress_since_warning)
-		fputc('\n', stdout_metadump ? stderr : stdout);
+		fputc('\n', metadump.stdout_metadump ? stderr : stdout);
 
 	if (metadump.stdout_metadump) {
 		fflush(metadump.outf);
