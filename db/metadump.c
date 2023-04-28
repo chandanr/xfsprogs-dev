@@ -3097,13 +3097,6 @@ init_metadump1(void)
         return 0;
 }
 
-struct xfs_metadump_header {
-        __be32 xmh_magic;
-        __be32 xmh_version;
-        __be32 xmh_compat_flags;
-        __be32 xmh_incompat_flags;
-        __be64 xmh_reserved;
-} __packed;
 static int
 end_write_metadump1(void)
 {
