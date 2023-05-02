@@ -3026,6 +3026,77 @@ static struct metadump_ops metadump1_ops = {
 };
 
 static int
+init_metadump_v2(void)
+{
+	struct xfs_metadump_header xmh = {0};
+	uint32_t compat_flags = 0;
+
+	xmh.xmh_magic = cpu_to_be32(XFS_MD_MAGIC_V2);
+	xmh.xmh_version = 2;
+
+	if (metadump.obfuscate)
+		compat_flags |= XFS_MD2_INCOMPAT_OBFUSCATED;
+	if (!metadump.zero_stale_data)
+		compat_flags |= XFS_MD2_INCOMPAT_FULLBLOCKS;
+	if (metadump.dirty_log)
+		compat_flags |= XFS_MD2_INCOMPAT_DIRTYLOG;
+
+	xmh.xmh_compat_flags = cpu_to_be32(compat_flags);
+
+	if (fwrite(&xmh, sizeof(xmh), 1, metadump.outf) != 1) {
+		print_warning("error writing to target file");
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * A complete dump file will have a "zero" entry in the last index block,
+ * even if the dump is exactly aligned, the last index will be full of
+ * zeros. If the last index entry is non-zero, the dump is incomplete.
+ * Correspondingly, the last chunk will have a count < num_indices.
+ *
+ * Return 0 for success, -1 for failure.
+ */
+static int
+write_metadump_v2(
+	enum typnm	type,
+	char	*data,
+	int64_t	off,
+	int	len)
+{
+	struct xfs_meta_extent xme;
+	uint64_t addr;
+
+	addr = off;
+	if (type == TYP_ELOG)
+		addr |= XME_ADDR_LOG_DEVICE;
+	else
+		addr |= XME_ADDR_DATA_DEVICE;
+
+	xme.xme_addr = cpu_to_be64(addr);
+	xme.xme_len = cpu_to_be32(len);
+
+	if (fwrite(&xme, sizeof(xme), 1, metadump.outf) != 1) {
+		print_warning("error writing to target file");
+		return -EIO;
+	}
+
+	if (fwrite(data, len << BBSHIFT, 1, metadump.outf) != 1) {
+		print_warning("error writing to target file");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static struct metadump_ops metadump2_ops = {
+    .init_metadump = init_metadump_v2,
+    .write_metadump = write_metadump_v2,
+};
+
+static int
 metadump_f(
 	int 		argc,
 	char 		**argv)
@@ -3164,7 +3235,10 @@ metadump_f(
 		}
 	}
 
-	metadump.mdops = &metadump1_ops;
+	if (metadump.version == 1)
+		metadump.mdops = &metadump1_ops;
+	else
+		metadump.mdops = &metadump2_ops;
 
 	ret = metadump.mdops->init_metadump();
 	if (ret)
@@ -3188,7 +3262,7 @@ metadump_f(
 		exitcode = !copy_log(log_type);
 
 	/* write the remaining index */
-	if (!exitcode)
+	if (!exitcode && metadump.mdops->end_write_metadump)
 		exitcode = metadump.mdops->end_write_metadump() < 0;
 
 	if (metadump.progress_since_warning)
@@ -3208,7 +3282,8 @@ metadump_f(
 	while (iocur_sp > start_iocur_sp)
 		pop_cur();
 
-	metadump.mdops->release_metadump();
+	if (metadump.mdops->release_metadump)
+		metadump.mdops->release_metadump();
 
 out:
 	return 0;
