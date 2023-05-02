@@ -7,10 +7,18 @@
 #include "libxfs.h"
 #include "xfs_metadump.h"
 
+struct mdrestore_ops {
+	void (*read_header)(void *header, FILE *mdfp);
+	void (*show_info)(void *header, const char *mdfile);
+	void (*restore)(FILE *mdfp, int data_fd, bool is_target_file,
+			void *header);
+};
+
 static struct mdrestore {
-	int	show_progress;
-	int	show_info;
-	int	progress_since_warning;
+	struct mdrestore_ops	*mdrops;
+	int			show_progress;
+	int			show_info;
+	int			progress_since_warning;
 } mdrestore;
 
 static void
@@ -76,16 +84,20 @@ open_device(char *path, bool *is_file)
 	return fd;
 }
 
-static void read_header(struct xfs_metablock *mb, FILE *src_f)
+static void read_header_v1(void *header, FILE *mdfp)
 {
-	if (fread(mb, sizeof(*mb), 1, src_f) != 1)
+	struct xfs_metablock *mb = header;
+
+	if (fread(mb, sizeof(*mb), 1, mdfp) != 1)
 		fatal("error reading from metadump file\n");
 	if (mb->mb_magic != cpu_to_be32(XFS_MD_MAGIC))
 		fatal("specified file is not a metadata dump\n");
 }
 
-static void show_info(struct xfs_metablock *mb, const char *mdfile)
+static void show_info_v1(void *header, const char *mdfile)
 {
+	struct xfs_metablock *mb = header;
+
 	if (mb->mb_info & XFS_METADUMP_INFO_FLAGS) {
 		printf("%s: %sobfuscated, %s log, %s metadata blocks\n",
 			mdfile,
@@ -97,24 +109,15 @@ static void show_info(struct xfs_metablock *mb, const char *mdfile)
 	}
 }
 
-/*
- * restore() -- do the actual work to restore the metadump
- *
- * @src_f: A FILE pointer to the source metadump
- * @dst_fd: the file descriptor for the target file
- * @is_target_file: designates whether the target is a regular file
- * @mbp: pointer to metadump's first xfs_metablock, read and verified by the caller
- *
- * src_f should be positioned just past a read the previously validated metablock
- */
 static void
-restore(
-	FILE			*src_f,
-	int			dst_fd,
-	int			is_target_file,
-	const struct xfs_metablock	*mbp)
+restore_v1(
+	FILE		*mdfp,
+	int		data_fd,
+	bool		is_target_file,
+	void 		*header)
 {
-	struct xfs_metablock	*metablock;	/* header + index + blocks */
+	struct xfs_metablock	*mbp = header;
+	struct xfs_metablock	*metablock;
 	__be64			*block_index;
 	char			*block_buffer;
 	int			block_size;
@@ -138,14 +141,14 @@ restore(
 	block_index = (__be64 *)((char *)metablock + sizeof(xfs_metablock_t));
 	block_buffer = (char *)metablock + block_size;
 
-	if (fread(block_index, block_size - sizeof(struct xfs_metablock), 1, src_f) != 1)
+	if (fread(block_index, block_size - sizeof(struct xfs_metablock), 1, mdfp) != 1)
 		fatal("error reading from metadump file\n");
 
 	if (block_index[0] != 0)
 		fatal("first block is not the primary superblock\n");
 
 
-	if (fread(block_buffer, mb_count << mbp->mb_blocklog, 1, src_f) != 1)
+	if (fread(block_buffer, mb_count << mbp->mb_blocklog, 1, mdfp) != 1)
 		fatal("error reading from metadump file\n");
 
 	libxfs_sb_from_disk(&sb, (struct xfs_dsb *)block_buffer);
@@ -168,7 +171,7 @@ restore(
 	if (is_target_file)  {
 		/* ensure regular files are correctly sized */
 
-		if (ftruncate(dst_fd, sb.sb_dblocks * sb.sb_blocksize))
+		if (ftruncate(data_fd, sb.sb_dblocks * sb.sb_blocksize))
 			fatal("cannot set filesystem image size: %s\n",
 				strerror(errno));
 	} else  {
@@ -178,7 +181,7 @@ restore(
 		off64_t		off;
 
 		off = sb.sb_dblocks * sb.sb_blocksize - sizeof(lb);
-		if (pwrite(dst_fd, lb, sizeof(lb), off) < 0)
+		if (pwrite(data_fd, lb, sizeof(lb), off) < 0)
 			fatal("failed to write last block, is target too "
 				"small? (error: %s)\n", strerror(errno));
 	}
@@ -190,7 +193,7 @@ restore(
 			print_progress("%lld MB read", bytes_read >> 20);
 
 		for (cur_index = 0; cur_index < mb_count; cur_index++) {
-			if (pwrite(dst_fd, &block_buffer[cur_index <<
+			if (pwrite(data_fd, &block_buffer[cur_index <<
 					mbp->mb_blocklog], block_size,
 					be64_to_cpu(block_index[cur_index]) <<
 						BBSHIFT) < 0)
@@ -201,7 +204,7 @@ restore(
 		if (mb_count < max_indices)
 			break;
 
-		if (fread(metablock, block_size, 1, src_f) != 1)
+		if (fread(metablock, block_size, 1, mdfp) != 1)
 			fatal("error reading from metadump file\n");
 
 		mb_count = be16_to_cpu(metablock->mb_count);
@@ -211,7 +214,7 @@ restore(
 			fatal("bad block count: %u\n", mb_count);
 
 		if (fread(block_buffer, mb_count << mbp->mb_blocklog,
-								1, src_f) != 1)
+								1, mdfp) != 1)
 			fatal("error reading from metadump file\n");
 
 		bytes_read += block_size + (mb_count << mbp->mb_blocklog);
@@ -228,11 +231,17 @@ restore(
 				 offsetof(struct xfs_sb, sb_crc));
 	}
 
-	if (pwrite(dst_fd, block_buffer, sb.sb_sectsize, 0) < 0)
+	if (pwrite(data_fd, block_buffer, sb.sb_sectsize, 0) < 0)
 		fatal("error writing primary superblock: %s\n", strerror(errno));
 
 	free(metablock);
 }
+
+static struct mdrestore_ops mdrestore_ops_v1 = {
+	.read_header = read_header_v1,
+	.show_info = show_info_v1,
+	.restore = restore_v1,
+};
 
 static void
 usage(void)
@@ -283,9 +292,9 @@ main(
 
 	/*
 	 * open source and test if this really is a dump. The first metadump
-	 * block will be passed to restore1() which will continue to read the
-	 * file from this point. This avoids rewind the stream, which causes
-	 * restore to fail when source was being read from stdin.
+	 * block will be passed to mdrestore_ops->restore() which will continue
+	 * to read the file from this point. This avoids rewind the stream,
+	 * which causes restore to fail when source was being read from stdin.
  	 */
 	if (strcmp(argv[optind], "-") == 0) {
 		src_f = stdin;
@@ -297,10 +306,12 @@ main(
 			fatal("cannot open source dump file\n");
 	}
 
-	read_header(&mb, src_f);
+	mdrestore.mdrops = &mdrestore_ops_v1;
+
+	mdrestore.mdrops->read_header(&mb, src_f);
 
 	if (mdrestore.show_info) {
-		show_info(&mb, argv[optind]);
+		mdrestore.mdrops->show_info(&mb, argv[optind]);
 
 		if (argc - optind == 1)
 			exit(0);
@@ -311,7 +322,7 @@ main(
 	/* check and open target */
 	dst_fd = open_device(argv[optind], &is_target_file);
 
-	restore(src_f, dst_fd, is_target_file, &mb);
+	mdrestore.mdrops->restore(src_f, dst_fd, is_target_file, &mb);
 
 	close(dst_fd);
 	if (src_f != stdin)
