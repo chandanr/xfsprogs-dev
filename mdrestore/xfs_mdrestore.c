@@ -11,7 +11,8 @@ struct mdrestore_ops {
 	int (*read_header)(void *header, FILE *mdfp);
 	void (*show_info)(void *header, const char *mdfile);
 	void (*restore)(void *header, FILE *mdfp, int data_fd,
-			bool is_target_file);
+			bool is_data_target_file, int log_fd,
+			bool is_log_target_file);
 };
 
 static struct mdrestore {
@@ -148,7 +149,9 @@ restore_v1(
 	void		*header,
 	FILE		*mdfp,
 	int		data_fd,
-	bool		is_target_file)
+	bool		is_data_target_file,
+	int		log_fd,
+	bool		is_log_target_file)
 {
 	struct xfs_metablock	*mbp = header;
 	struct xfs_metablock	*metablock;
@@ -203,7 +206,7 @@ restore_v1(
 
 	((struct xfs_dsb*)block_buffer)->sb_inprogress = 1;
 
-	verify_device_size(data_fd, is_target_file, sb.sb_dblocks,
+	verify_device_size(data_fd, is_data_target_file, sb.sb_dblocks,
 			sb.sb_blocksize);
 
 	bytes_read = 0;
@@ -264,6 +267,163 @@ static struct mdrestore_ops mdrestore_ops_v1 = {
 	.restore = restore_v1,
 };
 
+static int
+read_header_v2(
+	void				*header,
+	FILE				*mdfp)
+{
+	struct xfs_metadump_header	*xmh = header;
+
+	rewind(mdfp);
+
+	if (fread(xmh, sizeof(*xmh), 1, mdfp) != 1)
+		fatal("error reading from metadump file\n");
+	if (xmh->xmh_magic != cpu_to_be32(XFS_MD_MAGIC_V2))
+		return -1;
+
+	return 0;
+}
+
+static void
+show_info_v2(
+	void				*header,
+	const char			*mdfile)
+{
+	struct xfs_metadump_header	*xmh;
+	uint32_t			incompat_flags;
+
+	xmh = header;
+	incompat_flags = be32_to_cpu(xmh->xmh_incompat_flags);
+
+	printf("%s: %sobfuscated, %s log, %s metadata blocks\n",
+		mdfile,
+		incompat_flags & XFS_MD2_INCOMPAT_OBFUSCATED ? "":"not ",
+		incompat_flags & XFS_MD2_INCOMPAT_DIRTYLOG ? "dirty":"clean",
+		incompat_flags & XFS_MD2_INCOMPAT_FULLBLOCKS ? "full":"zeroed");
+}
+
+static void
+restore_v2(
+	void			*header,
+	FILE			*mdfp,
+	int			data_fd,
+	bool			is_data_target_file,
+	int			log_fd,
+	bool			is_log_target_file)
+{
+	struct xfs_sb		sb;
+	struct xfs_meta_extent	xme;
+	char			*block_buffer;
+	int64_t			bytes_read;
+	uint64_t		offset;
+	int			prev_len;
+	int			len;
+
+	if (fread(&xme, sizeof(xme), 1, mdfp) != 1)
+		fatal("error reading from metadump file\n");
+
+	len = be32_to_cpu(xme.xme_len);
+	len <<= BBSHIFT;
+
+	block_buffer = calloc(1, len);
+	if (block_buffer == NULL)
+		fatal("memory allocation failure\n");
+
+	if (fread(block_buffer, len, 1, mdfp) != 1)
+		fatal("error reading from metadump file\n");
+
+	libxfs_sb_from_disk(&sb, (struct xfs_dsb *)block_buffer);
+
+	if (sb.sb_magicnum != XFS_SB_MAGIC)
+		fatal("bad magic number for primary superblock\n");
+
+	if (sb.sb_logstart == 0 && log_fd == -1)
+		fatal("External Log device is required\n");
+
+	((struct xfs_dsb *)block_buffer)->sb_inprogress = 1;
+
+	verify_device_size(data_fd, is_data_target_file, sb.sb_dblocks,
+			sb.sb_blocksize);
+
+	if (sb.sb_logstart == 0)
+		verify_device_size(log_fd, is_log_target_file, sb.sb_logblocks,
+				sb.sb_blocksize);
+
+	bytes_read = 0;
+
+	do {
+		int fd;
+
+		if (mdrestore.show_progress &&
+			(bytes_read & ((1 << 20) - 1)) == 0)
+			print_progress("%lld MB read", bytes_read >> 20);
+
+		offset = be64_to_cpu(xme.xme_addr) & XME_ADDR_DEVICE_MASK;
+		offset <<= BBSHIFT;
+
+		if (be64_to_cpu(xme.xme_addr) & XME_ADDR_DATA_DEVICE)
+			fd = data_fd;
+		else if (be64_to_cpu(xme.xme_addr) & XME_ADDR_LOG_DEVICE)
+			fd = log_fd;
+		else
+			ASSERT(0);
+
+		if (pwrite(fd, block_buffer, len, offset) < 0)
+			fatal("error writing to %s device at offset %llu: %s\n",
+				fd == data_fd ? "data": "log", offset,
+				strerror(errno));
+
+                if (fread(&xme, sizeof(xme), 1, mdfp) != 1) {
+			if (feof(mdfp))
+				break;
+			fatal("error reading from metadump file\n");
+		}
+
+		prev_len = len;
+		len = be32_to_cpu(xme.xme_len);
+		len <<= BBSHIFT;
+		if (len > prev_len) {
+			void *p;
+			p = realloc(block_buffer, len);
+			if (p == NULL) {
+				free(block_buffer);
+				fatal("memory allocation failure\n");
+			}
+			block_buffer = p;
+		}
+
+		if (fread(block_buffer, len, 1, mdfp) != 1)
+			fatal("error reading from metadump file\n");
+
+		bytes_read += len;
+	} while (1);
+
+	if (mdrestore.progress_since_warning)
+		putchar('\n');
+
+        memset(block_buffer, 0, sb.sb_sectsize);
+	sb.sb_inprogress = 0;
+	libxfs_sb_to_disk((struct xfs_dsb *)block_buffer, &sb);
+	if (xfs_sb_version_hascrc(&sb)) {
+		xfs_update_cksum(block_buffer, sb.sb_sectsize,
+				offsetof(struct xfs_sb, sb_crc));
+	}
+
+	if (pwrite(data_fd, block_buffer, sb.sb_sectsize, 0) < 0)
+		fatal("error writing primary superblock: %s\n",
+			strerror(errno));
+
+	free(block_buffer);
+
+	return;
+}
+
+static struct mdrestore_ops mdrestore_ops_v2 = {
+	.read_header = read_header_v2,
+	.show_info = show_info_v2,
+	.restore = restore_v2,
+};
+
 static void
 usage(void)
 {
@@ -276,11 +436,16 @@ main(
 	int 		argc,
 	char 		**argv)
 {
-	FILE		*src_f;
-	int		dst_fd;
-	int		c;
-	bool		is_target_file;
-	struct xfs_metablock	mb;
+	struct xfs_metadump_header	xmh;
+	struct xfs_metablock		mb;
+	FILE				*src_f;
+	char				*logdev = NULL;
+	void				*header;
+	int				data_dev_fd;
+	int				log_dev_fd;
+	int				c;
+	bool				is_data_dev_file;
+	bool				is_log_dev_file;
 
 	mdrestore.show_progress = 0;
 	mdrestore.show_info = 0;
@@ -327,13 +492,18 @@ main(
 			fatal("cannot open source dump file\n");
 	}
 
-	if (mdrestore_ops_v1.read_header(&mb, src_f) == 0)
+	if (mdrestore_ops_v1.read_header(&mb, src_f) == 0) {
 		mdrestore.mdrops = &mdrestore_ops_v1;
-	else
+		header = &mb;
+	} else if (mdrestore_ops_v2.read_header(&xmh, src_f) == 0) {
+		mdrestore.mdrops = &mdrestore_ops_v2;
+		header = &xmh;
+	} else {
 		fatal("Invalid metadump format\n");
+	}
 
 	if (mdrestore.show_info) {
-		mdrestore.mdrops->show_info(&mb, argv[optind]);
+		mdrestore.mdrops->show_info(header, argv[optind]);
 
 		if (argc - optind == 1)
 			exit(0);
@@ -341,12 +511,21 @@ main(
 
 	optind++;
 
-	/* check and open target */
-	dst_fd = open_device(argv[optind], &is_target_file);
+	/* check and open data device */
+	data_dev_fd = open_device(argv[optind], &is_data_dev_file);
 
-	mdrestore.mdrops->restore(&mb, src_f, dst_fd, is_target_file);
+	log_dev_fd = -1;
+	if (logdev)
+		/* check and open log device */
+		log_dev_fd = open_device(logdev, &is_log_dev_file);
 
-	close(dst_fd);
+	mdrestore.mdrops->restore(header, src_f, data_dev_fd, is_data_dev_file,
+				log_dev_fd, is_log_dev_file);
+
+	close(data_dev_fd);
+	if (logdev)
+		close(log_dev_fd);
+
 	if (src_f != stdin)
 		fclose(src_f);
 
