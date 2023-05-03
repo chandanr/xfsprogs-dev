@@ -388,7 +388,7 @@ static struct mdrestore_ops mdrestore_ops_v2 = {
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-V] [-g] [-i] source target\n", progname);
+	fprintf(stderr, "Usage: %s [-V] [-g] [-i] [-l logdev] source target\n", progname);
 	exit(1);
 }
 
@@ -415,13 +415,16 @@ main(
 
 	progname = basename(argv[0]);
 
-	while ((c = getopt(argc, argv, "giV")) != EOF) {
+	while ((c = getopt(argc, argv, "gil:V")) != EOF) {
 		switch (c) {
 			case 'g':
 				mdrestore.show_progress = 1;
 				break;
 			case 'i':
 				mdrestore.show_info = 1;
+				break;
+			case 'l':
+				logdev = optarg;
 				break;
 			case 'V':
 				printf("%s version %s\n", progname, VERSION);
@@ -430,6 +433,9 @@ main(
 				usage();
 		}
 	}
+
+	if (logdev != NULL && version == 1)
+		usage();
 
 	if (argc - optind < 1 || argc - optind > 2)
 		usage();
