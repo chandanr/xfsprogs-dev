@@ -33,6 +33,21 @@ fatal(const char *msg, ...)
 }
 
 static void
+print_warning(const char *fmt, ...)
+{
+	char		buf[200];
+	va_list		ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	buf[sizeof(buf)-1] = '\0';
+
+	fprintf(stderr, "%s%s\n", mdrestore.progress_since_warning ? "\n" : "", buf);
+	mdrestore.progress_since_warning = 0;
+}
+
+static void
 print_progress(const char *fmt, ...)
 {
 	char		buf[60];
@@ -388,7 +403,7 @@ static struct mdrestore_ops mdrestore_ops_v2 = {
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-V] [-g] [-i] [-l logdev] source target\n", progname);
+	fprintf(stderr, "Usage: %s [-V] [-g] [-i] [-l logdev] [-v 1|2] source target\n", progname);
 	exit(1);
 }
 
@@ -400,6 +415,7 @@ main(
 	FILE		*src_f;
 	char		*logdev = NULL;
 	void		*header;
+	char		*p;
 	int		data_dev_fd;
 	int		log_dev_fd;
 	int		c;
@@ -415,7 +431,7 @@ main(
 
 	progname = basename(argv[0]);
 
-	while ((c = getopt(argc, argv, "gil:V")) != EOF) {
+	while ((c = getopt(argc, argv, "gil:v:V")) != EOF) {
 		switch (c) {
 			case 'g':
 				mdrestore.show_progress = 1;
@@ -425,6 +441,14 @@ main(
 				break;
 			case 'l':
 				logdev = optarg;
+				break;
+			case 'v':
+				version = (int)strtol(optarg, &p, 0);
+				if (*p != '\0' || (version != 1 && version != 2)) {
+					print_warning("bad metadump version: %s",
+						optarg);
+					return 0;
+				}
 				break;
 			case 'V':
 				printf("%s version %s\n", progname, VERSION);
