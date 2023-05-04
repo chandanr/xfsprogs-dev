@@ -7,10 +7,18 @@
 #include "libxfs.h"
 #include "xfs_metadump.h"
 
+struct mdrestore_ops {
+	void (*read_header)(void *header, FILE *mdfp);
+	void (*show_info)(void *header, const char *mdfile);
+	void (*restore)(void *header, FILE *mdfp, int data_fd,
+			bool is_target_file);
+};
+
 static struct mdrestore {
-	int	show_progress;
-	int	show_info;
-	int	progress_since_warning;
+	struct mdrestore_ops	*mdrops;
+	int			show_progress;
+	int			show_info;
+	int			progress_since_warning;
 } mdrestore;
 
 static void
