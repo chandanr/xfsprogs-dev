@@ -8,10 +8,18 @@
 #include "xfs_metadump.h"
 #include <libfrog/platform.h>
 
+struct mdrestore_ops {
+	void (*read_header)(void *header, FILE *md_fp);
+	void (*show_info)(void *header, const char *md_file);
+	void (*restore)(void *header, FILE *md_fp, int ddev_fd,
+			bool is_target_file);
+};
+
 static struct mdrestore {
-	bool	show_progress;
-	bool	show_info;
-	bool	progress_since_warning;
+	struct mdrestore_ops	*mdrops;
+	bool			show_progress;
+	bool			show_info;
+	bool			progress_since_warning;
 } mdrestore;
 
 static void
