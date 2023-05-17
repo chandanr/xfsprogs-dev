@@ -8,7 +8,7 @@
 #include "xfs_metadump.h"
 
 struct mdrestore_ops {
-	void (*read_header)(void *header, FILE *mdfp);
+	int (*read_header)(void *header, FILE *mdfp);
 	void (*show_info)(void *header, const char *mdfile);
 	void (*restore)(void *header, FILE *mdfp, int data_fd,
 			bool is_target_file);
@@ -86,7 +86,7 @@ open_device(
 	return fd;
 }
 
-static void
+static int
 read_header_v1(
 	void			*header,
 	FILE			*mdfp)
@@ -96,7 +96,9 @@ read_header_v1(
 	if (fread(mb, sizeof(*mb), 1, mdfp) != 1)
 		fatal("error reading from metadump file\n");
 	if (mb->mb_magic != cpu_to_be32(XFS_MD_MAGIC_V1))
-		fatal("specified file is not a metadata dump\n");
+		return -1;
+
+	return 0;
 }
 
 static void
@@ -316,9 +318,10 @@ main(
 			fatal("cannot open source dump file\n");
 	}
 
-	mdrestore.mdrops = &mdrestore_ops_v1;
-
-	mdrestore.mdrops->read_header(&mb, src_f);
+	if (mdrestore_ops_v1.read_header(&mb, src_f) == 0)
+		mdrestore.mdrops = &mdrestore_ops_v1;
+	else
+		fatal("Invalid metadump format\n");
 
 	if (mdrestore.show_info) {
 		mdrestore.mdrops->show_info(&mb, argv[optind]);
