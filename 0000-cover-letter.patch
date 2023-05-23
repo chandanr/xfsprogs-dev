@@ -1,0 +1,63 @@
+From e6c7d4de7a32788f2bfd3a28d996600c1fcac913 Mon Sep 17 00:00:00 2001
+From: Chandan Babu R <chandan.babu@oracle.com>
+Date: Tue, 23 May 2023 14:23:23 +0530
+Subject: [PATCH 00/24] Metadump v2
+To: cem@kernel.org
+Cc: linux-xfs@vger.kernel.org
+
+Hi all,
+
+This patch series extends metadump/mdrestore tools to be able to dump
+contents of an external log device. It also adds the ability to copy
+larger blocks (e.g. 4096 bytes instead of 512 bytes) into the metadump
+file. These objectives are accomplished by introducing a new metadump
+file format.
+
+I have tested the patchset by extending metadump/mdrestore tests in
+fstests to cover the newly introduced metadump v2 format. The tests
+can be found at
+https://github.com/chandanr/xfstests/commits/metadump-v2.
+
+The patch series can also be obtained from
+https://github.com/chandanr/xfsprogs-dev/commits/metadump-v2.
+
+Chandan Babu R (24):
+  metadump: Use boolean values true/false instead of 1/0
+  mdrestore: Fix logic used to check if target device is large enough
+  metadump: Define and use struct metadump
+  metadump: Add initialization and release functions
+  set_cur: Add support to read from external log device
+  metadump: Dump external log device contents
+  metadump: Postpone invocation of init_metadump()
+  metadump: Introduce struct metadump_ops
+  metadump: Introduce metadump v1 operations
+  metadump: Rename XFS_MD_MAGIC to XFS_MD_MAGIC_V1
+  metadump: Define metadump v2 ondisk format structures and macros
+  metadump: Define metadump ops for v2 format
+  metadump: Add support for passing version option
+  xfs_metadump.sh: Add support for passing version option
+  xfs_metadump.8: Add description for the newly introduced -v option
+  mdrestore: Define and use struct mdrestore
+  mdrestore: Add open_device(), read_header() and show_info() functions
+  mdrestore: Introduce struct mdrestore_ops
+  mdrestore: Introduce mdrestore v1 operations
+  mdrestore: Detect metadump version from metadump image
+  mdrestore: Extract target device size verification into a function
+  mdrestore: Define mdrestore ops for v2 format
+  mdrestore: Add support for passing log device as an argument
+  xfs_mdrestore.8: Add description for the newly introduced -l option
+
+ db/io.c                   |  22 +-
+ db/metadump.c             | 718 +++++++++++++++++++++++---------------
+ db/type.c                 |   2 +
+ db/type.h                 |   2 +-
+ db/xfs_metadump.sh        |   3 +-
+ include/xfs_metadump.h    |  34 +-
+ man/man8/xfs_mdrestore.8  |   8 +
+ man/man8/xfs_metadump.8   |  10 +
+ mdrestore/xfs_mdrestore.c | 450 ++++++++++++++++++------
+ 9 files changed, 847 insertions(+), 402 deletions(-)
+
+-- 
+2.39.1
+
