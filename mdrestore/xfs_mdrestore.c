@@ -87,9 +87,11 @@ open_device(
 
 static void
 read_header(
-	struct xfs_metablock	*mb,
+	void			*header,
 	FILE			*md_fp)
 {
+	struct xfs_metablock	*mb = header;
+
 	mb->mb_magic = cpu_to_be32(XFS_MD_MAGIC_V1);
 
 	if (fread((uint8_t *)mb + sizeof(mb->mb_magic),
@@ -99,9 +101,11 @@ read_header(
 
 static void
 show_info(
-	struct xfs_metablock	*mb,
+	void			*header,
 	const char		*md_file)
 {
+	struct xfs_metablock	*mb = header;
+
 	if (mb->mb_info & XFS_METADUMP_INFO_FLAGS) {
 		printf("%s: %sobfuscated, %s log, %s metadata blocks\n",
 			md_file,
@@ -125,12 +129,13 @@ show_info(
  */
 static void
 restore(
+	void			*header,
 	FILE			*md_fp,
 	int			ddev_fd,
-	int			is_target_file,
-	const struct xfs_metablock	*mbp)
+	int			is_target_file)
 {
 	struct xfs_metablock	*metablock;	/* header + index + blocks */
+	struct xfs_metablock	*mbp;
 	__be64			*block_index;
 	char			*block_buffer;
 	int			block_size;
@@ -139,6 +144,8 @@ restore(
 	int			mb_count;
 	xfs_sb_t		sb;
 	int64_t			bytes_read;
+
+	mbp = header;
 
 	block_size = 1 << mbp->mb_blocklog;
 	max_indices = (block_size - sizeof(xfs_metablock_t)) / sizeof(__be64);
@@ -269,6 +276,7 @@ main(
 	int		c;
 	bool		is_target_file;
 	uint32_t	magic;
+	void		*header;
 	struct xfs_metablock	mb;
 
 	mdrestore.show_progress = false;
@@ -321,15 +329,17 @@ main(
 
 	switch (be32_to_cpu(magic)) {
 	case XFS_MD_MAGIC_V1:
-		read_header(&mb, src_f);
+		header = &mb;
 		break;
 	default:
 		fatal("specified file is not a metadata dump\n");
 		break;
 	}
 
+	read_header(header, src_f);
+
 	if (mdrestore.show_info) {
-		show_info(&mb, argv[optind]);
+		show_info(header, argv[optind]);
 
 		if (argc - optind == 1)
 			exit(0);
@@ -340,7 +350,7 @@ main(
 	/* check and open target */
 	dst_fd = open_device(argv[optind], &is_target_file);
 
-	restore(src_f, dst_fd, is_target_file, &mb);
+	restore(header, src_f, dst_fd, is_target_file);
 
 	close(dst_fd);
 	if (src_f != stdin)
