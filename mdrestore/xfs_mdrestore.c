@@ -86,7 +86,7 @@ open_device(
 }
 
 static void
-read_header(
+read_header_v1(
 	void			*header,
 	FILE			*md_fp)
 {
@@ -100,7 +100,7 @@ read_header(
 }
 
 static void
-show_info(
+show_info_v1(
 	void			*header,
 	const char		*md_file)
 {
@@ -117,24 +117,14 @@ show_info(
 	}
 }
 
-/*
- * restore() -- do the actual work to restore the metadump
- *
- * @src_f: A FILE pointer to the source metadump
- * @dst_fd: the file descriptor for the target file
- * @is_target_file: designates whether the target is a regular file
- * @mbp: pointer to metadump's first xfs_metablock, read and verified by the caller
- *
- * src_f should be positioned just past a read the previously validated metablock
- */
 static void
-restore(
+restore_v1(
 	void			*header,
 	FILE			*md_fp,
 	int			ddev_fd,
-	int			is_target_file)
+	bool			is_target_file)
 {
-	struct xfs_metablock	*metablock;	/* header + index + blocks */
+	struct xfs_metablock	*metablock;
 	struct xfs_metablock	*mbp;
 	__be64			*block_index;
 	char			*block_buffer;
@@ -259,6 +249,12 @@ restore(
 	free(metablock);
 }
 
+static struct mdrestore_ops mdrestore_ops_v1 = {
+	.read_header	= read_header_v1,
+	.show_info	= show_info_v1,
+	.restore	= restore_v1,
+};
+
 static void
 usage(void)
 {
@@ -310,9 +306,9 @@ main(
 
 	/*
 	 * open source and test if this really is a dump. The first metadump
-	 * block will be passed to restore() which will continue to read the
-	 * file from this point. This avoids rewind the stream, which causes
-	 * restore to fail when source was being read from stdin.
+	 * block will be passed to mdrestore_ops->restore() which will continue
+	 * to read the file from this point. This avoids rewind the stream,
+	 * which causes restore to fail when source was being read from stdin.
  	 */
 	if (strcmp(argv[optind], "-") == 0) {
 		src_f = stdin;
@@ -330,16 +326,17 @@ main(
 	switch (be32_to_cpu(magic)) {
 	case XFS_MD_MAGIC_V1:
 		header = &mb;
+		mdrestore.mdrops = &mdrestore_ops_v1;
 		break;
 	default:
 		fatal("specified file is not a metadata dump\n");
 		break;
 	}
 
-	read_header(header, src_f);
+	mdrestore.mdrops->read_header(header, src_f);
 
 	if (mdrestore.show_info) {
-		show_info(header, argv[optind]);
+		mdrestore.mdrops->show_info(header, argv[optind]);
 
 		if (argc - optind == 1)
 			exit(0);
@@ -350,7 +347,7 @@ main(
 	/* check and open target */
 	dst_fd = open_device(argv[optind], &is_target_file);
 
-	restore(header, src_f, dst_fd, is_target_file);
+	mdrestore.mdrops->restore(header, src_f, dst_fd, is_target_file);
 
 	close(dst_fd);
 	if (src_f != stdin)
