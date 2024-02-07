@@ -29,7 +29,8 @@ radix-tree.c \
 randbytes.c \
 scrub.c \
 util.c \
-workqueue.c
+workqueue.c \
+delayed-work.c
 
 HFILES = \
 avl64.h \
@@ -49,7 +50,8 @@ ptvar.h \
 radix-tree.h \
 randbytes.h \
 scrub.h \
-workqueue.h
+workqueue.h \
+delayed-work.h
 
 LSRCFILES += gen_crc32table.c
 
