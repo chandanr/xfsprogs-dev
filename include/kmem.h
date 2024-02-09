@@ -65,6 +65,11 @@ static inline void *kmalloc(size_t size, gfp_t flags)
 	return kvmalloc(size, flags);
 }
 
+static inline void *kvzalloc(size_t size, gfp_t flags)
+{
+	return kmem_zalloc(size, 0);
+}
+
 static inline void kfree(const void *ptr)
 {
 	return kmem_free(ptr);
