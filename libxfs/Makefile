@@ -36,6 +36,7 @@ HFILES = \
 	xfs_bmap_btree.h \
 	xfs_btree.h \
 	xfs_btree_staging.h \
+	xfs_extent_busy.h \
 	xfs_attr_remote.h \
 	xfs_cksum.h \
 	xfs_da_btree.h \
@@ -77,6 +78,7 @@ CFILES = cache.c \
 	xfs_bmap_btree.c \
 	xfs_btree.c \
 	xfs_btree_staging.c \
+	xfs_extent_busy.c \
 	xfs_da_btree.c \
 	xfs_defer.c \
 	xfs_dir2.c \
