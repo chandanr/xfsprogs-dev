@@ -182,4 +182,23 @@ static inline xfs_lsn_t _lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 
 #define XFS_LSN_CMP(a, b)			_lsn_cmp(a, b)
 
+/*
+ * Private AIL structures.
+ *
+ * Eventually we need to drive the locking in here as well.
+ */
+struct xfs_ail {
+	struct xlog		*ail_log;
+	struct task_struct	*ail_task;
+	struct list_head	ail_head;
+	xfs_lsn_t		ail_target;
+	xfs_lsn_t		ail_target_prev;
+	struct list_head	ail_cursors;
+	spinlock_t		ail_lock;
+	xfs_lsn_t		ail_last_pushed_lsn;
+	int			ail_log_flush;
+	struct list_head	ail_buf_list;
+	wait_queue_head_t	ail_empty;
+};
+
 #endif	/* __XFS_TRANS_H__ */

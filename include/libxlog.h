@@ -5,33 +5,6 @@
 #ifndef LIBXLOG_H
 #define LIBXLOG_H
 
-/*
- * define the userlevel xlog_t to be the subset of the kernel's
- * xlog_t that we actually need to get our work done, avoiding
- * the need to define any exotic kernel types in userland.
- */
-struct xlog {
-	atomic64_t	l_tail_lsn;     /* lsn of 1st LR w/ unflush buffers */
-	atomic64_t	l_last_sync_lsn;/* lsn of last LR on disk */
-	xfs_mount_t	*l_mp;	        /* mount point */
-	struct xfs_buftarg *l_dev;	        /* dev_t of log */
-	xfs_daddr_t	l_logBBstart;   /* start block of log */
-	int		l_logBBsize;    /* size of log in 512 byte chunks */
-	int		l_curr_cycle;   /* Cycle number of log writes */
-	int		l_prev_cycle;   /* Cycle # b4 last block increment */
-	int		l_curr_block;   /* current logical block of log */
-	int		l_prev_block;   /* previous logical block of log */
-	int		l_iclog_size;	 /* size of log in bytes */
-	int		l_iclog_size_log;/* log power size of log */
-	int		l_iclog_bufs;	 /* number of iclog buffers */
-	atomic64_t	l_grant_reserve_head;
-	atomic64_t	l_grant_write_head;
-	uint		l_sectbb_log;   /* log2 of sector size in bbs */
-	uint		l_sectbb_mask;  /* sector size (in BBs)
-					 * alignment mask */
-	int		l_sectBBsize;   /* size of log sector in 512 byte chunks */
-};
-
 #include "xfs_log_recover.h"
 
 /*
@@ -102,7 +75,4 @@ extern int	xlog_header_check_recover(xfs_mount_t *mp,
 				xlog_rec_header_t *head);
 extern int	xlog_header_check_mount(xfs_mount_t *mp,
 				xlog_rec_header_t *head);
-
-#define xlog_assign_atomic_lsn(l,a,b) ((void) 0)
-#define xlog_assign_grant_head(l,a,b) ((void) 0)
 #endif	/* LIBXLOG_H */
