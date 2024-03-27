@@ -1759,14 +1759,24 @@ xlog_recover_add_to_cont_trans(
 	char			*ptr, *old_ptr;
 	int			old_len;
 
+	/*
+	 * If the transaction is empty, the header was split across this and the
+	 * previous record. Copy the rest of the header.
+	 */
 	if (list_empty(&trans->r_itemq)) {
-		/* finish copying rest of trans header */
+		ASSERT(len <= sizeof(struct xfs_trans_header));
+		if (len > sizeof(struct xfs_trans_header)) {
+			xfs_warn(log->l_mp, "%s: bad header length", __func__);
+			return -EFSCORRUPTED;
+		}
+
 		xlog_recover_add_item(&trans->r_itemq);
-		ptr = (char *) &trans->r_theader +
-				sizeof(xfs_trans_header_t) - len;
-		memcpy(ptr, dp, len); /* d, s, l */
+		ptr = (char *)&trans->r_theader +
+				sizeof(struct xfs_trans_header) - len;
+		memcpy(ptr, dp, len);
 		return 0;
 	}
+
 	/* take the tail entry */
 	item = list_entry(trans->r_itemq.prev, struct xlog_recover_item,
 			  ri_list);
@@ -1774,8 +1784,10 @@ xlog_recover_add_to_cont_trans(
 	old_ptr = item->ri_buf[item->ri_cnt-1].i_addr;
 	old_len = item->ri_buf[item->ri_cnt-1].i_len;
 
-	ptr = krealloc(old_ptr, len+old_len, 0);
-	memcpy(&ptr[old_len], dp, len); /* d, s, l */
+	ptr = kvrealloc(old_ptr, old_len, len + old_len, GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+	memcpy(&ptr[old_len], dp, len);
 	item->ri_buf[item->ri_cnt-1].i_len += len;
 	item->ri_buf[item->ri_cnt-1].i_addr = ptr;
 	trace_xfs_log_recover_item_add_cont(log, trans, item, 0);
@@ -1814,11 +1826,23 @@ xlog_recover_add_to_trans(
 			xfs_warn(log->l_mp, "%s: bad header magic number",
 				__func__);
 			ASSERT(0);
-			return XFS_ERROR(EIO);
+			return -EFSCORRUPTED;
 		}
-		if (len == sizeof(xfs_trans_header_t))
+
+		if (len > sizeof(struct xfs_trans_header)) {
+			xfs_warn(log->l_mp, "%s: bad header length", __func__);
+			ASSERT(0);
+			return -EFSCORRUPTED;
+		}
+
+		/*
+		 * The transaction header can be arbitrarily split across op
+		 * records. If we don't have the whole thing here, copy what we
+		 * do have and handle the rest in the next record.
+		 */
+		if (len == sizeof(struct xfs_trans_header))
 			xlog_recover_add_item(&trans->r_itemq);
-		memcpy(&trans->r_theader, dp, len); /* d, s, l */
+		memcpy(&trans->r_theader, dp, len);
 		return 0;
 	}
 
@@ -1845,7 +1869,7 @@ xlog_recover_add_to_trans(
 				  in_f->ilf_size);
 			ASSERT(0);
 			kmem_free(ptr);
-			return XFS_ERROR(EIO);
+			return -EFSCORRUPTED;
 		}
 
 		item->ri_total = in_f->ilf_size;
@@ -1853,7 +1877,16 @@ xlog_recover_add_to_trans(
 			kmem_zalloc(item->ri_total * sizeof(xfs_log_iovec_t),
 				    0);
 	}
-	ASSERT(item->ri_total > item->ri_cnt);
+
+	if (item->ri_total <= item->ri_cnt) {
+		xfs_warn(log->l_mp,
+	"log item region count (%d) overflowed size (%d)",
+				item->ri_cnt, item->ri_total);
+		ASSERT(0);
+		kmem_free(ptr);
+		return -EFSCORRUPTED;
+	}
+
 	/* Description region is ri_buf[0] */
 	item->ri_buf[item->ri_cnt].i_addr = ptr;
 	item->ri_buf[item->ri_cnt].i_len  = len;
@@ -1887,6 +1920,196 @@ xlog_recover_free_trans(
 	kmem_free(trans);
 }
 
+/******************************************************************************
+ *
+ *		Log recover routines
+ *
+ ******************************************************************************
+ */
+static const struct xlog_recover_item_ops *xlog_recover_item_ops[] = {
+	&xlog_buf_item_ops,
+	&xlog_inode_item_ops,
+	&xlog_dquot_item_ops,
+	&xlog_quotaoff_item_ops,
+	&xlog_icreate_item_ops,
+	&xlog_efi_item_ops,
+	&xlog_efd_item_ops,
+	&xlog_rui_item_ops,
+	&xlog_rud_item_ops,
+	&xlog_cui_item_ops,
+	&xlog_cud_item_ops,
+	&xlog_bui_item_ops,
+	&xlog_bud_item_ops,
+	&xlog_attri_item_ops,
+	&xlog_attrd_item_ops,
+};
+
+static const struct xlog_recover_item_ops *
+xlog_find_item_ops(
+	struct xlog_recover_item		*item)
+{
+	unsigned int				i;
+
+	for (i = 0; i < ARRAY_SIZE(xlog_recover_item_ops); i++)
+		if (ITEM_TYPE(item) == xlog_recover_item_ops[i]->item_type)
+			return xlog_recover_item_ops[i];
+
+	return NULL;
+}
+
+/*
+ * Sort the log items in the transaction.
+ *
+ * The ordering constraints are defined by the inode allocation and unlink
+ * behaviour. The rules are:
+ *
+ *	1. Every item is only logged once in a given transaction. Hence it
+ *	   represents the last logged state of the item. Hence ordering is
+ *	   dependent on the order in which operations need to be performed so
+ *	   required initial conditions are always met.
+ *
+ *	2. Cancelled buffers are recorded in pass 1 in a separate table and
+ *	   there's nothing to replay from them so we can simply cull them
+ *	   from the transaction. However, we can't do that until after we've
+ *	   replayed all the other items because they may be dependent on the
+ *	   cancelled buffer and replaying the cancelled buffer can remove it
+ *	   form the cancelled buffer table. Hence they have tobe done last.
+ *
+ *	3. Inode allocation buffers must be replayed before inode items that
+ *	   read the buffer and replay changes into it. For filesystems using the
+ *	   ICREATE transactions, this means XFS_LI_ICREATE objects need to get
+ *	   treated the same as inode allocation buffers as they create and
+ *	   initialise the buffers directly.
+ *
+ *	4. Inode unlink buffers must be replayed after inode items are replayed.
+ *	   This ensures that inodes are completely flushed to the inode buffer
+ *	   in a "free" state before we remove the unlinked inode list pointer.
+ *
+ * Hence the ordering needs to be inode allocation buffers first, inode items
+ * second, inode unlink buffers third and cancelled buffers last.
+ *
+ * But there's a problem with that - we can't tell an inode allocation buffer
+ * apart from a regular buffer, so we can't separate them. We can, however,
+ * tell an inode unlink buffer from the others, and so we can separate them out
+ * from all the other buffers and move them to last.
+ *
+ * Hence, 4 lists, in order from head to tail:
+ *	- buffer_list for all buffers except cancelled/inode unlink buffers
+ *	- item_list for all non-buffer items
+ *	- inode_buffer_list for inode unlink buffers
+ *	- cancel_list for the cancelled buffers
+ *
+ * Note that we add objects to the tail of the lists so that first-to-last
+ * ordering is preserved within the lists. Adding objects to the head of the
+ * list means when we traverse from the head we walk them in last-to-first
+ * order. For cancelled buffers and inode unlink buffers this doesn't matter,
+ * but for all other items there may be specific ordering that we need to
+ * preserve.
+ */
+STATIC int
+xlog_recover_reorder_trans(
+	struct xlog		*log,
+	struct xlog_recover	*trans,
+	int			pass)
+{
+	struct xlog_recover_item *item, *n;
+	int			error = 0;
+	LIST_HEAD(sort_list);
+	LIST_HEAD(cancel_list);
+	LIST_HEAD(buffer_list);
+	LIST_HEAD(inode_buffer_list);
+	LIST_HEAD(item_list);
+
+	list_splice_init(&trans->r_itemq, &sort_list);
+	list_for_each_entry_safe(item, n, &sort_list, ri_list) {
+		enum xlog_recover_reorder	fate = XLOG_REORDER_ITEM_LIST;
+
+		item->ri_ops = xlog_find_item_ops(item);
+		if (!item->ri_ops) {
+			xfs_warn(log->l_mp,
+				"%s: unrecognized type of log operation (%d)",
+				__func__, ITEM_TYPE(item));
+			ASSERT(0);
+			/*
+			 * return the remaining items back to the transaction
+			 * item list so they can be freed in caller.
+			 */
+			if (!list_empty(&sort_list))
+				list_splice_init(&sort_list, &trans->r_itemq);
+			error = -EFSCORRUPTED;
+			break;
+		}
+
+		if (item->ri_ops->reorder)
+			fate = item->ri_ops->reorder(item);
+
+		switch (fate) {
+		case XLOG_REORDER_BUFFER_LIST:
+			list_move_tail(&item->ri_list, &buffer_list);
+			break;
+		case XLOG_REORDER_CANCEL_LIST:
+			trace_xfs_log_recover_item_reorder_head(log,
+					trans, item, pass);
+			list_move(&item->ri_list, &cancel_list);
+			break;
+		case XLOG_REORDER_INODE_BUFFER_LIST:
+			list_move(&item->ri_list, &inode_buffer_list);
+			break;
+		case XLOG_REORDER_ITEM_LIST:
+			trace_xfs_log_recover_item_reorder_tail(log,
+							trans, item, pass);
+			list_move_tail(&item->ri_list, &item_list);
+			break;
+		}
+	}
+
+	ASSERT(list_empty(&sort_list));
+	if (!list_empty(&buffer_list))
+		list_splice(&buffer_list, &trans->r_itemq);
+	if (!list_empty(&item_list))
+		list_splice_tail(&item_list, &trans->r_itemq);
+	if (!list_empty(&inode_buffer_list))
+		list_splice_tail(&inode_buffer_list, &trans->r_itemq);
+	if (!list_empty(&cancel_list))
+		list_splice_tail(&cancel_list, &trans->r_itemq);
+	return error;
+}
+
+void
+xlog_buf_readahead(
+	struct xlog		*log,
+	xfs_daddr_t		blkno,
+	uint			len,
+	const struct xfs_buf_ops *ops)
+{
+	if (!xlog_is_buffer_cancelled(log, blkno, len))
+		xfs_buf_readahead(log->l_mp->m_ddev_targp, blkno, len, ops); /* chandan: fix this i/o call later */
+}
+
+STATIC int
+xlog_recover_items_pass2(
+	struct xlog                     *log,
+	struct xlog_recover             *trans,
+	struct list_head                *buffer_list,
+	struct list_head                *item_list)
+{
+	struct xlog_recover_item	*item;
+	int				error = 0;
+
+	list_for_each_entry(item, item_list, ri_list) {
+		trace_xfs_log_recover_item_recover(log, trans, item,
+				XLOG_RECOVER_PASS2);
+
+		if (item->ri_ops->commit_pass2)
+			error = item->ri_ops->commit_pass2(log, buffer_list,
+					item, trans->r_lsn);
+		if (error)
+			return error;
+	}
+
+	return error;
+}
+
 /*
  * Perform the transaction.
  *
@@ -1897,16 +2120,65 @@ STATIC int
 xlog_recover_commit_trans(
 	struct xlog		*log,
 	struct xlog_recover	*trans,
-	int			pass)
+	int			pass,
+	struct list_head	*buffer_list)
 {
-	int			error = 0;
+	int				error = 0;
+	int				items_queued = 0;
+	struct xlog_recover_item	*item;
+	struct xlog_recover_item	*next;
+	LIST_HEAD			(ra_list);
+	LIST_HEAD			(done_list);
 
-	hlist_del(&trans->r_list);
-	if ((error = xlog_recover_do_trans(log, trans, pass)))
+	#define XLOG_RECOVER_COMMIT_QUEUE_MAX 100
+
+	hlist_del_init(&trans->r_list);
+
+	error = xlog_recover_reorder_trans(log, trans, pass);
+	if (error)
 		return error;
 
-	xlog_recover_free_trans(trans);
-	return 0;
+	list_for_each_entry_safe(item, next, &trans->r_itemq, ri_list) {
+		trace_xfs_log_recover_item_recover(log, trans, item, pass);
+
+		switch (pass) {
+		case XLOG_RECOVER_PASS1:
+			if (item->ri_ops->commit_pass1)
+				error = item->ri_ops->commit_pass1(log, item);
+			break;
+		case XLOG_RECOVER_PASS2:
+			if (item->ri_ops->ra_pass2)
+				item->ri_ops->ra_pass2(log, item);
+			list_move_tail(&item->ri_list, &ra_list);
+			items_queued++;
+			if (items_queued >= XLOG_RECOVER_COMMIT_QUEUE_MAX) {
+				error = xlog_recover_items_pass2(log, trans,
+						buffer_list, &ra_list);
+				list_splice_tail_init(&ra_list, &done_list);
+				items_queued = 0;
+			}
+
+			break;
+		default:
+			ASSERT(0);
+		}
+
+		if (error)
+			goto out;
+	}
+
+out:
+	if (!list_empty(&ra_list)) {
+		if (!error)
+			error = xlog_recover_items_pass2(log, trans,
+					buffer_list, &ra_list);
+		list_splice_tail_init(&ra_list, &done_list);
+	}
+
+	if (!list_empty(&done_list))
+		list_splice_init(&done_list, &trans->r_itemq);
+
+	return error;
 }
 
 STATIC int
@@ -1916,6 +2188,222 @@ xlog_recover_unmount_trans(
 	/* Do nothing now */
 	xfs_warn(log->l_mp, "%s: Unmount LR", __func__);
 	return 0;
+}
+
+/*
+ * check log record header for recovery
+ */
+STATIC int
+xlog_header_check_recover(
+	xfs_mount_t		*mp,
+	xlog_rec_header_t	*head)
+{
+	ASSERT(head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
+
+	/*
+	 * IRIX doesn't write the h_fmt field and leaves it zeroed
+	 * (XLOG_FMT_UNKNOWN). This stops us from trying to recover
+	 * a dirty log created in IRIX.
+	 */
+	if (XFS_IS_CORRUPT(mp, head->h_fmt != cpu_to_be32(XLOG_FMT))) {
+		xfs_warn(mp,
+	"dirty log written in incompatible format - can't recover");
+		xlog_header_check_dump(mp, head);
+		return -EFSCORRUPTED;
+	}
+	if (XFS_IS_CORRUPT(mp, !uuid_equal(&mp->m_sb.sb_uuid,
+					   &head->h_fs_uuid))) {
+		xfs_warn(mp,
+	"dirty log entry has mismatched uuid - can't recover");
+		xlog_header_check_dump(mp, head);
+		return -EFSCORRUPTED;
+	}
+	return 0;
+}
+
+/*
+ * Lookup the transaction recovery structure associated with the ID in the
+ * current ophdr. If the transaction doesn't exist and the start flag is set in
+ * the ophdr, then allocate a new transaction for future ID matches to find.
+ * Either way, return what we found during the lookup - an existing transaction
+ * or nothing.
+ */
+STATIC struct xlog_recover *
+xlog_recover_ophdr_to_trans(
+	struct hlist_head	rhash[],
+	struct xlog_rec_header	*rhead,
+	struct xlog_op_header	*ohead)
+{
+	struct xlog_recover	*trans;
+	xlog_tid_t		tid;
+	struct hlist_head	*rhp;
+
+	tid = be32_to_cpu(ohead->oh_tid);
+	rhp = &rhash[XLOG_RHASH(tid)];
+	hlist_for_each_entry(trans, rhp, r_list) {
+		if (trans->r_log_tid == tid)
+			return trans;
+	}
+
+	/*
+	 * skip over non-start transaction headers - we could be
+	 * processing slack space before the next transaction starts
+	 */
+	if (!(ohead->oh_flags & XLOG_START_TRANS))
+		return NULL;
+
+	ASSERT(be32_to_cpu(ohead->oh_len) == 0);
+
+	/*
+	 * This is a new transaction so allocate a new recovery container to
+	 * hold the recovery ops that will follow.
+	 */
+	trans = kmem_zalloc(sizeof(struct xlog_recover), 0);
+	trans->r_log_tid = tid;
+	trans->r_lsn = be64_to_cpu(rhead->h_lsn);
+	INIT_LIST_HEAD(&trans->r_itemq);
+	INIT_HLIST_NODE(&trans->r_list);
+	hlist_add_head(&trans->r_list, rhp);
+
+	/*
+	 * Nothing more to do for this ophdr. Items to be added to this new
+	 * transaction will be in subsequent ophdr containers.
+	 */
+	return NULL;
+}
+
+/*
+ * On error or completion, trans is freed.
+ */
+STATIC int
+xlog_recovery_process_trans(
+	struct xlog		*log,
+	struct xlog_recover	*trans,
+	char			*dp,
+	unsigned int		len, /* chandan: ohead->oh_len */
+	unsigned int		flags, /* chandan: ohead->oh_flags */
+	int			pass,
+	struct list_head	*buffer_list)
+{
+	int			error = 0;
+	bool			freeit = false;
+
+	/* mask off ophdr transaction container flags */
+	flags &= ~XLOG_END_TRANS;
+	if (flags & XLOG_WAS_CONT_TRANS)
+		flags &= ~XLOG_CONTINUE_TRANS;
+
+	/*
+	 * Callees must not free the trans structure. We'll decide if we need to
+	 * free it or not based on the operation being done and it's result.
+	 */
+	switch (flags) {
+	/* expected flag values */
+	case 0:
+	case XLOG_CONTINUE_TRANS:
+		error = xlog_recover_add_to_trans(log, trans, dp, len);
+		break;
+	case XLOG_WAS_CONT_TRANS:
+		error = xlog_recover_add_to_cont_trans(log, trans, dp, len);
+		break;
+	case XLOG_COMMIT_TRANS:
+		error = xlog_recover_commit_trans(log, trans, pass,
+						  buffer_list);
+		/* success or fail, we are now done with this transaction. */
+		freeit = true;
+		break;
+
+	/* unexpected flag values */
+	case XLOG_UNMOUNT_TRANS:
+		/* just skip trans */
+		xfs_warn(log->l_mp, "%s: Unmount LR", __func__);
+		freeit = true;
+		break;
+	case XLOG_START_TRANS:
+	default:
+		xfs_warn(log->l_mp, "%s: bad flag 0x%x", __func__, flags);
+		ASSERT(0);
+		error = -EFSCORRUPTED;
+		break;
+	}
+	if (error || freeit)
+		xlog_recover_free_trans(trans);
+	return error;
+}
+
+STATIC int
+xlog_recover_process_ophdr(
+	struct xlog		*log,
+	struct hlist_head	rhash[],
+	struct xlog_rec_header	*rhead,
+	struct xlog_op_header	*ohead,
+	char			*dp,
+	char			*end,
+	int			pass, /* chandan: XLOG_RECOVER_PASS2 */
+	struct list_head	*buffer_list)
+{
+	struct xlog_recover	*trans;
+	unsigned int		len;
+	int			error;
+
+	/* Do we understand who wrote this op? */
+	if (ohead->oh_clientid != XFS_TRANSACTION &&
+	    ohead->oh_clientid != XFS_LOG) {
+		xfs_warn(log->l_mp, "%s: bad clientid 0x%x",
+			__func__, ohead->oh_clientid);
+		ASSERT(0);
+		return -EFSCORRUPTED;
+	}
+
+	/*
+	 * Check the ophdr contains all the data it is supposed to contain.
+	 */
+	len = be32_to_cpu(ohead->oh_len);
+	if (dp + len > end) {
+		xfs_warn(log->l_mp, "%s: bad length 0x%x", __func__, len);
+		WARN_ON(1);
+		return -EFSCORRUPTED;
+	}
+
+	trans = xlog_recover_ophdr_to_trans(rhash, rhead, ohead);
+	if (!trans) {
+		/* nothing to do, so skip over this ophdr */
+		return 0;
+	}
+
+	/*
+	 * The recovered buffer queue is drained only once we know that all
+	 * recovery items for the current LSN have been processed. This is
+	 * required because:
+	 *
+	 * - Buffer write submission updates the metadata LSN of the buffer.
+	 * - Log recovery skips items with a metadata LSN >= the current LSN of
+	 *   the recovery item.
+	 * - Separate recovery items against the same metadata buffer can share
+	 *   a current LSN. I.e., consider that the LSN of a recovery item is
+	 *   defined as the starting LSN of the first record in which its
+	 *   transaction appears, that a record can hold multiple transactions,
+	 *   and/or that a transaction can span multiple records.
+	 *
+	 * In other words, we are allowed to submit a buffer from log recovery
+	 * once per current LSN. Otherwise, we may incorrectly skip recovery
+	 * items and cause corruption.
+	 *
+	 * We don't know up front whether buffers are updated multiple times per
+	 * LSN. Therefore, track the current LSN of each commit log record as it
+	 * is processed and drain the queue when it changes. Use commit records
+	 * because they are ordered correctly by the logging code.
+	 */
+	if (log->l_recovery_lsn != trans->r_lsn &&
+	    ohead->oh_flags & XLOG_COMMIT_TRANS) {
+		error = xfs_buf_delwri_submit(buffer_list);
+		if (error)
+			return error;
+		log->l_recovery_lsn = trans->r_lsn;
+	}
+
+	return xlog_recovery_process_trans(log, trans, dp, len,
+					   ohead->oh_flags, pass, buffer_list);
 }
 
 /*
@@ -1932,147 +2420,48 @@ xlog_recover_process_data(
 	struct xlog		*log,
 	struct hlist_head	rhash[],
 	struct xlog_rec_header	*rhead,
-	char			*dp,
-	int			pass)
+	char			*dp, /* chandan: data after log record header */
+	int			pass, /* chandan: XLOG_RECOVER_PASS2 */
+	struct list_head	*buffer_list)
 {
-	char			*lp;
+	struct xlog_op_header	*ohead;
+	char			*end;
 	int			num_logops;
-	xlog_op_header_t	*ohead;
-	struct xlog_recover	*trans;
-	xlog_tid_t		tid;
 	int			error;
-	unsigned long		hash;
-	uint			flags;
 
-	lp = dp + be32_to_cpu(rhead->h_len);
+	end = dp + be32_to_cpu(rhead->h_len);
 	num_logops = be32_to_cpu(rhead->h_num_logops);
 
 	/* check the log format matches our own - else we can't recover */
 	if (xlog_header_check_recover(log->l_mp, rhead))
-		return (XFS_ERROR(EIO));
+		return -EIO;
 
-	while ((dp < lp) && num_logops) {
-		ASSERT(dp + sizeof(xlog_op_header_t) <= lp);
-		ohead = (xlog_op_header_t *)dp;
-		dp += sizeof(xlog_op_header_t);
-		if (ohead->oh_clientid != XFS_TRANSACTION &&
-		    ohead->oh_clientid != XFS_LOG) {
-			xfs_warn(log->l_mp, "%s: bad clientid 0x%x",
-					__func__, ohead->oh_clientid);
-			ASSERT(0);
-			return (XFS_ERROR(EIO));
-		}
-		tid = be32_to_cpu(ohead->oh_tid);
-		hash = XLOG_RHASH(tid);
-		trans = xlog_recover_find_tid(&rhash[hash], tid);
-		if (trans == NULL) {		   /* not found; add new tid */
-			if (ohead->oh_flags & XLOG_START_TRANS)
-				xlog_recover_new_tid(&rhash[hash], tid,
-					be64_to_cpu(rhead->h_lsn));
-		} else {
-			if (dp + be32_to_cpu(ohead->oh_len) > lp) {
-				xfs_warn(log->l_mp, "%s: bad length 0x%x",
-					__func__, be32_to_cpu(ohead->oh_len));
-				return (XFS_ERROR(EIO));
-			}
-			flags = ohead->oh_flags & ~XLOG_END_TRANS;
-			if (flags & XLOG_WAS_CONT_TRANS)
-				flags &= ~XLOG_CONTINUE_TRANS;
-			switch (flags) {
-			case XLOG_COMMIT_TRANS:
-				error = xlog_recover_commit_trans(log,
-								trans, pass);
-				break;
-			case XLOG_UNMOUNT_TRANS:
-				error = xlog_recover_unmount_trans(trans);
-				break;
-			case XLOG_WAS_CONT_TRANS:
-				error = xlog_recover_add_to_cont_trans(log,
-						trans, dp,
-						be32_to_cpu(ohead->oh_len));
-				break;
-			case XLOG_START_TRANS:
-				xfs_warn(log->l_mp, "%s: bad transaction",
-					__func__);
-				ASSERT(0);
-				error = XFS_ERROR(EIO);
-				break;
-			case 0:
-			case XLOG_CONTINUE_TRANS:
-				error = xlog_recover_add_to_trans(log, trans,
-						dp, be32_to_cpu(ohead->oh_len));
-				break;
-			default:
-				xfs_warn(log->l_mp, "%s: bad flag 0x%x",
-					__func__, flags);
-				ASSERT(0);
-				error = XFS_ERROR(EIO);
-				break;
-			}
-			if (error)
-				return error;
-		}
+	trace_xfs_log_recover_record(log, rhead, pass);
+	while ((dp < end) && num_logops) {
+
+		ohead = (struct xlog_op_header *)dp;
+		dp += sizeof(*ohead);
+		ASSERT(dp <= end);
+
+		/* errors will abort recovery */
+		error = xlog_recover_process_ophdr(log, rhash, rhead, ohead,
+						   dp, end, pass, buffer_list);
+		if (error)
+			return error;
+
 		dp += be32_to_cpu(ohead->oh_len);
 		num_logops--;
 	}
 	return 0;
 }
 
-/*
- * Upack the log buffer data and crc check it. If the check fails, issue a
- * warning if and only if the CRC in the header is non-zero. This makes the
- * check an advisory warning, and the zero CRC check will prevent failure
- * warnings from being emitted when upgrading the kernel from one that does not
- * add CRCs by default.
- *
- * When filesystems are CRC enabled, this CRC mismatch becomes a fatal log
- * corruption failure
- *
- * XXX: we do not calculate the CRC here yet. It's not clear what we should do
- * with CRC errors here in userspace, so we'll address that problem later on.
- */
-STATIC int
-xlog_unpack_data_crc(
-	struct xlog_rec_header	*rhead,
-	char			*dp,
-	struct xlog		*log)
-{
-	__le32			crc;
-
-	crc = xlog_cksum(log, rhead, dp, be32_to_cpu(rhead->h_len));
-	if (crc != rhead->h_crc) {
-		if (rhead->h_crc || xfs_has_crc(log->l_mp)) {
-			xfs_alert(log->l_mp,
-		"log record CRC mismatch: found 0x%x, expected 0x%x.",
-					le32_to_cpu(rhead->h_crc),
-					le32_to_cpu(crc));
-			xfs_hex_dump(dp, 32);
-		}
-
-		/*
-		 * If we've detected a log record corruption, then we can't
-		 * recover past this point. Abort recovery if we are enforcing
-		 * CRC protection by punting an error back up the stack.
-		 */
-		if (xfs_has_crc(log->l_mp))
-			return EFSCORRUPTED;
-	}
-
-	return 0;
-}
-
-STATIC int
+STATIC void
 xlog_unpack_data(
 	struct xlog_rec_header	*rhead,
 	char			*dp,
 	struct xlog		*log)
 {
 	int			i, j, k;
-	int			error;
-
-	error = xlog_unpack_data_crc(rhead, dp, log);
-	if (error)
-		return error;
 
 	for (i = 0; i < BTOBB(be32_to_cpu(rhead->h_len)) &&
 		  i < (XLOG_HEADER_CYCLE_SIZE / BBSIZE); i++) {
@@ -2089,8 +2478,6 @@ xlog_unpack_data(
 			dp += BBSIZE;
 		}
 	}
-
-	return 0;
 }
 
 STATIC int
@@ -2137,7 +2524,7 @@ xlog_recover_process(
 	struct hlist_head	rhash[],
 	struct xlog_rec_header	*rhead,
 	char			*dp, /* chandan: right after header block */
-	int			pass, /* chandan: XLOG_RECOVER_CRCPASS */
+	int			pass, /* chandan: XLOG_RECOVER_PASS2 */
 	struct list_head	*buffer_list)
 {
 	__le32			old_crc = rhead->h_crc;
@@ -2202,8 +2589,8 @@ xlog_do_recovery_pass(
 	struct xlog		*log,
 	xfs_daddr_t		head_blk,
 	xfs_daddr_t		tail_blk, /* chandan: beginning of the last log record */
-	int			pass,	  /* chandan: XLOG_RECOVER_CRCPASS */
-	xfs_daddr_t		*first_bad)	/* out: first bad log rec */
+	int			pass,	  /* chandan: XLOG_RECOVER_PASS2 */
+	xfs_daddr_t		*first_bad)	/* out: NULL */
 {
 	xlog_rec_header_t	*rhead;
 	xfs_daddr_t		blk_no, rblk_no;
@@ -2290,7 +2677,7 @@ xlog_do_recovery_pass(
 	}
 
 	memset(rhash, 0, sizeof(rhash));
-	if (tail_blk > head_blk) {
+	if (tail_blk > head_blk) { /* chandan: check this later */
 		/*
 		 * Perform recovery around the end of the physical log.
 		 * When the head is not on the same cycle number as the tail,
@@ -2477,6 +2864,128 @@ xlog_do_recovery_pass(
 }
 
 /*
+ * Do the recovery of the log.  We actually do this in two phases.
+ * The two passes are necessary in order to implement the function
+ * of cancelling a record written into the log.  The first pass
+ * determines those things which have been cancelled, and the
+ * second pass replays log items normally except for those which
+ * have been cancelled.  The handling of the replay and cancellations
+ * takes place in the log item type specific routines.
+ *
+ * The table of items which have cancel records in the log is allocated
+ * and freed at this level, since only here do we know when all of
+ * the log recovery has been completed.
+ */
+STATIC int
+xlog_do_log_recovery(
+	struct xlog	*log,
+	xfs_daddr_t	head_blk,
+	xfs_daddr_t	tail_blk)
+{
+	int		error;
+
+	ASSERT(head_blk != tail_blk);
+
+	/*
+	 * First do a pass to find all of the cancelled buf log items.
+	 * Store them in the buf_cancel_table for use in the second pass.
+	 */
+	error = xlog_alloc_buf_cancel_table(log);
+	if (error)
+		return error;
+
+	error = xlog_do_recovery_pass(log, head_blk, tail_blk,
+				      XLOG_RECOVER_PASS1, NULL);
+	if (error != 0)
+		goto out_cancel;
+
+	/*
+	 * Then do a second pass to actually recover the items in the log.
+	 * When it is complete free the table of buf cancel items.
+	 */
+	error = xlog_do_recovery_pass(log, head_blk, tail_blk,
+				      XLOG_RECOVER_PASS2, NULL);
+	if (!error)
+		xlog_check_buf_cancel_table(log);
+out_cancel:
+	xlog_free_buf_cancel_table(log);
+	return error;
+}
+
+/*
+ * Do the actual recovery
+ */
+STATIC int
+xlog_do_recover(
+	struct xlog		*log,
+	xfs_daddr_t		head_blk,
+	xfs_daddr_t		tail_blk)
+{
+	struct xfs_mount	*mp = log->l_mp;
+	struct xfs_buf		*bp = mp->m_sb_bp;
+	struct xfs_sb		*sbp = &mp->m_sb;
+	int			error;
+
+	trace_xfs_log_recover(log, head_blk, tail_blk);
+
+	/*
+	 * First replay the images in the log.
+	 */
+	error = xlog_do_log_recovery(log, head_blk, tail_blk);
+	if (error)
+		return error;
+
+	if (xlog_is_shutdown(log))
+		return -EIO;
+
+	/*
+	 * We now update the tail_lsn since much of the recovery has completed
+	 * and there may be space available to use.  If there were no extent
+	 * or iunlinks, we can free up the entire log and set the tail_lsn to
+	 * be the last_sync_lsn.  This was set in xlog_find_tail to be the
+	 * lsn of the last known good LR on disk.  If there are extent frees
+	 * or iunlinks they will have some entries in the AIL; so we look at
+	 * the AIL to determine how to set the tail_lsn.
+	 */
+	xlog_assign_tail_lsn(mp);
+
+	/*
+	 * Now that we've finished replaying all buffer and inode updates,
+	 * re-read the superblock and reverify it.
+	 */
+	xfs_buf_lock(bp);
+	xfs_buf_hold(bp);
+	error = _xfs_buf_read(bp, XBF_READ);
+	if (error) {
+		if (!xlog_is_shutdown(log)) {
+			xfs_buf_ioerror_alert(bp, __this_address);
+			ASSERT(0);
+		}
+		xfs_buf_relse(bp);
+		return error;
+	}
+
+	/* Convert superblock from on-disk format */
+	xfs_sb_from_disk(sbp, bp->b_addr);
+	xfs_buf_relse(bp);
+
+	/* re-initialise in-core superblock and geometry structures */
+	mp->m_features |= xfs_sb_version_to_features(sbp);
+	xfs_reinit_percpu_counters(mp); /* chandan: check this later */
+	error = xfs_initialize_perag(mp, sbp->sb_agcount, sbp->sb_dblocks,
+			&mp->m_maxagi);
+	if (error) {
+		xfs_warn(mp, "Failed post-recovery per-ag init: %d", error);
+		return error;
+	}
+	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
+
+	/* Normal transactions can now occur */
+	clear_bit(XLOG_ACTIVE_RECOVERY, &log->l_opstate);
+	return 0;
+}
+
+/*
  * Perform recovery and re-initialize some log variables in xlog_find_tail.
  *
  * Return error or zero.
@@ -2499,7 +3008,7 @@ xlog_recover(
 	 * LSN now that it's known.
 	 */
 	if (xfs_has_crc(log->l_mp) &&
-	    !xfs_log_check_lsn(log->l_mp, log->l_mp->m_sb.sb_lsn)) /* chandan: continue from here */
+	    !xfs_log_check_lsn(log->l_mp, log->l_mp->m_sb.sb_lsn))
 		return -EINVAL;
 
 	if (tail_blk != head_blk) {
@@ -2555,8 +3064,40 @@ xlog_recover(
 				log->l_mp->m_logname ? log->l_mp->m_logname
 						     : "internal");
 
-		error = xlog_do_recover(log, head_blk, tail_blk);
+		error = xlog_do_recover(log, head_blk, tail_blk); /* chandan: continue from here 0 */
 		set_bit(XLOG_RECOVERY_NEEDED, &log->l_opstate);
 	}
 	return error;
+}
+
+/*
+ * Release the recovered intent item in the AIL that matches the given intent
+ * type and intent id.
+ */
+void
+xlog_recover_release_intent(
+	struct xlog		*log,
+	unsigned short		intent_type,
+	uint64_t		intent_id)
+{
+	struct xfs_ail_cursor	cur;
+	struct xfs_log_item	*lip;
+	struct xfs_ail		*ailp = log->l_ailp;
+
+	spin_lock(&ailp->ail_lock);
+	for (lip = xfs_trans_ail_cursor_first(ailp, &cur, 0); lip != NULL;
+	     lip = xfs_trans_ail_cursor_next(ailp, &cur)) {
+		if (lip->li_type != intent_type)
+			continue;
+		if (!lip->li_ops->iop_match(lip, intent_id))
+			continue;
+
+		spin_unlock(&ailp->ail_lock);
+		lip->li_ops->iop_release(lip);
+		spin_lock(&ailp->ail_lock);
+		break;
+	}
+
+	xfs_trans_ail_cursor_done(&cur);
+	spin_unlock(&ailp->ail_lock);
 }

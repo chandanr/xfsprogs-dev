@@ -1,6 +1,67 @@
 #include "libxfs.h"
 #include "libxlog.h"
 #include "xfs_log_priv.h"
+
+/*
+ * Free a used ticket when its refcount falls to zero.
+ */
+void
+xfs_log_ticket_put(
+	xlog_ticket_t	*ticket)
+{
+	ASSERT(atomic_read(&ticket->t_ref) > 0);
+	if (atomic_dec_and_test(&ticket->t_ref))
+		kmem_cache_free(xfs_log_ticket_cache, ticket);
+}
+
+void
+xlog_cil_destroy(
+	struct xlog	*log)
+{
+	struct xfs_cil	*cil = log->l_cilp;
+
+	if (cil->xc_ctx) {
+		if (cil->xc_ctx->ticket)
+			xfs_log_ticket_put(cil->xc_ctx->ticket);
+		kmem_free(cil->xc_ctx);
+	}
+
+	ASSERT(test_bit(XLOG_CIL_EMPTY, &cil->xc_flags));
+	free_percpu(cil->xc_pcp);
+	destroy_workqueue(cil->xc_push_wq);
+	kmem_free(cil);
+}
+
+/*
+ * Deallocate a log structure
+ */
+STATIC void
+xlog_dealloc_log(
+	struct xlog	*log)
+{
+	xlog_in_core_t	*iclog, *next_iclog;
+	int		i;
+
+	/*
+	 * Destroy the CIL after waiting for iclog IO completion because an
+	 * iclog EIO error will try to shut down the log, which accesses the
+	 * CIL to wake up the waiters.
+	 */
+	xlog_cil_destroy(log);
+
+	iclog = log->l_iclog;
+	for (i = 0; i < log->l_iclog_bufs; i++) {
+		next_iclog = iclog->ic_next;
+		kmem_free(iclog->ic_data);
+		kmem_free(iclog);
+		iclog = next_iclog;
+	}
+
+	log->l_mp->m_log = NULL;
+	destroy_workqueue(log->l_ioend_workqueue);
+	kmem_free(log);
+}
+
 /*
  * Mount a log filesystem
  *
@@ -105,7 +166,7 @@ xfs_log_mount(
 	}
 
 	error = xfs_sysfs_init(&log->l_kobj, &xfs_log_ktype, &mp->m_kobj,
-			       "log");
+			       "log"); /* chandan: check this later */
 	if (error)
 		goto out_destroy_ail;
 
@@ -368,4 +429,448 @@ xlog_cksum(
 	crc = crc32c(crc, dp, size);
 
 	return xfs_end_cksum(crc);
+}
+
+/*
+ * Verify that an LSN stamped into a piece of metadata is valid. This is
+ * intended for use in read verifiers on v5 superblocks.
+ */
+bool
+xfs_log_check_lsn(
+	struct xfs_mount	*mp,
+	xfs_lsn_t		lsn)
+{
+	struct xlog		*log = mp->m_log;
+	bool			valid;
+
+	/*
+	 * norecovery mode skips mount-time log processing and unconditionally
+	 * resets the in-core LSN. We can't validate in this mode, but
+	 * modifications are not allowed anyways so just return true.
+	 */
+	if (xfs_has_norecovery(mp))
+		return true;
+
+	/*
+	 * Some metadata LSNs are initialized to NULL (e.g., the agfl). This is
+	 * handled by recovery and thus safe to ignore here.
+	 */
+	if (lsn == NULLCOMMITLSN)
+		return true;
+
+	valid = xlog_valid_lsn(mp->m_log, lsn);
+
+	/* warn the user about what's gone wrong before verifier failure */
+	if (!valid) {
+		spin_lock(&log->l_icloglock);
+		xfs_warn(mp,
+"Corruption warning: Metadata has LSN (%d:%d) ahead of current LSN (%d:%d). "
+"Please unmount and run xfs_repair (>= v4.3) to resolve.",
+			 CYCLE_LSN(lsn), BLOCK_LSN(lsn),
+			 log->l_curr_cycle, log->l_curr_block);
+		spin_unlock(&log->l_icloglock);
+	}
+
+	return valid;
+}
+
+xfs_lsn_t
+xlog_assign_tail_lsn_locked(
+	struct xfs_mount	*mp)
+{
+	struct xlog		*log = mp->m_log;
+	struct xfs_log_item	*lip;
+	xfs_lsn_t		tail_lsn;
+
+	assert_spin_locked(&mp->m_ail->ail_lock);
+
+	/*
+	 * To make sure we always have a valid LSN for the log tail we keep
+	 * track of the last LSN which was committed in log->l_last_sync_lsn,
+	 * and use that when the AIL was empty.
+	 */
+	lip = xfs_ail_min(mp->m_ail);
+	if (lip)
+		tail_lsn = lip->li_lsn;
+	else
+		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
+	trace_xfs_log_assign_tail_lsn(log, tail_lsn);
+	atomic64_set(&log->l_tail_lsn, tail_lsn);
+	return tail_lsn;
+}
+
+/*
+ * Return the space in the log between the tail and the head.  The head
+ * is passed in the cycle/bytes formal parms.  In the special case where
+ * the reserve head has wrapped passed the tail, this calculation is no
+ * longer valid.  In this case, just return 0 which means there is no space
+ * in the log.  This works for all places where this function is called
+ * with the reserve head.  Of course, if the write head were to ever
+ * wrap the tail, we should blow up.  Rather than catch this case here,
+ * we depend on other ASSERTions in other parts of the code.   XXXmiken
+ *
+ * If reservation head is behind the tail, we have a problem. Warn about it,
+ * but then treat it as if the log is empty.
+ *
+ * If the log is shut down, the head and tail may be invalid or out of whack, so
+ * shortcut invalidity asserts in this case so that we don't trigger them
+ * falsely.
+ */
+STATIC int
+xlog_space_left(
+	struct xlog	*log,
+	atomic64_t	*head)
+{
+	int		tail_bytes;
+	int		tail_cycle;
+	int		head_cycle;
+	int		head_bytes;
+
+	xlog_crack_grant_head(head, &head_cycle, &head_bytes);
+	xlog_crack_atomic_lsn(&log->l_tail_lsn, &tail_cycle, &tail_bytes);
+	tail_bytes = BBTOB(tail_bytes);
+	if (tail_cycle == head_cycle && head_bytes >= tail_bytes)
+		return log->l_logsize - (head_bytes - tail_bytes);
+	if (tail_cycle + 1 < head_cycle)
+		return 0;
+
+	/* Ignore potential inconsistency when shutdown. */
+	if (xlog_is_shutdown(log))
+		return log->l_logsize;
+
+	if (tail_cycle < head_cycle) {
+		ASSERT(tail_cycle == (head_cycle - 1));
+		return tail_bytes - head_bytes;
+	}
+
+	/*
+	 * The reservation head is behind the tail. In this case we just want to
+	 * return the size of the log as the amount of space left.
+	 */
+	xfs_alert(log->l_mp, "xlog_space_left: head behind tail");
+	xfs_alert(log->l_mp, "  tail_cycle = %d, tail_bytes = %d",
+		  tail_cycle, tail_bytes);
+	xfs_alert(log->l_mp, "  GH   cycle = %d, GH   bytes = %d",
+		  head_cycle, head_bytes);
+	ASSERT(0);
+	return log->l_logsize;
+}
+
+static inline int
+xlog_ticket_reservation(
+	struct xlog		*log,
+	struct xlog_grant_head	*head,
+	struct xlog_ticket	*tic)
+{
+	if (head == &log->l_write_head) {
+		ASSERT(tic->t_flags & XLOG_TIC_PERM_RESERV);
+		return tic->t_unit_res;
+	}
+
+	if (tic->t_flags & XLOG_TIC_PERM_RESERV)
+		return tic->t_unit_res * tic->t_cnt;
+
+	return tic->t_unit_res;
+}
+
+/*
+ * Compute the LSN that we'd need to push the log tail towards in order to have
+ * (a) enough on-disk log space to log the number of bytes specified, (b) at
+ * least 25% of the log space free, and (c) at least 256 blocks free.  If the
+ * log free space already meets all three thresholds, this function returns
+ * NULLCOMMITLSN.
+ */
+xfs_lsn_t
+xlog_grant_push_threshold(
+	struct xlog	*log,
+	int		need_bytes)
+{
+	xfs_lsn_t	threshold_lsn = 0;
+	xfs_lsn_t	last_sync_lsn;
+	int		free_blocks;
+	int		free_bytes;
+	int		threshold_block;
+	int		threshold_cycle;
+	int		free_threshold;
+
+	ASSERT(BTOBB(need_bytes) < log->l_logBBsize);
+
+	free_bytes = xlog_space_left(log, &log->l_reserve_head.grant);
+	free_blocks = BTOBBT(free_bytes);
+
+	/*
+	 * Set the threshold for the minimum number of free blocks in the
+	 * log to the maximum of what the caller needs, one quarter of the
+	 * log, and 256 blocks.
+	 */
+	free_threshold = BTOBB(need_bytes);
+	free_threshold = max(free_threshold, (log->l_logBBsize >> 2));
+	free_threshold = max(free_threshold, 256);
+	if (free_blocks >= free_threshold)
+		return NULLCOMMITLSN;
+
+	xlog_crack_atomic_lsn(&log->l_tail_lsn, &threshold_cycle,
+						&threshold_block);
+	threshold_block += free_threshold;
+	if (threshold_block >= log->l_logBBsize) {
+		threshold_block -= log->l_logBBsize;
+		threshold_cycle += 1;
+	}
+	threshold_lsn = xlog_assign_lsn(threshold_cycle,
+					threshold_block);
+	/*
+	 * Don't pass in an lsn greater than the lsn of the last
+	 * log record known to be on disk. Use a snapshot of the last sync lsn
+	 * so that it doesn't change between the compare and the set.
+	 */
+	last_sync_lsn = atomic64_read(&log->l_last_sync_lsn);
+	if (XFS_LSN_CMP(threshold_lsn, last_sync_lsn) > 0)
+		threshold_lsn = last_sync_lsn;
+
+	return threshold_lsn;
+}
+
+
+/*
+ * Push the tail of the log if we need to do so to maintain the free log space
+ * thresholds set out by xlog_grant_push_threshold.  We may need to adopt a
+ * policy which pushes on an lsn which is further along in the log once we
+ * reach the high water mark.  In this manner, we would be creating a low water
+ * mark.
+ */
+STATIC void
+xlog_grant_push_ail(
+	struct xlog	*log,
+	int		need_bytes)
+{
+	xfs_lsn_t	threshold_lsn;
+
+	threshold_lsn = xlog_grant_push_threshold(log, need_bytes);
+	if (threshold_lsn == NULLCOMMITLSN || xlog_is_shutdown(log))
+		return;
+
+	/*
+	 * Get the transaction layer to kick the dirty buffers out to
+	 * disk asynchronously. No point in trying to do this if
+	 * the filesystem is shutting down.
+	 */
+	xfs_ail_push(log->l_ailp, threshold_lsn);
+}
+
+STATIC bool
+xlog_grant_head_wake(
+	struct xlog		*log,
+	struct xlog_grant_head	*head,
+	int			*free_bytes)
+{
+	struct xlog_ticket	*tic;
+	int			need_bytes;
+	bool			woken_task = false;
+
+	list_for_each_entry(tic, &head->waiters, t_queue) {
+
+		/*
+		 * There is a chance that the size of the CIL checkpoints in
+		 * progress at the last AIL push target calculation resulted in
+		 * limiting the target to the log head (l_last_sync_lsn) at the
+		 * time. This may not reflect where the log head is now as the
+		 * CIL checkpoints may have completed.
+		 *
+		 * Hence when we are woken here, it may be that the head of the
+		 * log that has moved rather than the tail. As the tail didn't
+		 * move, there still won't be space available for the
+		 * reservation we require.  However, if the AIL has already
+		 * pushed to the target defined by the old log head location, we
+		 * will hang here waiting for something else to update the AIL
+		 * push target.
+		 *
+		 * Therefore, if there isn't space to wake the first waiter on
+		 * the grant head, we need to push the AIL again to ensure the
+		 * target reflects both the current log tail and log head
+		 * position before we wait for the tail to move again.
+		 */
+
+		need_bytes = xlog_ticket_reservation(log, head, tic);
+		if (*free_bytes < need_bytes) {
+			if (!woken_task)
+				xlog_grant_push_ail(log, need_bytes);
+			return false;
+		}
+
+		*free_bytes -= need_bytes;
+		trace_xfs_log_grant_wake_up(log, tic);
+		wake_up_process(tic->t_task);
+		woken_task = true;
+	}
+
+	return true;
+}
+
+/*
+ * Wake up processes waiting for log space after we have moved the log tail.
+ */
+void
+xfs_log_space_wake(
+	struct xfs_mount	*mp)
+{
+	struct xlog		*log = mp->m_log;
+	int			free_bytes;
+
+	if (xlog_is_shutdown(log))
+		return;
+
+	if (!list_empty_careful(&log->l_write_head.waiters)) {
+		ASSERT(!xlog_in_recovery(log));
+
+		spin_lock(&log->l_write_head.lock);
+		free_bytes = xlog_space_left(log, &log->l_write_head.grant);
+		xlog_grant_head_wake(log, &log->l_write_head, &free_bytes);
+		spin_unlock(&log->l_write_head.lock);
+	}
+
+	if (!list_empty_careful(&log->l_reserve_head.waiters)) {
+		ASSERT(!xlog_in_recovery(log));
+
+		spin_lock(&log->l_reserve_head.lock);
+		free_bytes = xlog_space_left(log, &log->l_reserve_head.grant);
+		xlog_grant_head_wake(log, &log->l_reserve_head, &free_bytes);
+		spin_unlock(&log->l_reserve_head.lock);
+	}
+}
+
+xfs_lsn_t
+xlog_assign_tail_lsn(
+	struct xfs_mount	*mp)
+{
+	xfs_lsn_t		tail_lsn;
+
+	spin_lock(&mp->m_ail->ail_lock);
+	tail_lsn = xlog_assign_tail_lsn_locked(mp);
+	spin_unlock(&mp->m_ail->ail_lock);
+
+	return tail_lsn;
+}
+
+/*
+ * Figure out the total log space unit (in bytes) that would be
+ * required for a log ticket.
+ */
+static int
+xlog_calc_unit_res(
+	struct xlog		*log,
+	int			unit_bytes,
+	int			*niclogs)
+{
+	int			iclog_space;
+	uint			num_headers;
+
+	/*
+	 * Permanent reservations have up to 'cnt'-1 active log operations
+	 * in the log.  A unit in this case is the amount of space for one
+	 * of these log operations.  Normal reservations have a cnt of 1
+	 * and their unit amount is the total amount of space required.
+	 *
+	 * The following lines of code account for non-transaction data
+	 * which occupy space in the on-disk log.
+	 *
+	 * Normal form of a transaction is:
+	 * <oph><trans-hdr><start-oph><reg1-oph><reg1><reg2-oph>...<commit-oph>
+	 * and then there are LR hdrs, split-recs and roundoff at end of syncs.
+	 *
+	 * We need to account for all the leadup data and trailer data
+	 * around the transaction data.
+	 * And then we need to account for the worst case in terms of using
+	 * more space.
+	 * The worst case will happen if:
+	 * - the placement of the transaction happens to be such that the
+	 *   roundoff is at its maximum
+	 * - the transaction data is synced before the commit record is synced
+	 *   i.e. <transaction-data><roundoff> | <commit-rec><roundoff>
+	 *   Therefore the commit record is in its own Log Record.
+	 *   This can happen as the commit record is called with its
+	 *   own region to xlog_write().
+	 *   This then means that in the worst case, roundoff can happen for
+	 *   the commit-rec as well.
+	 *   The commit-rec is smaller than padding in this scenario and so it is
+	 *   not added separately.
+	 */
+
+	/* for trans header */
+	unit_bytes += sizeof(xlog_op_header_t);
+	unit_bytes += sizeof(xfs_trans_header_t);
+
+	/* for start-rec */
+	unit_bytes += sizeof(xlog_op_header_t);
+
+	/*
+	 * for LR headers - the space for data in an iclog is the size minus
+	 * the space used for the headers. If we use the iclog size, then we
+	 * undercalculate the number of headers required.
+	 *
+	 * Furthermore - the addition of op headers for split-recs might
+	 * increase the space required enough to require more log and op
+	 * headers, so take that into account too.
+	 *
+	 * IMPORTANT: This reservation makes the assumption that if this
+	 * transaction is the first in an iclog and hence has the LR headers
+	 * accounted to it, then the remaining space in the iclog is
+	 * exclusively for this transaction.  i.e. if the transaction is larger
+	 * than the iclog, it will be the only thing in that iclog.
+	 * Fundamentally, this means we must pass the entire log vector to
+	 * xlog_write to guarantee this.
+	 */
+	iclog_space = log->l_iclog_size - log->l_iclog_hsize;
+	num_headers = howmany(unit_bytes, iclog_space);
+
+	/* for split-recs - ophdrs added when data split over LRs */
+	unit_bytes += sizeof(xlog_op_header_t) * num_headers;
+
+	/* add extra header reservations if we overrun */
+	while (!num_headers ||
+	       howmany(unit_bytes, iclog_space) > num_headers) {
+		unit_bytes += sizeof(xlog_op_header_t);
+		num_headers++;
+	}
+	unit_bytes += log->l_iclog_hsize * num_headers;
+
+	/* for commit-rec LR header - note: padding will subsume the ophdr */
+	unit_bytes += log->l_iclog_hsize;
+
+	/* roundoff padding for transaction data and one for commit record */
+	unit_bytes += 2 * log->l_iclog_roundoff;
+
+	if (niclogs)
+		*niclogs = num_headers;
+	return unit_bytes;
+}
+
+/*
+ * Allocate and initialise a new log ticket.
+ */
+struct xlog_ticket *
+xlog_ticket_alloc(
+	struct xlog		*log,
+	int			unit_bytes,
+	int			cnt,
+	bool			permanent)
+{
+	struct xlog_ticket	*tic;
+	int			unit_res;
+
+	tic = kmem_cache_zalloc(xfs_log_ticket_cache, GFP_NOFS | __GFP_NOFAIL);
+
+	unit_res = xlog_calc_unit_res(log, unit_bytes, &tic->t_iclog_hdrs);
+
+	atomic_set(&tic->t_ref, 1);
+	tic->t_task		= current;
+	INIT_LIST_HEAD(&tic->t_queue);
+	tic->t_unit_res		= unit_res;
+	tic->t_curr_res		= unit_res;
+	tic->t_cnt		= cnt;
+	tic->t_ocnt		= cnt;
+	tic->t_tid		= get_random_u32();
+	if (permanent)
+		tic->t_flags |= XLOG_TIC_PERM_RESERV;
+
+	return tic;
 }

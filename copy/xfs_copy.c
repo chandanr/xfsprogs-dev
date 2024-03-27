@@ -128,12 +128,6 @@ do_message(int flags, int code, const char *fmt, ...)
 			exit(1); \
 		} while (0)
 
-/* workaround craziness in the xlog routines */
-int xlog_recover_do_trans(struct xlog *log, struct xlog_recover *t, int p)
-{
-	return 0;
-}
-
 static void
 check_errors(void)
 {

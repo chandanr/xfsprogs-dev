@@ -83,7 +83,7 @@ xfs_recover_inode_owner_change(
 
 	ASSERT(in_f->ilf_fields & (XFS_ILOG_DOWNER|XFS_ILOG_AOWNER));
 
-	ip = xfs_inode_alloc(mp, in_f->ilf_ino);
+	ip = xfs_inode_alloc(mp, in_f->ilf_ino); /* chandan: decide about xfs_icache.[ch] later */
 	if (!ip)
 		return -ENOMEM;
 

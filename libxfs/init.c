@@ -771,6 +771,20 @@ libxfs_mount(
 	}
 	xfs_set_perag_data_loaded(mp);
 
+	/*
+	 * Log's mount-time initialization. The first part of recovery can place
+	 * some items on the AIL, to be handled when recovery is finished or
+	 * cancelled.
+	 */
+	error = xfs_log_mount(mp, mp->m_logdev_targp,
+			      XFS_FSB_TO_DADDR(mp, sbp->sb_logstart),
+			      XFS_FSB_TO_BB(mp, sbp->sb_logblocks));
+	if (error) {
+		fprintf(stderr, _("log mount failed\n"),
+			progname);
+		exit(1);
+	}
+
 	return mp;
 }
 

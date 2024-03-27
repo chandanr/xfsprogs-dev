@@ -21,16 +21,25 @@ struct xfs_item_ops {
 	int (*iop_precommit)(struct xfs_trans *tp, struct xfs_log_item *lip);
 };
 
-typedef struct xfs_log_item {
+struct xfs_log_item {
+	struct list_head		li_ail;		/* AIL pointers */
 	struct list_head		li_trans;	/* transaction list */
 	xfs_lsn_t			li_lsn;		/* last on-disk lsn */
-	struct xfs_mount		*li_mountp;	/* ptr to fs mount */
+	struct xlog			*li_log;
+	struct xfs_ail			*li_ailp;	/* ptr to AIL */
 	uint				li_type;	/* item type */
 	unsigned long			li_flags;	/* misc flags */
 	struct xfs_buf			*li_buf;	/* real buffer pointer */
 	struct list_head		li_bio_list;	/* buffer item list */
 	const struct xfs_item_ops	*li_ops;	/* function list */
-} xfs_log_item_t;
+
+	/* delayed logging */
+	struct list_head		li_cil;		/* CIL pointers */
+	struct xfs_log_vec		*li_lv;		/* active log vector */
+	struct xfs_log_vec		*li_lv_shadow;	/* standby vector */
+	xfs_csn_t			li_seq;		/* CIL commit seq */
+	uint32_t			li_order_id;	/* CIL commit order */
+};
 
 #define XFS_LI_DIRTY	3	/* log item dirty in transaction */
 

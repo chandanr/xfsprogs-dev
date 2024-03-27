@@ -6,6 +6,69 @@
 #ifndef	__XFS_LOG_RECOVER_H__
 #define __XFS_LOG_RECOVER_H__
 
+/* Sorting hat for log items as they're read in. */
+enum xlog_recover_reorder {
+	XLOG_REORDER_BUFFER_LIST,
+	XLOG_REORDER_ITEM_LIST,
+	XLOG_REORDER_INODE_BUFFER_LIST,
+	XLOG_REORDER_CANCEL_LIST,
+};
+
+struct xlog_recover_item_ops {
+	uint16_t	item_type;	/* XFS_LI_* type code. */
+
+	/*
+	 * Help sort recovered log items into the order required to replay them
+	 * correctly.  Log item types that always use XLOG_REORDER_ITEM_LIST do
+	 * not have to supply a function here.  See the comment preceding
+	 * xlog_recover_reorder_trans for more details about what the return
+	 * values mean.
+	 */
+	enum xlog_recover_reorder (*reorder)(struct xlog_recover_item *item);
+
+	/* Start readahead for pass2, if provided. */
+	void (*ra_pass2)(struct xlog *log, struct xlog_recover_item *item);
+
+	/* Do whatever work we need to do for pass1, if provided. */
+	int (*commit_pass1)(struct xlog *log, struct xlog_recover_item *item);
+
+	/*
+	 * This function should do whatever work is needed for pass2 of log
+	 * recovery, if provided.
+	 *
+	 * If the recovered item is an intent item, this function should parse
+	 * the recovered item to construct an in-core log intent item and
+	 * insert it into the AIL.  The in-core log intent item should have 1
+	 * refcount so that the item is freed either (a) when we commit the
+	 * recovered log item for the intent-done item; (b) replay the work and
+	 * log a new intent-done item; or (c) recovery fails and we have to
+	 * abort.
+	 *
+	 * If the recovered item is an intent-done item, this function should
+	 * parse the recovered item to find the id of the corresponding intent
+	 * log item.  Next, it should find the in-core log intent item in the
+	 * AIL and release it.
+	 */
+	int (*commit_pass2)(struct xlog *log, struct list_head *buffer_list,
+			    struct xlog_recover_item *item, xfs_lsn_t lsn);
+};
+
+extern const struct xlog_recover_item_ops xlog_icreate_item_ops;
+extern const struct xlog_recover_item_ops xlog_buf_item_ops;
+extern const struct xlog_recover_item_ops xlog_inode_item_ops;
+extern const struct xlog_recover_item_ops xlog_dquot_item_ops;
+extern const struct xlog_recover_item_ops xlog_quotaoff_item_ops;
+extern const struct xlog_recover_item_ops xlog_bui_item_ops;
+extern const struct xlog_recover_item_ops xlog_bud_item_ops;
+extern const struct xlog_recover_item_ops xlog_efi_item_ops;
+extern const struct xlog_recover_item_ops xlog_efd_item_ops;
+extern const struct xlog_recover_item_ops xlog_rui_item_ops;
+extern const struct xlog_recover_item_ops xlog_rud_item_ops;
+extern const struct xlog_recover_item_ops xlog_cui_item_ops;
+extern const struct xlog_recover_item_ops xlog_cud_item_ops;
+extern const struct xlog_recover_item_ops xlog_attri_item_ops;
+extern const struct xlog_recover_item_ops xlog_attrd_item_ops;
+
 /*
  * Macros, structures, prototypes for internal log manager use.
  */
@@ -24,10 +87,10 @@
  */
 struct xlog_recover_item {
 	struct list_head	ri_list;
-	int			ri_type;
 	int			ri_cnt;	/* count of regions found */
 	int			ri_total;	/* total regions */
-	xfs_log_iovec_t		*ri_buf;	/* ptr to regions buffer */
+	struct xfs_log_iovec	*ri_buf;	/* ptr to regions buffer */
+	const struct xlog_recover_item_ops *ri_ops;
 };
 
 struct xlog_recover {

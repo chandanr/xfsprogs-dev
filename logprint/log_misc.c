@@ -1535,34 +1535,3 @@ end:
     printf(_("%s: logical end of log\n"), progname);
     print_xlog_record_line();
 }
-
-/*
- * if necessary, convert an xfs_inode_log_format struct from the old 32bit version
- * (which can have different field alignments) to the native 64 bit version
- */
-struct xfs_inode_log_format *
-xfs_inode_item_format_convert(char *src_buf, uint len, struct xfs_inode_log_format *in_f)
-{
-	struct xfs_inode_log_format_32	*in_f32;
-
-	/* if we have native format then just return buf without copying data */
-	if (len == sizeof(struct xfs_inode_log_format)) {
-		return (struct xfs_inode_log_format *)src_buf;
-	}
-
-	in_f32 = (struct xfs_inode_log_format_32 *)src_buf;
-	in_f->ilf_type = in_f32->ilf_type;
-	in_f->ilf_size = in_f32->ilf_size;
-	in_f->ilf_fields = in_f32->ilf_fields;
-	in_f->ilf_asize = in_f32->ilf_asize;
-	in_f->ilf_dsize = in_f32->ilf_dsize;
-	in_f->ilf_ino = in_f32->ilf_ino;
-	/* copy biggest field of ilf_u */
-	memcpy(&in_f->ilf_u.__pad, &in_f32->ilf_u.__pad,
-					sizeof(in_f->ilf_u.__pad));
-	in_f->ilf_blkno = in_f32->ilf_blkno;
-	in_f->ilf_len = in_f32->ilf_len;
-	in_f->ilf_boffset = in_f32->ilf_boffset;
-
-	return in_f;
-}

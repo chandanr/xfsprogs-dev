@@ -355,3 +355,51 @@ out_destroy_cil:
 	return -ENOMEM;
 }
 
+/*
+ * Allocate a new ticket. Failing to get a new ticket makes it really hard to
+ * recover, so we don't allow failure here. Also, we allocate in a context that
+ * we don't want to be issuing transactions from, so we need to tell the
+ * allocation code this as well.
+ *
+ * We don't reserve any space for the ticket - we are going to steal whatever
+ * space we require from transactions as they commit. To ensure we reserve all
+ * the space required, we need to set the current reservation of the ticket to
+ * zero so that we know to steal the initial transaction overhead from the
+ * first transaction commit.
+ */
+static struct xlog_ticket *
+xlog_cil_ticket_alloc(
+	struct xlog	*log)
+{
+	struct xlog_ticket *tic;
+
+	tic = xlog_ticket_alloc(log, 0, 1, 0);
+
+	/*
+	 * set the current reservation to zero so we know to steal the basic
+	 * transaction overhead reservation from the first transaction commit.
+	 */
+	tic->t_curr_res = 0;
+	tic->t_iclog_hdrs = 0;
+	return tic;
+}
+
+/*
+ * After the first stage of log recovery is done, we know where the head and
+ * tail of the log are. We need this log initialisation done before we can
+ * initialise the first CIL checkpoint context.
+ *
+ * Here we allocate a log ticket to track space usage during a CIL push.  This
+ * ticket is passed to xlog_write() directly so that we don't slowly leak log
+ * space by failing to account for space used by log headers and additional
+ * region headers for split regions.
+ */
+void
+xlog_cil_init_post_recoveryo(
+	struct xlog	*log)
+{
+	log->l_cilp->xc_ctx->ticket = xlog_cil_ticket_alloc(log);
+	log->l_cilp->xc_ctx->sequence = 1;
+	xlog_cil_set_iclog_hdr_count(log->l_cilp);
+}
+
