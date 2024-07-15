@@ -3064,7 +3064,7 @@ xlog_recover(
 				log->l_mp->m_logname ? log->l_mp->m_logname
 						     : "internal");
 
-		error = xlog_do_recover(log, head_blk, tail_blk); /* chandan: continue from here 0 */
+		error = xlog_do_recover(log, head_blk, tail_blk);
 		set_bit(XLOG_RECOVERY_NEEDED, &log->l_opstate);
 	}
 	return error;
@@ -3100,4 +3100,165 @@ xlog_recover_release_intent(
 
 	xfs_trans_ail_cursor_done(&cur);
 	spin_unlock(&ailp->ail_lock);
+}
+
+/*
+ * When this is called, all of the log intent items which did not have
+ * corresponding log done items should be in the AIL.  What we do now is update
+ * the data structures associated with each one.
+ *
+ * Since we process the log intent items in normal transactions, they will be
+ * removed at some point after the commit.  This prevents us from just walking
+ * down the list processing each one.  We'll use a flag in the intent item to
+ * skip those that we've already processed and use the AIL iteration mechanism's
+ * generation count to try to speed this up at least a bit.
+ *
+ * When we start, we know that the intents are the only things in the AIL. As we
+ * process them, however, other items are added to the AIL. Hence we know we
+ * have started recovery on all the pending intents when we find an non-intent
+ * item in the AIL.
+ */
+STATIC int
+xlog_recover_process_intents(	/* chandan: continue from here */
+	struct xlog		*log)
+{
+	LIST_HEAD(capture_list);
+	struct xfs_ail_cursor	cur;
+	struct xfs_log_item	*lip;
+	struct xfs_ail		*ailp;
+	int			error = 0;
+#if defined(DEBUG) || defined(XFS_WARN)
+	xfs_lsn_t		last_lsn;
+#endif
+
+	ailp = log->l_ailp;
+	spin_lock(&ailp->ail_lock);
+#if defined(DEBUG) || defined(XFS_WARN)
+	last_lsn = xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block);
+#endif
+	for (lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
+	     lip != NULL;
+	     lip = xfs_trans_ail_cursor_next(ailp, &cur)) {
+		const struct xfs_item_ops	*ops; /* chandan: continue from here */
+
+		if (!xlog_item_is_intent(lip))
+			break;
+
+		/*
+		 * We should never see a redo item with a LSN higher than
+		 * the last transaction we found in the log at the start
+		 * of recovery.
+		 */
+		ASSERT(XFS_LSN_CMP(last_lsn, lip->li_lsn) >= 0);
+
+		/*
+		 * NOTE: If your intent processing routine can create more
+		 * deferred ops, you /must/ attach them to the capture list in
+		 * the recover routine or else those subsequent intents will be
+		 * replayed in the wrong order!
+		 *
+		 * The recovery function can free the log item, so we must not
+		 * access lip after it returns.
+		 */
+		spin_unlock(&ailp->ail_lock);
+		ops = lip->li_ops;
+		error = ops->iop_recover(lip, &capture_list);
+		spin_lock(&ailp->ail_lock);
+		if (error) {
+			trace_xlog_intent_recovery_failed(log->l_mp, error,
+					ops->iop_recover);
+			break;
+		}
+	}
+
+	xfs_trans_ail_cursor_done(&cur);
+	spin_unlock(&ailp->ail_lock);
+	if (error)
+		goto err;
+
+	error = xlog_finish_defer_ops(log->l_mp, &capture_list);
+	if (error)
+		goto err;
+
+	return 0;
+err:
+	xlog_abort_defer_ops(log->l_mp, &capture_list);
+	return error;
+}
+
+/*
+ * In the first part of recovery we replay inodes and buffers and build up the
+ * list of intents which need to be processed. Here we process the intents and
+ * clean up the on disk unlinked inode lists. This is separated from the first
+ * part of recovery so that the root and real-time bitmap inodes can be read in
+ * from disk in between the two stages.  This is necessary so that we can free
+ * space in the real-time portion of the file system.
+ */
+int
+xlog_recover_finish(
+	struct xlog	*log)
+{
+	int	error;
+
+	error = xlog_recover_process_intents(log);
+	if (error) {
+		/*
+		 * Cancel all the unprocessed intent items now so that we don't
+		 * leave them pinned in the AIL.  This can cause the AIL to
+		 * livelock on the pinned item if anyone tries to push the AIL
+		 * (inode reclaim does this) before we get around to
+		 * xfs_log_mount_cancel.
+		 */
+		xlog_recover_cancel_intents(log);
+		xfs_alert(log->l_mp, "Failed to recover intents");
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
+		return error;
+	}
+
+	/*
+	 * Sync the log to get all the intents out of the AIL.  This isn't
+	 * absolutely necessary, but it helps in case the unlink transactions
+	 * would have problems pushing the intents out of the way.
+	 */
+	xfs_log_force(log->l_mp, XFS_LOG_SYNC);
+
+	/*
+	 * Now that we've recovered the log and all the intents, we can clear
+	 * the log incompat feature bits in the superblock because there's no
+	 * longer anything to protect.  We rely on the AIL push to write out the
+	 * updated superblock after everything else.
+	 */
+	if (xfs_clear_incompat_log_features(log->l_mp)) {
+		error = xfs_sync_sb(log->l_mp, false);
+		if (error < 0) {
+			xfs_alert(log->l_mp,
+	"Failed to clear log incompat features on recovery");
+			return error;
+		}
+	}
+
+	xlog_recover_process_iunlinks(log);
+
+	/*
+	 * Recover any CoW staging blocks that are still referenced by the
+	 * ondisk refcount metadata.  During mount there cannot be any live
+	 * staging extents as we have not permitted any user modifications.
+	 * Therefore, it is safe to free them all right now, even on a
+	 * read-only mount.
+	 */
+	error = xfs_reflink_recover_cow(log->l_mp);
+	if (error) {
+		xfs_alert(log->l_mp,
+	"Failed to recover leftover CoW staging extents, err %d.",
+				error);
+		/*
+		 * If we get an error here, make sure the log is shut down
+		 * but return zero so that any log items committed since the
+		 * end of intents processing can be pushed through the CIL
+		 * and AIL.
+		 */
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
+	}
+
+	return 0;
 }

@@ -8,6 +8,7 @@
 #include "init.h"
 
 #include "libxfs_priv.h"
+#include "xfs/linux.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -614,21 +615,51 @@ xfs_set_low_space_thresholds(
 }
 
 /*
+ * Reserve free space for per-AG metadata.
+ */
+int
+xfs_fs_reserve_ag_blocks(
+	struct xfs_mount	*mp)
+{
+	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag;
+	int			error = 0;
+	int			err2;
+
+	mp->m_finobt_nores = false;
+	for_each_perag(mp, agno, pag) {
+		err2 = libxfs_ag_resv_init(pag, NULL);
+		if (err2 && !error)
+			error = err2;
+	}
+
+	if (error && error != -ENOSPC) {
+		xfs_warn(mp,
+	"Error %d reserving per-AG metadata reserve pool.", error);
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+	}
+
+	return error;
+}
+
+/*
  * Mount structure initialization, provides a filled-in xfs_mount_t
  * such that the numerous XFS_* macros can be used.  If dev is zero,
  * no IO will be performed (no size checks, read root inodes).
  */
 struct xfs_mount *
 libxfs_mount(
-	struct xfs_mount	*mp,
-	struct xfs_sb		*sb,
-	struct libxfs_init	*xi,
-	unsigned int		flags)
+	struct xfs_mount		*mp,
+	struct xfs_sb			*sb,
+	struct libxfs_init		*xi,
+	struct libxfs_validate_ops	*vops,
+	unsigned int			flags)
 {
-	struct xfs_buf		*bp;
-	struct xfs_sb		*sbp;
-	xfs_daddr_t		d;
-	int			error;
+	struct xfs_inode		*rip;
+	struct xfs_buf			*bp;
+	struct xfs_sb			*sbp;
+	xfs_daddr_t			d;
+	int				error;
 
 	mp->m_features = xfs_sb_version_to_features(sb);
 	if (flags & LIBXFS_MOUNT_DEBUGGER)
@@ -785,6 +816,39 @@ libxfs_mount(
 		exit(1);
 	}
 
+	if (vops && vops->validate_rootino) {
+		/*
+		 * Get and sanity-check the root inode.
+		 * Save the pointer to it in the mount structure.
+		 */
+		error = -libxfs_iget(mp, NULL, sbp->sb_rootino, XFS_IGET_UNTRUSTED,
+				XFS_ILOCK_EXCL, &rip);
+		if (error) {
+			fprintf(stderr, "Failed to read root inode 0x%llx, error %d",
+					sbp->sb_rootino, error);
+			exit(1);
+		}
+
+		mp->m_rootip = rip;
+
+		xfs_iunlock(rip, XFS_ILOCK_EXCL);
+	}
+
+	/* chandan: Read realtime inodes later */
+
+	/* chandan: Revoke "quota checked" license.  */
+
+	error = xfs_fs_reserve_ag_blocks(mp);
+	if (error && error == -ENOSPC)
+		xfs_warn(mp,
+	"ENOSPC reserving per-AG metadata pool, log recovery may fail.");
+
+	error = xfs_log_mount_finish(mp); /* chandan: continue from here */
+	xfs_fs_unreserve_ag_blocks(mp);
+	if (error) {
+		xfs_warn(mp, "log mount finish failed");
+		goto out_rtunmount;
+	}
 	return mp;
 }
 

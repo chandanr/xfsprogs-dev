@@ -230,6 +230,44 @@ xlog_get_iclog_buffer_size(
 }
 
 /*
+ * Every sync period we need to unpin all items in the AIL and push them to
+ * disk. If there is nothing dirty, then we might need to cover the log to
+ * indicate that the filesystem is idle.
+ */
+static void
+xfs_log_worker(
+	struct work_struct	*work)
+{
+	struct xlog		*log = container_of(to_delayed_work(work),
+						struct xlog, l_work);
+	struct xfs_mount	*mp = log->l_mp;
+
+	/* dgc: errors ignored - not fatal and nowhere to report them */
+	if (xfs_fs_writable(mp, SB_FREEZE_WRITE) && xfs_log_need_covered(mp)) {
+		/*
+		 * Dump a transaction into the log that contains no real change.
+		 * This is needed to stamp the current tail LSN into the log
+		 * during the covering operation.
+		 *
+		 * We cannot use an inode here for this - that will push dirty
+		 * state back up into the VFS and then periodic inode flushing
+		 * will prevent log covering from making progress. Hence we
+		 * synchronously log the superblock instead to ensure the
+		 * superblock is immediately unpinned and can be written back.
+		 */
+		xlog_clear_incompat(log);
+		xfs_sync_sb(mp, true);
+	} else
+		xfs_log_force(mp, 0);
+
+	/* start pushing all the metadata that is currently dirty */
+	xfs_ail_push_all(mp->m_ail);
+
+	/* queue us up again */
+	xfs_log_work_queue(mp);
+}
+
+/*
  * This routine initializes some of the log structure for a given mount point.
  * Its primary purpose is to fill in enough, so recovery can occur.  However,
  * some other stuff may be filled in too.
@@ -873,4 +911,90 @@ xlog_ticket_alloc(
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
 
 	return tic;
+}
+
+void
+xfs_log_work_queue(
+	struct xfs_mount        *mp)
+{
+	queue_delayed_work(mp->m_sync_workqueue, &mp->m_log->l_work,
+				msecs_to_jiffies(xfs_syncd_centisecs * 10));
+}
+
+/*
+ * Finish the recovery of the file system.  This is separate from the
+ * xfs_log_mount() call, because it depends on the code in xfs_mountfs() to read
+ * in the root and real-time bitmap inodes between calling xfs_log_mount() and
+ * here.
+ *
+ * If we finish recovery successfully, start the background log work. If we are
+ * not doing recovery, then we have a RO filesystem and we don't need to start
+ * it.
+ */
+int
+xfs_log_mount_finish(
+	struct xfs_mount	*mp)
+{
+	struct xlog		*log = mp->m_log;
+	int			error = 0;
+
+	if (xfs_has_norecovery(mp)) {
+		ASSERT(xfs_is_readonly(mp));
+		return 0;
+	}
+
+	/*
+	 * During the second phase of log recovery, we need iget and
+	 * iput to behave like they do for an active filesystem.
+	 * xfs_fs_drop_inode needs to be able to prevent the deletion
+	 * of inodes before we're done replaying log items on those
+	 * inodes.  Turn it off immediately after recovery finishes
+	 * so that we don't leak the quota inodes if subsequent mount
+	 * activities fail.
+	 *
+	 * We let all inodes involved in redo item processing end up on
+	 * the LRU instead of being evicted immediately so that if we do
+	 * something to an unlinked inode, the irele won't cause
+	 * premature truncation and freeing of the inode, which results
+	 * in log recovery failure.  We have to evict the unreferenced
+	 * lru inodes after clearing SB_ACTIVE because we don't
+	 * otherwise clean up the lru if there's a subsequent failure in
+	 * xfs_mountfs, which leads to us leaking the inodes if nothing
+	 * else (e.g. quotacheck) references the inodes before the
+	 * mount failure occurs.
+	 */
+	mp->m_super->s_flags |= SB_ACTIVE;
+	xfs_log_work_queue(mp);
+	if (xlog_recovery_needed(log))
+		error = xlog_recover_finish(log);
+	mp->m_super->s_flags &= ~SB_ACTIVE;
+	evict_inodes(mp->m_super);
+
+	/*
+	 * Drain the buffer LRU after log recovery. This is required for v4
+	 * filesystems to avoid leaving around buffers with NULL verifier ops,
+	 * but we do it unconditionally to make sure we're always in a clean
+	 * cache state after mount.
+	 *
+	 * Don't push in the error case because the AIL may have pending intents
+	 * that aren't removed until recovery is cancelled.
+	 */
+	if (xlog_recovery_needed(log)) {
+		if (!error) {
+			xfs_log_force(mp, XFS_LOG_SYNC);
+			xfs_ail_push_all_sync(mp->m_ail);
+		}
+		xfs_notice(mp, "Ending recovery (logdev: %s)",
+				mp->m_logname ? mp->m_logname : "internal");
+	} else {
+		xfs_info(mp, "Ending clean mount");
+	}
+	xfs_buftarg_drain(mp->m_ddev_targp);
+
+	clear_bit(XLOG_RECOVERY_NEEDED, &log->l_opstate);
+
+	/* Make sure the log is dead if we're returning failure. */
+	ASSERT(!error || xlog_is_shutdown(log));
+
+	return error;
 }

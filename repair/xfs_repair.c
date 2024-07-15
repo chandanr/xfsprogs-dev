@@ -594,6 +594,45 @@ fix:
 		do_warn(_("Would reset sb_width to %u\n"), new_sunit);
 }
 
+static void
+validate_sb_rootino(
+	struct xfs_mount	*mp)
+{
+	xfs_ino_t		rootino;
+
+	rootino = libxfs_ialloc_calc_rootino(mp, mp->m_sb.sb_unit);
+
+	/*
+	 * If the root inode isn't where we think it is, check its plausibility
+	 * as a root directory.  It's possible that somebody changed sunit
+	 * since the filesystem was created, which can change the value of the
+	 * above computation.  Don't blow up the root directory if this is the
+	 * case.
+	 */
+	if (mp->m_sb.sb_rootino != rootino && has_plausible_rootdir(mp)) {
+		do_warn(
+_("sb root inode value %" PRIu64 " valid but in unaligned location (expected %"PRIu64") possibly due to sunit change\n"),
+			mp->m_sb.sb_rootino, rootino);
+		guess_correct_sunit(mp);
+		rootino = mp->m_sb.sb_rootino;
+	}
+
+	validate_sb_ino(&mp->m_sb.sb_rootino, rootino,
+			_("root"));
+}
+
+static void
+validate_sb_rtinos(
+	struct xfs_mount	*mp)
+{
+	xfs_ino_t		rootino = mp->m_sb.sb_rootino;
+
+	validate_sb_ino(&mp->m_sb.sb_rbmino, rootino + 1,
+			_("realtime bitmap"));
+	validate_sb_ino(&mp->m_sb.sb_rsumino, rootino + 2,
+			_("realtime summary"));
+}
+
 /*
  * Make sure that the first 3 inodes in the filesystem are the root directory,
  * the realtime bitmap, and the realtime summary, in that order.
@@ -951,6 +990,22 @@ phase_end(int phase)
 		platform_crash();
 }
 
+STATIC int
+xfs_init_mount_workqueues(
+	struct xfs_mount	*mp)
+{
+	/*
+	 * chandan: TODO: replace call to alloc_workqueue() with
+	 * workqueue_create()
+	 */
+	mp->m_sync_workqueue = alloc_workqueue("xfs-sync/%s",
+			XFS_WQFLAGS(WQ_FREEZABLE), 0, mp->m_super->s_id);
+	if (!mp->m_sync_workqueue)
+		return -ENOMEM;
+
+	return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -958,6 +1013,7 @@ main(int argc, char **argv)
 	xfs_mount_t	*mp;
 	struct xfs_buf	*sbp;
 	xfs_mount_t	xfs_m;
+	struct libxfs_validate_ops vops;
 	struct xlog	log = {0};
 	char		*msgbuf;
 	struct xfs_sb	psb;
@@ -1030,8 +1086,13 @@ main(int argc, char **argv)
 	 * copy so it's available to the various phases. The log bits are
 	 * initialized in phase 2.
 	 */
+	vops.validate_rootino = validate_sb_rootino;
+	vops.validate_rtinos = validate_sb_rtinos;
 	memset(&xfs_m, 0, sizeof(xfs_mount_t));
-	mp = libxfs_mount(&xfs_m, &psb, &x, 0);
+
+	/* chandan: Invoke xfs_init_mount_workqueues() here */
+
+	mp = libxfs_mount(&xfs_m, &psb, &x, &vops, 0);
 
 	if (!mp)  {
 		fprintf(stderr,

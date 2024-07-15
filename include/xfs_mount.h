@@ -131,6 +131,8 @@ typedef struct xfs_mount {
 	atomic64_t		m_allocbt_blks;
 	spinlock_t		m_perag_lock;	/* lock for m_perag_tree */
 
+	struct workqueue_struct	*m_sync_workqueue;
+
 } xfs_mount_t;
 
 #define M_IGEO(mp)		(&(mp)->m_ino_geo)
@@ -296,9 +298,15 @@ __XFS_UNSUPP_OPSTATE(shutdown)
 
 #define LIBXFS_BHASHSIZE(sbp) 		(1<<10)
 
+struct libxfs_validate_ops {
+	void (*validate_rootino)(struct xfs_mount *mp);
+	void (*validate_rtinos)(struct xfs_mount *mp);
+};
+
 void libxfs_compute_all_maxlevels(struct xfs_mount *mp);
 struct xfs_mount *libxfs_mount(struct xfs_mount *mp, struct xfs_sb *sb,
-		struct libxfs_init *xi, unsigned int flags);
+		struct libxfs_init *xi, struct libxfs_validate_ops *vops,
+		unsigned int flags);
 int libxfs_flush_mount(struct xfs_mount *mp);
 int		libxfs_umount(struct xfs_mount *mp);
 extern void	libxfs_rtmount_destroy (xfs_mount_t *);
