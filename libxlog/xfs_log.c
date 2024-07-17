@@ -13,11 +13,11 @@
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_trans.h"
-#include "xfs_trans_priv.h"
 #include "xfs_log.h"
-#include "xfs_log_priv.h"
 #include "xfs_trace.h"
+#ifdef __KERNEL__
 #include "xfs_sysfs.h"
+#endif
 #include "xfs_sb.h"
 #include "xfs_health.h"
 
@@ -724,10 +724,12 @@ xfs_log_mount(
 		}
 	}
 
+#ifdef __KERNEL__
 	error = xfs_sysfs_init(&log->l_kobj, &xfs_log_ktype, &mp->m_kobj,
 			       "log");
 	if (error)
 		goto out_destroy_ail;
+#endif /* __KERNEL__ */
 
 	/* Normal transactions can now occur */
 	clear_bit(XLOG_ACTIVE_RECOVERY, &log->l_opstate);
@@ -1108,7 +1110,9 @@ xfs_log_unmount(
 
 	xfs_trans_ail_destroy(mp);
 
+#ifdef __KERNEL__
 	xfs_sysfs_del(&mp->m_log->l_kobj);
+#endif
 
 	xlog_dealloc_log(mp->m_log);
 }
@@ -1597,7 +1601,7 @@ xlog_alloc_log(
 	 * rather funky due to the way the structure is defined.  It is
 	 * done this way so that we can use different sizes for machines
 	 * with different amounts of memory.  See the definition of
-	 * xlog_in_core_t in xfs_log_priv.h for details.
+	 * xlog_in_core_t in xfs_log.h for details.
 	 */
 	ASSERT(log->l_iclog_size >= 4096);
 	for (i = 0; i < log->l_iclog_bufs; i++) {

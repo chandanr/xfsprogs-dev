@@ -12,9 +12,7 @@
 #include "xfs_mount.h"
 #include "xfs_extent_busy.h"
 #include "xfs_trans.h"
-#include "xfs_trans_priv.h"
 #include "xfs_log.h"
-#include "xfs_log_priv.h"
 #include "xfs_trace.h"
 #include "xfs_discard.h"
 

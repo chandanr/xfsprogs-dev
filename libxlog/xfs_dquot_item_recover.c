@@ -14,10 +14,9 @@
 #include "xfs_quota.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
-#include "xfs_trans_priv.h"
-#include "xfs_qm.h"
+#include "xfs_dquot_item.h"
+#include "xfs_dquot.h"
 #include "xfs_log.h"
-#include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
 
 STATIC void

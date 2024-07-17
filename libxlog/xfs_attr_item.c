@@ -14,7 +14,6 @@
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_trans_priv.h"
 #include "xfs_log.h"
 #include "xfs_inode.h"
 #include "xfs_da_format.h"
@@ -25,7 +24,6 @@
 #include "xfs_trans_space.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
-#include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
 
 struct kmem_cache		*xfs_attri_cache;

@@ -12,12 +12,10 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_trans.h"
-#include "xfs_trans_priv.h"
 #include "xfs_trace.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_log.h"
-#include "xfs_log_priv.h"
 
 #ifdef DEBUG
 /*
