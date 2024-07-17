@@ -29,7 +29,8 @@ radix-tree.c \
 randbytes.c \
 scrub.c \
 util.c \
-workqueue.c
+workqueue.c \
+delayed-work.c
 
 HFILES = \
 avl64.h \
