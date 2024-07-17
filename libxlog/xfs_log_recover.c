@@ -3119,7 +3119,7 @@ xlog_recover_release_intent(
  * item in the AIL.
  */
 STATIC int
-xlog_recover_process_intents(	/* chandan: continue from here */
+xlog_recover_process_intents(
 	struct xlog		*log)
 {
 	LIST_HEAD(capture_list);
@@ -3220,7 +3220,7 @@ xlog_recover_finish(
 	 * absolutely necessary, but it helps in case the unlink transactions
 	 * would have problems pushing the intents out of the way.
 	 */
-	xfs_log_force(log->l_mp, XFS_LOG_SYNC);
+	xfs_log_force(log->l_mp, XFS_LOG_SYNC); /* chandan: continue recovery from here */
 
 	/*
 	 * Now that we've recovered the log and all the intents, we can clear
@@ -3261,4 +3261,96 @@ xlog_recover_finish(
 	}
 
 	return 0;
+}
+
+/* Take all the collected deferred ops and finish them in order. */
+static int
+xlog_finish_defer_ops(
+	struct xfs_mount	*mp,
+	struct list_head	*capture_list)
+{
+	struct xfs_defer_capture *dfc, *next;
+	struct xfs_trans	*tp;
+	int			error = 0;
+
+	list_for_each_entry_safe(dfc, next, capture_list, dfc_list) {
+		struct xfs_trans_res	resv;
+		struct xfs_defer_resources dres;
+
+		/*
+		 * Create a new transaction reservation from the captured
+		 * information.  Set logcount to 1 to force the new transaction
+		 * to regrant every roll so that we can make forward progress
+		 * in recovery no matter how full the log might be.
+		 */
+		resv.tr_logres = dfc->dfc_logres;
+		resv.tr_logcount = 1;
+		resv.tr_logflags = XFS_TRANS_PERM_LOG_RES;
+
+		error = xfs_trans_alloc(mp, &resv, dfc->dfc_blkres,
+				dfc->dfc_rtxres, XFS_TRANS_RESERVE, &tp);
+		if (error) {
+			xlog_force_shutdown(mp->m_log, SHUTDOWN_LOG_IO_ERROR);
+			return error;
+		}
+
+		/*
+		 * Transfer to this new transaction all the dfops we captured
+		 * from recovering a single intent item.
+		 */
+		list_del_init(&dfc->dfc_list);
+		xfs_defer_ops_continue(dfc, tp, &dres);
+		error = xfs_trans_commit(tp);
+		xfs_defer_resources_rele(&dres);
+		if (error)
+			return error;
+	}
+
+	ASSERT(list_empty(capture_list));
+	return 0;
+}
+
+/* Release all the captured defer ops and capture structures in this list. */
+static void
+xlog_abort_defer_ops(
+	struct xfs_mount		*mp,
+	struct list_head		*capture_list)
+{
+	struct xfs_defer_capture	*dfc;
+	struct xfs_defer_capture	*next;
+
+	list_for_each_entry_safe(dfc, next, capture_list, dfc_list) {
+		list_del_init(&dfc->dfc_list);
+		xfs_defer_ops_capture_free(mp, dfc);
+	}
+}
+
+/*
+ * A cancel occurs when the mount has failed and we're bailing out.  Release all
+ * pending log intent items that we haven't started recovery on so they don't
+ * pin the AIL.
+ */
+STATIC void
+xlog_recover_cancel_intents(
+	struct xlog		*log)
+{
+	struct xfs_log_item	*lip;
+	struct xfs_ail_cursor	cur;
+	struct xfs_ail		*ailp;
+
+	ailp = log->l_ailp;
+	spin_lock(&ailp->ail_lock);
+	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
+	while (lip != NULL) {
+		if (!xlog_item_is_intent(lip))
+			break;
+
+		spin_unlock(&ailp->ail_lock);
+		lip->li_ops->iop_release(lip);
+		spin_lock(&ailp->ail_lock);
+		lip = xfs_trans_ail_cursor_next(ailp, &cur);
+	}
+
+	xfs_trans_ail_cursor_done(&cur);
+	spin_unlock(&ailp->ail_lock);
 }
