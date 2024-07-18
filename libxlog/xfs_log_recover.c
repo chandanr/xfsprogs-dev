@@ -21,7 +21,6 @@
 #include "xfs_ialloc.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
-#include "xfs_error.h"
 #include "xfs_buf_item.h"
 #include "xfs_ag.h"
 #include "xfs_quota.h"

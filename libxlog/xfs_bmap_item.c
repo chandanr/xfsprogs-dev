@@ -19,7 +19,6 @@
 #include "xfs_bmap.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_trans_space.h"
-#include "xfs_error.h"
 #include "xfs_log_recover.h"
 #include "xfs_ag.h"
 

@@ -16,7 +16,6 @@
 #include "xfs_rmap_item.h"
 #include "xfs_log.h"
 #include "xfs_rmap.h"
-#include "xfs_error.h"
 #include "xfs_log_recover.h"
 #include "xfs_ag.h"
 

@@ -15,7 +15,6 @@
 #include "xfs_ag.h"
 #include "xfs_iunlink_item.h"
 #include "xfs_trace.h"
-#include "xfs_error.h"
 
 struct kmem_cache	*xfs_iunlink_cache;
 
