@@ -1074,6 +1074,29 @@ xfs_verify_magic16(
 struct kmem_cache		*xfs_inode_cache;
 extern struct kmem_cache	*xfs_ili_cache;
 
+/*
+ * Allocate and initialise an xfs_inode.
+ */
+struct xfs_inode *
+libxfs_inode_alloc(
+	struct xfs_mount	*mp,
+	xfs_ino_t		ino)
+{
+	struct xfs_inode	*ip;
+
+	ip = kmem_cache_zalloc(xfs_inode_cache, 0);
+	if (!ip)
+		return NULL;
+
+	VFS_I(ip)->i_count = 1;
+	ip->i_ino = ino;
+	ip->i_mount = mp;
+	ip->i_af.if_format = XFS_DINODE_FMT_EXTENTS;
+	spin_lock_init(&VFS_I(ip)->i_lock);
+
+	return ip;
+}
+
 int
 libxfs_iget(
 	struct xfs_mount	*mp,
@@ -1091,15 +1114,9 @@ libxfs_iget(
 	if (!ino || XFS_INO_TO_AGNO(mp, ino) >= mp->m_sb.sb_agcount)
 		return -EINVAL;
 
-	ip = kmem_cache_zalloc(xfs_inode_cache, 0);
+	ip = libxfs_inode_alloc(mp, ino);
 	if (!ip)
 		return -ENOMEM;
-
-	VFS_I(ip)->i_count = 1;
-	ip->i_ino = ino;
-	ip->i_mount = mp;
-	ip->i_af.if_format = XFS_DINODE_FMT_EXTENTS;
-	spin_lock_init(&VFS_I(ip)->i_lock);
 
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
 	error = xfs_imap(pag, tp, ip->i_ino, &ip->i_imap, 0);
