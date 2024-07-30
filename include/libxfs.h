@@ -80,6 +80,19 @@ struct iomap;
 #include "xfs_refcount.h"
 #include "xfs_btree_staging.h"
 
+typedef __u8	u8;
+typedef __u16	u16;
+typedef __u32	u32;
+typedef __u32 u64;
+
+typedef struct {
+	uid_t val;
+} kuid_t;
+
+typedef struct {
+	gid_t val;
+} kgid_t;
+
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
