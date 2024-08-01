@@ -6,6 +6,7 @@
 #ifndef	__XFS_LOG_H__
 #define __XFS_LOG_H__
 
+#include "semaphore_unnamed.h"
 #include "xfs_extent_busy.h"	/* for struct xfs_busy_extents */
 
 /*
@@ -178,6 +179,7 @@ typedef struct xlog_ticket {
  * We'll put all the read-only and l_icloglock fields in the first cacheline,
  * and move everything else out to subsequent cachelines.
  */
+#define ____cacheline_aligned_in_smp
 typedef struct xlog_in_core {
 	wait_queue_head_t	ic_force_wait;
 	wait_queue_head_t	ic_write_wait;
@@ -261,6 +263,7 @@ struct xlog_cil_pcp {
  * the commit LSN to be determined as well. This should make synchronous
  * operations almost as efficient as the old logging methods.
  */
+#define __percpu
 struct xfs_cil {
 	struct xlog		*xc_log;
 	unsigned long		xc_flags;
