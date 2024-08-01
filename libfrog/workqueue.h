@@ -20,6 +20,15 @@ struct workqueue_item {
 	uint32_t		index;
 };
 
+struct work_struct {
+	struct workqueue_item wq_item;
+};
+
+#define INIT_WORK(work, func)                                                  \
+	do {								       \
+	  (work)->wq_item.function = func;				       \
+	} while(0)
+
 struct workqueue {
 	void			*wq_ctx;
 	pthread_t		*threads;
@@ -35,6 +44,7 @@ struct workqueue {
 	int			max_queued;
 	pthread_cond_t		queue_full;
 };
+
 
 int workqueue_create(struct workqueue *wq, void *wq_ctx,
 		unsigned int nr_workers);

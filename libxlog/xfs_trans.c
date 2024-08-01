@@ -5,6 +5,8 @@
  * All Rights Reserved.
  */
 #include "libxfs.h"
+#include "libfrog/workqueue.h"
+
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
