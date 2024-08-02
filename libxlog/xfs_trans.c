@@ -6,6 +6,7 @@
  */
 #include "libxfs.h"
 #include "libfrog/workqueue.h"
+#include "libfrog/delayed-work.h"
 
 #include "xfs_shared.h"
 #include "xfs_format.h"
