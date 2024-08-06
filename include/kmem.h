@@ -27,6 +27,9 @@ typedef unsigned int __bitwise gfp_t;
 #define __GFP_NOLOCKDEP	((__force gfp_t)0)
 
 #define __GFP_ZERO	(__force gfp_t)1
+#define __GFP_DIRECT_RECLAIM ((__force gfp_t)0)
+#define __GFP_NOWARN ((__force gfp_t)0)
+#define __GFP_NORETRY ((__force gfp_t)0)
 
 struct kmem_cache * kmem_cache_create(const char *name, unsigned int size,
 		unsigned int align, unsigned int slab_flags,
