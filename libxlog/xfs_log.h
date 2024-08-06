@@ -6,6 +6,7 @@
 #ifndef	__XFS_LOG_H__
 #define __XFS_LOG_H__
 
+#include "libfrog/bio.h"
 #include "ksemaphore.h"
 #include "xfs_extent_busy.h"	/* for struct xfs_busy_extents */
 
