@@ -619,7 +619,7 @@ xlog_copy_from_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
 static inline void
 xlog_wait(
 	struct wait_queue_head	*wq,
-	struct spinlock		*lock)
+	spinlock_t		*lock)
 		__releases(lock)
 {
 	DECLARE_WAITQUEUE(wait, current);

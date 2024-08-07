@@ -15,6 +15,9 @@
  * Hence we know it works.
  */
 
+#define __releases(x)
+#define __acquires(x)
+
 typedef pthread_mutex_t	spinlock_t;
 
 #define spin_lock_init(l)	pthread_mutex_init(l, NULL)

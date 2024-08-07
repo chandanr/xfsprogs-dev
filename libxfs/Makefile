@@ -57,7 +57,6 @@ HFILES = \
 	xfs_dir2_priv.h
 
 CFILES = cache.c \
-	defer_item.c \
 	init.c \
 	kmem.c \
 	logitem.c \
