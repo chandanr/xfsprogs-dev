@@ -353,16 +353,6 @@ xfs_buf_incore(
 void __xfs_buf_mark_corrupt(struct xfs_buf *bp, xfs_failaddr_t fa);
 #define xfs_buf_mark_corrupt(bp) __xfs_buf_mark_corrupt((bp), __this_address)
 
-/* mount stuff */
-#define xfs_trans_set_sync(tp)		((void) 0)
-#define xfs_trans_buf_set_type(tp, bp, t)	({	\
-	int __t = (t);					\
-	__t = __t; /* no set-but-unused warning */	\
-	tp = tp;  /* no set-but-unused warning */	\
-})
-
-#define xfs_trans_buf_copy_type(dbp, sbp)
-
 /* no readahead, need to avoid set-but-unused var warnings. */
 #define xfs_buf_readahead(a,d,c,ops)		({	\
 	xfs_daddr_t __d = d;				\
