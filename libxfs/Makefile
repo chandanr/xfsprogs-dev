@@ -45,7 +45,7 @@ HFILES = \
 	xfs_ialloc_btree.h \
 	xfs_inode_buf.h \
 	xfs_inode_fork.h \
-	xfs_quota_defs.h \
+	xfs_quota.h \
 	xfs_refcount.h \
 	xfs_refcount_btree.h \
 	xfs_rmap.h \
