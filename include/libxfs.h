@@ -29,7 +29,6 @@
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
-#include "xfs_quota_defs.h"
 #include "xfs_trans_resv.h"
 
 
