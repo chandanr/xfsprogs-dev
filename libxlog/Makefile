@@ -33,7 +33,8 @@ xfs_log_recover.c \
 xfs_refcount_item.c \
 xfs_rmap_item.c
 
-HFILE = \
+HFILES = \
+xfs_trans_quota.h \
 xfs_attr_item.h \
 xfs_bmap_item.h \
 xfs_buf_item.h \
