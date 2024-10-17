@@ -3,6 +3,7 @@
  * Copyright (c) 2008-2010, 2013 Dave Chinner
  * All Rights Reserved.
  */
+#include "libxlog_priv.h"
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"

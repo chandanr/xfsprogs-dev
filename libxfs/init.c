@@ -8,6 +8,7 @@
 #include "init.h"
 
 #include "libxfs_priv.h"
+#include "libxlog_priv.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"

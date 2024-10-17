@@ -3,6 +3,7 @@
  * Copyright (c) 2020-2022, Red Hat, Inc.
  * All Rights Reserved.
  */
+#include "libxlog_priv.h"
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
