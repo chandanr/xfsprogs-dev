@@ -4,6 +4,7 @@
  * Copyright (C) 2010 Red Hat, Inc.
  * All Rights Reserved.
  */
+#include "libxlog_priv.h"
 #include "libxfs.h"
 #include "kmem.h"
 #include "libfrog/workqueue.h"

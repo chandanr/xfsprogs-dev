@@ -34,6 +34,7 @@ xfs_refcount_item.c \
 xfs_rmap_item.c
 
 HFILES = \
+libxlog_priv.h \
 xfs_trans_quota.h \
 xfs_attr_item.h \
 xfs_bmap_item.h \
