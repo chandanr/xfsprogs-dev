@@ -154,6 +154,7 @@ int libxfs_buf_read_map(struct xfs_buftarg *btp, struct xfs_buf_map *maps,
 void libxfs_buf_mark_dirty(struct xfs_buf *bp);
 int libxfs_buf_get_map(struct xfs_buftarg *btp, struct xfs_buf_map *maps,
 			int nmaps, int flags, struct xfs_buf **bpp);
+void libxfs_buf_rele(struct xfs_buf *bp);
 void	libxfs_buf_relse(struct xfs_buf *bp);
 
 static inline int

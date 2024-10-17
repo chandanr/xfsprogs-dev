@@ -531,6 +531,17 @@ libxfs_buf_get_map(
 	return 0;
 }
 
+void libxfs_buf_rele(struct xfs_buf *bp)
+{
+	if (!list_empty(&bp->b_node.cn_hash))
+		cache_node_put(libxfs_bcache, &bp->b_node);
+	else if (--bp->b_node.cn_count == 0) {
+		if (bp->b_flags & LIBXFS_B_DIRTY)
+			libxfs_bwrite(bp);
+		libxfs_brelse(&bp->b_node);
+	}
+}
+
 void
 libxfs_buf_relse(
 	struct xfs_buf	*bp)
@@ -549,13 +560,7 @@ libxfs_buf_relse(
 		}
 	}
 
-	if (!list_empty(&bp->b_node.cn_hash))
-		cache_node_put(libxfs_bcache, &bp->b_node);
-	else if (--bp->b_node.cn_count == 0) {
-		if (bp->b_flags & LIBXFS_B_DIRTY)
-			libxfs_bwrite(bp);
-		libxfs_brelse(&bp->b_node);
-	}
+	libxfs_buf_rele(bp);
 }
 
 static struct cache_node *
