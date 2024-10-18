@@ -42,4 +42,12 @@ static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
 	return 0;
 }
 
+static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
+{
+	if (!test_bit(nr, addr))
+		return 0;
+	clear_bit(nr, addr);
+	return 1;
+}
+
 #endif /* __LIBFROG_BITMASK_H_ */
