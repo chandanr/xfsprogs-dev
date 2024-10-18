@@ -59,7 +59,6 @@ HFILES = \
 CFILES = cache.c \
 	init.c \
 	kmem.c \
-	logitem.c \
 	rdwr.c \
 	topology.c \
 	util.c \
