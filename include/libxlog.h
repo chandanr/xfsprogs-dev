@@ -11,14 +11,15 @@
 
 #include "xfs_trans.h"
 
+#include "xfs_inode_item.h"
+#include "xfs_buf_item.h"
+
 /*
  * #include "xfs_attr_item.h"
  * #include "xfs_bmap_item.h"
- * #include "xfs_buf_item.h"
  * #include "xfs_dquot_item.h"
  * #include "xfs_extfree_item.h"
  * #include "xfs_icreate_item.h"
- * #include "xfs_inode_item.h"
  * #include "xfs_iunlink_item.h"
  * #include "xfs_refcount_item.h"
  * #include "xfs_rmap_item.h"
