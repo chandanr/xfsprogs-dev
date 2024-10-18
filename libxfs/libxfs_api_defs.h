@@ -185,36 +185,14 @@
 #define xfs_sb_version_to_features	libxfs_sb_version_to_features
 #define xfs_symlink_blocks		libxfs_symlink_blocks
 #define xfs_symlink_hdr_ok		libxfs_symlink_hdr_ok
-
-#define xfs_trans_add_item		libxfs_trans_add_item
-#define xfs_trans_alloc_empty		libxfs_trans_alloc_empty
-#define xfs_trans_alloc			libxfs_trans_alloc
-#define xfs_trans_alloc_inode		libxfs_trans_alloc_inode
-#define xfs_trans_bhold			libxfs_trans_bhold
-#define xfs_trans_bhold_release		libxfs_trans_bhold_release
-#define xfs_trans_binval		libxfs_trans_binval
-#define xfs_trans_bjoin			libxfs_trans_bjoin
-#define xfs_trans_brelse		libxfs_trans_brelse
-#define xfs_trans_cancel		libxfs_trans_cancel
-#define xfs_trans_commit		libxfs_trans_commit
 #define xfs_trans_del_item		libxfs_trans_del_item
-#define xfs_trans_dirty_buf		libxfs_trans_dirty_buf
 #define xfs_trans_get_buf		libxfs_trans_get_buf
-#define xfs_trans_get_buf_map		libxfs_trans_get_buf_map
-#define xfs_trans_getsb			libxfs_trans_getsb
 #define xfs_trans_ichgtime		libxfs_trans_ichgtime
 #define xfs_trans_ijoin			libxfs_trans_ijoin
-#define xfs_trans_init			libxfs_trans_init
-#define xfs_trans_inode_alloc_buf	libxfs_trans_inode_alloc_buf
-#define xfs_trans_log_buf		libxfs_trans_log_buf
 #define xfs_trans_log_inode		libxfs_trans_log_inode
-#define xfs_trans_mod_sb		libxfs_trans_mod_sb
-#define xfs_trans_ordered_buf		libxfs_trans_ordered_buf
 #define xfs_trans_read_buf		libxfs_trans_read_buf
-#define xfs_trans_read_buf_map		libxfs_trans_read_buf_map
 #define xfs_trans_resv_calc		libxfs_trans_resv_calc
 #define xfs_trans_roll_inode		libxfs_trans_roll_inode
-#define xfs_trans_roll			libxfs_trans_roll
 #define xfs_trim_extent			libxfs_trim_extent
 
 #define xfs_update_secondary_sbs	libxfs_update_secondary_sbs

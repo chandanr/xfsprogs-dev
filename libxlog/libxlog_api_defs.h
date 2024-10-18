@@ -1,0 +1,31 @@
+#ifndef __LIBXLOG_API_DEFS_H__
+#define __LIBXLOG_API_DEFS_H__
+
+#define xfs_trans_init libxlog_trans_init
+#define xfs_trans_add_item libxlog_trans_add_item
+#define xfs_trans_roll libxlog_trans_roll
+#define xfs_trans_free libxlog_trans_free
+#define xfs_trans_dup libxlog_trans_dup
+#define xfs_trans_reserve libxlog_trans_reserve
+#define xfs_trans_alloc libxlog_trans_alloc
+#define xfs_trans_alloc_empty libxlog_trans_alloc_empty
+#define xfs_trans_alloc_rollable libxlog_trans_alloc_rollable
+#define xfs_trans_cancel libxlog_trans_cancel
+#define xfs_buf_item_put libxlog_buf_item_put
+#define xfs_trans_bjoin libxlog_trans_bjoin
+#define xfs_trans_bhold_release libxlog_trans_bhold_release
+#define xfs_trans_get_buf_map libxlog_trans_get_buf_map
+#define xfs_trans_getsb libxlog_trans_getsb
+#define xfs_trans_read_buf_map libxlog_trans_read_buf_map
+#define xfs_trans_brelse libxlog_trans_brelse
+#define xfs_trans_bhold	libxlog_trans_bhold
+#define xfs_trans_dirty_buf libxlog_trans_dirty_buf
+#define xfs_trans_log_buf libxlog_trans_log_buf
+#define xfs_trans_binval libxlog_trans_binval
+#define xfs_trans_inode_alloc_buf libxlog_trans_inode_alloc_buf
+#define xfs_trans_ordered_buf libxlog_trans_ordered_buf
+#define xfs_trans_mod_sb libxlog_trans_mod_sb
+#define xfs_trans_commit libxlog_trans_commit
+#define xfs_trans_alloc_inode libxfs_trans_alloc_inode
+
+#endif	/* __LIBXLOG_API_DEFS_H__ */

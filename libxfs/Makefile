@@ -62,7 +62,6 @@ CFILES = cache.c \
 	logitem.c \
 	rdwr.c \
 	topology.c \
-	trans.c \
 	util.c \
 	xfs_ag.c \
 	xfs_ag_resv.c \
