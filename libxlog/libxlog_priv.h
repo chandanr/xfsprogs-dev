@@ -8,6 +8,8 @@
 #define memalloc_nofs_save() (0);
 #define memalloc_nofs_restore(a)
 
+#define lockdep_assert_held(a)
+
 /*
  * TODO: chandan: Can we get cpp to eliminate references to current
  * entirely?
