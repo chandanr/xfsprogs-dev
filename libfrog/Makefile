@@ -56,7 +56,6 @@ scrub.h \
 workqueue.h \
 rbtree_augmented.h \
 rbtree.h \
-rbtree_latch.h \
 rbtree_types.h
 
 LSRCFILES += gen_crc32table.c
