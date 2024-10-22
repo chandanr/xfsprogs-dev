@@ -11,8 +11,8 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-#include "xfs_trans.h"
 
+#include "libxlog.h"
 
 /*
  * Add a locked inode to the transaction.

@@ -18,10 +18,11 @@
 #include "xfs_alloc.h"
 #include "xfs_errortag.h"
 #include "xfs_bmap.h"
-#include "xfs_trans.h"
 #include "xfs_trace.h"
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
+
+#include "libxlog.h"
 
 /*
  * Lookup a record by ino in the btree given by cur.

@@ -16,11 +16,12 @@
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_inode.h"
-#include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_attr.h"
 #include "xfs_attr_remote.h"
 #include "xfs_trace.h"
+
+#include "libxlog.h"
 
 #define ATTR_RMTVALUE_MAPSIZE	1	/* # of map entries at once */
 

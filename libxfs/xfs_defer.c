@@ -11,7 +11,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
-#include "xfs_trans.h"
 #include "xfs_inode.h"
 #include "xfs_trace.h"
 #include "xfs_rmap.h"
@@ -21,6 +20,8 @@
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
+
+#include "libxlog.h"
 
 static struct kmem_cache	*xfs_defer_pending_cache;
 

@@ -12,6 +12,7 @@ LT_AGE = 0
 # we need a static build even if --disable-static is specified
 LTLDFLAGS += -static
 
+# TODO: chandan: Arrange files in alphabetical order
 CFILES = \
 avl64.c \
 bitmap.c \
@@ -30,7 +31,8 @@ randbytes.c \
 scrub.c \
 util.c \
 workqueue.c \
-delayed-work.c
+delayed-work.c \
+rbtree.c
 
 HFILES = \
 avl64.h \
@@ -51,7 +53,11 @@ ptvar.h \
 radix-tree.h \
 randbytes.h \
 scrub.h \
-workqueue.h
+workqueue.h \
+rbtree_augmented.h \
+rbtree.h \
+rbtree_latch.h \
+rbtree_types.h
 
 LSRCFILES += gen_crc32table.c
 

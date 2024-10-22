@@ -14,7 +14,6 @@
 #include "xfs_sb.h"
 #include "xfs_defer.h"
 #include "xfs_btree.h"
-#include "xfs_trans.h"
 #include "xfs_alloc.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
@@ -22,6 +21,8 @@
 #include "xfs_errortag.h"
 #include "xfs_inode.h"
 #include "xfs_ag.h"
+
+#include "libxlog.h"
 
 struct kmem_cache	*xfs_rmap_intent_cache;
 

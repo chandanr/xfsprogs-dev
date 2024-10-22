@@ -5,6 +5,8 @@
  * All Rights Reserved.
  */
 #include "libxfs_priv.h"
+#include "libxfs.h"
+
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -13,7 +15,8 @@
 #include "xfs_mount.h"
 #include "xfs_quota.h"
 #include "xfs_inode.h"
-#include "xfs_trans.h"
+
+#include "libxlog.h"
 
 int
 xfs_calc_dquots_per_chunk(

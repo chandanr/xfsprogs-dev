@@ -12,10 +12,11 @@
 #include "xfs_bit.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-#include "xfs_trans.h"
 #include "xfs_btree.h"
 #include "xfs_trace.h"
 #include "xfs_btree_staging.h"
+
+#include "libxlog.h"
 
 /*
  * Staging Cursors and Fake Roots for Btrees
