@@ -17,6 +17,7 @@
 #include "bitops.h"
 #include "kmem.h"
 #include "libfrog/radix-tree.h"
+#include "libfrog/rbtree.h"
 #include "libfrog/bitmask.h"
 #include "libfrog/div64.h"
 #include "atomic.h"
