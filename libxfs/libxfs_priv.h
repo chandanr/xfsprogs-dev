@@ -397,17 +397,9 @@ void __xfs_buf_mark_corrupt(struct xfs_buf *bp, xfs_failaddr_t fa);
 #define xfs_filestream_new_ag(ip,ag)		(0)
 #define xfs_filestream_select_ag(...)		(-ENOSYS)
 
-/* quota bits */
-#define xfs_trans_mod_dquot_byino(t,i,f,d)		((void) 0)
-#define xfs_trans_reserve_quota_nblks(t,i,b,n,f)	(0)
-
 /* hack too silence gcc */
 static inline int retzero(void) { return 0; }
 #define xfs_trans_unreserve_quota_nblks(t,i,b,n,f)	retzero()
-#define xfs_quota_unreserve_blkres(i,b) 		retzero()
-
-#define xfs_quota_reserve_blkres(i,b)		(0)
-#define xfs_qm_dqattach(i)			(0)
 
 #define uuid_copy(s,d)		platform_uuid_copy((s),(d))
 #define uuid_equal(s,d)		(platform_uuid_compare((s),(d)) == 0)
@@ -495,8 +487,7 @@ int libxfs_zero_extent(struct xfs_inode *ip, xfs_fsblock_t start_fsb,
 /* xfs_log.c */
 struct xfs_item_ops;
 bool xfs_log_check_lsn(struct xfs_mount *, xfs_lsn_t);
-void xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *lip, int type,
-		const struct xfs_item_ops *ops);
+
 #define xfs_attr_use_log_assist(mp)	(0)
 #define xlog_drop_incompat_feat(log)	do { } while (0)
 #define xfs_log_in_recovery(mp)		(false)

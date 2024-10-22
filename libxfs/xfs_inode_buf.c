@@ -13,10 +13,10 @@
 #include "xfs_ag.h"
 #include "xfs_inode.h"
 #include "xfs_errortag.h"
-#include "xfs_trans.h"
 #include "xfs_ialloc.h"
 #include "xfs_dir2.h"
 
+#include "libxlog.h"
 
 /*
  * If we are doing readahead on an inode buffer, we might be in log recovery

@@ -12,7 +12,6 @@
 #include "xfs_bit.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-#include "xfs_trans.h"
 #include "xfs_btree.h"
 #include "xfs_errortag.h"
 #include "xfs_trace.h"
@@ -24,6 +23,8 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_rmap_btree.h"
 #include "xfs_refcount_btree.h"
+
+#include "libxlog.h"
 
 /*
  * Btree magic numbers.

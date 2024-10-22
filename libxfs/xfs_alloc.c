@@ -18,10 +18,12 @@
 #include "xfs_alloc.h"
 #include "xfs_errortag.h"
 #include "xfs_trace.h"
-#include "xfs_trans.h"
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 #include "xfs_bmap.h"
+#include "xfs_inode.h"
+
+#include "libxlog.h"
 
 struct kmem_cache	*xfs_extfree_item_cache;
 

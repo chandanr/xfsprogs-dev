@@ -13,7 +13,8 @@
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_trans.h"
+
+#include "libxlog.h"
 
 /*
  * Realtime allocator bitmap functions shared with userspace.

@@ -15,7 +15,6 @@
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
 #include "xfs_trace.h"
-#include "xfs_trans.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_rmap_btree.h"
@@ -23,6 +22,9 @@
 #include "xfs_da_format.h"
 #include "xfs_health.h"
 #include "xfs_ag.h"
+
+#include "xfs_inode.h"
+#include "libxlog.h"
 
 /*
  * Physical superblock buffer manipulations. Shared with libxfs in userspace.

@@ -17,9 +17,11 @@
 #include "xfs_ialloc_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_trace.h"
-#include "xfs_trans.h"
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
+
+#include "xfs_inode.h"
+#include "libxlog.h"
 
 static struct kmem_cache	*xfs_inobt_cur_cache;
 

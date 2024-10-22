@@ -15,10 +15,11 @@
 #include "xfs_inode.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
-#include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_trace.h"
+
+#include "libxlog.h"
 
 /*
  * xfs_da_btree.c

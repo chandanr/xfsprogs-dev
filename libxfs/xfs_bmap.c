@@ -3,7 +3,9 @@
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
+
 #include "libxfs_priv.h"
+#include "libxfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -16,7 +18,6 @@
 #include "xfs_dir2.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
-#include "xfs_trans.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_btree.h"
@@ -30,6 +31,8 @@
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 #include "xfs_refcount.h"
+
+#include "libxlog.h"
 
 struct kmem_cache		*xfs_bmap_intent_cache;
 

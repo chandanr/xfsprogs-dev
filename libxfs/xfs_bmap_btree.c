@@ -4,6 +4,7 @@
  * All Rights Reserved.
  */
 #include "libxfs_priv.h"
+#include "libxfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -12,7 +13,6 @@
 #include "xfs_bit.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-#include "xfs_trans.h"
 #include "xfs_alloc.h"
 #include "xfs_btree.h"
 #include "xfs_bmap_btree.h"
@@ -20,6 +20,9 @@
 #include "xfs_trace.h"
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
+#include "xfs_quota.h"
+
+#include "libxlog.h"
 
 static struct kmem_cache	*xfs_bmbt_cur_cache;
 

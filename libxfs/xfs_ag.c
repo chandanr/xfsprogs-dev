@@ -25,9 +25,10 @@
 #include "xfs_bmap.h"
 #include "xfs_defer.h"
 #include "xfs_log_format.h"
-#include "xfs_trans.h"
 #include "xfs_trace.h"
 #include "xfs_inode.h"
+
+#include "libxlog.h"
 
 
 /*

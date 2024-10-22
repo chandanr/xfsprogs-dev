@@ -16,10 +16,10 @@
 #include "xfs_inode_buf.h"
 #include "xfs_inode_fork.h"
 #include "xfs_inode.h"
-#include "xfs_trans.h"
 #include "libfrog/platform.h"
 
 #include "libxfs.h"
+#include "libxlog.h"
 
 static void libxfs_brelse(struct cache_node *node);
 

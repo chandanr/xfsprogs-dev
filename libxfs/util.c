@@ -6,6 +6,7 @@
 
 #include "libxfs_priv.h"
 #include "libxfs.h"
+#include "libxlog.h"
 #include "libxfs_io.h"
 #include "init.h"
 #include "xfs_fs.h"
@@ -18,7 +19,6 @@
 #include "xfs_inode_buf.h"
 #include "xfs_inode_fork.h"
 #include "xfs_inode.h"
-#include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_trans_space.h"
@@ -638,21 +638,6 @@ xfs_log_check_lsn(
 
 	return true;
 }
-
-void
-xfs_log_item_init(
-	struct xfs_mount	*mp,
-	struct xfs_log_item	*item,
-	int			type,
-	const struct xfs_item_ops *ops)
-{
-	item->li_mountp = mp; 
-	item->li_type = type;
-	item->li_ops = ops;
-
-	INIT_LIST_HEAD(&item->li_trans);
-	INIT_LIST_HEAD(&item->li_bio_list);
-}   
 
 static struct xfs_buftarg *
 xfs_find_bdev_for_inode(
