@@ -20,7 +20,6 @@
 #include "xfs_trace.h"
 #include "xfs_log.h"
 #include "xfs_log_recover.h"
-#include "xfs_error.h"
 #include "xfs_dir2.h"
 #include "xfs_quota.h"
 
