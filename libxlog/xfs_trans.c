@@ -6,6 +6,7 @@
  */
 #include "libxlog_priv.h"
 #include "libxfs.h"
+#include "libxlog.h"
 #include "kmem.h"
 #include "libfrog/workqueue.h"
 #include "libfrog/delayed-work.h"
