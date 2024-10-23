@@ -32,7 +32,8 @@ scrub.c \
 util.c \
 workqueue.c \
 delayed-work.c \
-rbtree.c
+rbtree.c \
+pseudo_percpu.c
 
 HFILES = \
 avl64.h \
@@ -56,7 +57,8 @@ scrub.h \
 workqueue.h \
 rbtree_augmented.h \
 rbtree.h \
-rbtree_types.h
+rbtree_types.h \
+pseudo_percpu.c
 
 LSRCFILES += gen_crc32table.c
 
