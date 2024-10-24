@@ -45,7 +45,6 @@ xfs_icreate_item.h \
 xfs_inode_item.h \
 xfs_iunlink_item.h \
 xfs_log.h \
-xfs_log_priv.h \
 xfs_refcount_item.h \
 xfs_rmap_item.h
 
