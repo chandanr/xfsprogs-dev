@@ -19,6 +19,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_quota.h"
 #include "xfs_trans_quota.h"
+#include "xfs_dquot.h"
 #include "xfs_trans_space.h"
 
 #include "libxlog.h"
