@@ -6,6 +6,7 @@
  */
 #include "libxfs_priv.h"
 #include "libxfs.h"
+#include "libxlog.h"
 
 #include "xfs_fs.h"
 #include "xfs_shared.h"
@@ -18,11 +19,10 @@
 #include "xfs_inode.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_quota.h"
+#include "xfs_trans.h"
 #include "xfs_trans_quota.h"
 #include "xfs_dquot.h"
 #include "xfs_trans_space.h"
-
-#include "libxlog.h"
 
 #define _ALLOC	true
 #define _FREE	false
