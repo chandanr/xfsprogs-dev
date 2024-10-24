@@ -336,4 +336,10 @@
 
 #define trace_xfs_fs_mark_healthy(a,b)		((void) 0)
 
+#define trace_xfs_trans_free(...) ((void)0)
+#define trace_xfs_trans_dup(...) ((void)0)
+#define trace_xfs_trans_add_item(...) ((void)0)
+#define trace_xfs_trans_free_items(...) ((void)0)
+#define trace_xfs_trans_roll(...) ((void)0)
+
 #endif /* __TRACE_H__ */
