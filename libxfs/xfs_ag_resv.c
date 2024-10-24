@@ -21,6 +21,7 @@
 #include "xfs_ag_resv.h"
 #include "xfs_inode.h"
 
+#include "libxfs.h"
 #include "libxlog.h"
 
 /*

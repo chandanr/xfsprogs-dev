@@ -249,6 +249,13 @@ bool libxfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
 #include "xfs_attr.h"
 #include "topology.h"
 
+/* local source files */
+#define xfs_mod_fdblocks(mp, delta, rsvd) \
+	libxfs_mod_incore_sb(mp, XFS_TRANS_SB_FDBLOCKS, delta, rsvd)
+#define xfs_mod_frextents(mp, delta) \
+	libxfs_mod_incore_sb(mp, XFS_TRANS_SB_FREXTENTS, delta, 0)
+int  libxfs_mod_incore_sb(struct xfs_mount *, int, int64_t, int);
+
 /*
  * Superblock helpers for programs that act on independent superblock
  * structures.  These used to be part of xfs_format.h.
