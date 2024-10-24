@@ -102,6 +102,25 @@ typedef struct {
 
 #define xfs_isset(a,i)	((a)[(i)/(sizeof(*(a))*NBBY)] & (1ULL<<((i)%(sizeof(*(a))*NBBY))))
 
+/* TODO: chandan: Dummy mutex */
+struct mutex {
+	;
+};
+
+void mutex_lock(struct mutex *mutex) { return; }
+void mutex_unlock(struct mutex *mutex) { return; }
+int mutex_trylock(struct mutex *mutex) { return 1; }
+
+/* TODO: chandan: Dummy completion */
+struct completion {
+	;
+};
+
+void complete(struct completion *completion) { return; }
+void wait_for_completion(struct completion *completion) { return; }
+int try_wait_for_completion(struct completion *completion) { return 1; }
+
+
 struct libxfs_dev {
 	/* input parameters */
 	char		*name;	/* pathname of the device */
