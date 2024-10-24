@@ -9,6 +9,7 @@ LTLIBRARY = libxlog.la
 LT_CURRENT = 0
 LT_REVISION = 0
 LT_AGE = 0
+CFLAGS += -Wno-pointer-sign
 # we need a static build even if --disable-static is specified
 LTLDFLAGS += -static
 
