@@ -443,12 +443,6 @@ int xfs_trans_roll(struct xfs_trans **);
 void xfs_trans_add_item(struct xfs_trans *, struct xfs_log_item *);
 void xfs_trans_del_item(struct xfs_log_item *);
 
-/* local source files */
-#define xfs_mod_fdblocks(mp, delta, rsvd) \
-	libxfs_mod_incore_sb(mp, XFS_TRANS_SB_FDBLOCKS, delta, rsvd)
-#define xfs_mod_frextents(mp, delta) \
-	libxfs_mod_incore_sb(mp, XFS_TRANS_SB_FREXTENTS, delta, 0)
-int  libxfs_mod_incore_sb(struct xfs_mount *, int, int64_t, int);
 /* percpu counters in mp are #defined to the superblock sb_ counters */
 #define xfs_reinit_percpu_counters(mp)
 
