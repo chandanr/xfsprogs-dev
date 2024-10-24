@@ -7,6 +7,7 @@
 
 #include "libxlog_api_defs.h"
 #include "platform_defs.h"
+#include "ksemaphore.h"
 #include "libfrog/pseudo_percpu.h"
 #include "xfs.h"
 
