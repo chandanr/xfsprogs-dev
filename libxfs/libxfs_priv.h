@@ -136,8 +136,6 @@ enum ce { CE_DEBUG, CE_CONT, CE_NOTE, CE_WARN, CE_ALERT, CE_PANIC };
 #define xfs_hex_dump(d,n)		((void) 0)
 #define xfs_stack_trace()		((void) 0)
 
-
-#define xfs_force_shutdown(d,n)		((void) 0)
 #define xfs_mod_delalloc(a,b) 		((void) 0)
 
 /* stop unused var warnings by assigning mp to itself */
@@ -192,16 +190,6 @@ enum ce { CE_DEBUG, CE_CONT, CE_NOTE, CE_WARN, CE_ALERT, CE_PANIC };
 /* miscellaneous kernel routines not in user space */
 #define likely(x)		(x)
 #define unlikely(x)		(x)
-
-/* Need to be able to handle this bare or in control flow */
-static inline bool WARN_ON(bool expr) {
-	return (expr);
-}
-
-#define WARN_ON_ONCE(e)			WARN_ON(e)
-#define percpu_counter_read(x)		(*x)
-#define percpu_counter_read_positive(x)	((*x) > 0 ? (*x) : 0)
-#define percpu_counter_sum(x)		(*x)
 
 /*
  * get_random_u32 is used for di_gen inode allocation, it must be zero for
@@ -442,9 +430,6 @@ int xfs_trans_roll(struct xfs_trans **);
 /* xfs_trans_item.c */
 void xfs_trans_add_item(struct xfs_trans *, struct xfs_log_item *);
 void xfs_trans_del_item(struct xfs_log_item *);
-
-/* percpu counters in mp are #defined to the superblock sb_ counters */
-#define xfs_reinit_percpu_counters(mp)
 
 void xfs_trans_mod_sb(struct xfs_trans *, uint, long);
 

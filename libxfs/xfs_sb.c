@@ -24,6 +24,7 @@
 #include "xfs_ag.h"
 
 #include "xfs_inode.h"
+#include "libxfs.h"
 #include "libxlog.h"
 
 /*

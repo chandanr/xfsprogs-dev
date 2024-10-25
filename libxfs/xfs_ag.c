@@ -28,6 +28,7 @@
 #include "xfs_trace.h"
 #include "xfs_inode.h"
 
+#include "libxfs.h"
 #include "libxlog.h"
 
 

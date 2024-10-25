@@ -102,6 +102,15 @@ typedef struct {
 
 #define xfs_isset(a,i)	((a)[(i)/(sizeof(*(a))*NBBY)] & (1ULL<<((i)%(sizeof(*(a))*NBBY))))
 
+/* Need to be able to handle this bare or in control flow */
+static inline bool WARN_ON(bool expr) {
+	return (expr);
+}
+
+#define WARN_ON_ONCE(e)			WARN_ON(e)
+
+#define xfs_force_shutdown(d,n)		((void) 0)
+
 /* TODO: chandan: Dummy mutex */
 struct mutex {
 	;

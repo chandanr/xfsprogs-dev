@@ -61,6 +61,7 @@ xfs_trans_init(
  * Free the transaction structure.  If there is more clean up
  * to do when the structure is freed, add it here.
  */
+#define sb_end_intwrite(...)
 STATIC void
 xfs_trans_free(
 	struct xfs_trans	*tp)
@@ -239,6 +240,7 @@ undo_blocks:
 	return error;
 }
 
+#define sb_start_intwrite(...)
 int
 xfs_trans_alloc(
 	struct xfs_mount	*mp,

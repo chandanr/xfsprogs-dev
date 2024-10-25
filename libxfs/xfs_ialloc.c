@@ -22,6 +22,7 @@
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
 
+#include "libxfs.h"
 #include "libxlog.h"
 
 /*

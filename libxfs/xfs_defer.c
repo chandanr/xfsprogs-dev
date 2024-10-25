@@ -21,6 +21,7 @@
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
 
+#include "libxfs.h"
 #include "libxlog.h"
 
 static struct kmem_cache	*xfs_defer_pending_cache;
