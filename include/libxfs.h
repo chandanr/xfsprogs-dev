@@ -112,6 +112,8 @@ static inline bool WARN_ON(bool expr) {
 
 #define WARN_ON_ONCE(e)			WARN_ON(e)
 
+#define XFS_TEST_ERROR(expr, mp, tag) ((expr))
+
 #define xfs_force_shutdown(d,n)		((void) 0)
 
 /* TODO: chandan: Dummy mutex */
