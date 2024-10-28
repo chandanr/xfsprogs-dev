@@ -384,6 +384,18 @@ xfs_buf_lock(
 		pthread_mutex_lock(&bp->b_lock);
 }
 
+int
+xfs_buf_trylock(
+	struct xfs_buf	*bp)
+{
+	int locked = 0;
+
+	if (use_xfs_buf_lock)
+		locked = pthread_mutex_trylock(&bp->b_lock) == 0;
+
+	return locked;
+}
+
 void
 xfs_buf_unlock(
 	struct xfs_buf	*bp)

@@ -57,6 +57,7 @@
 #define xfs_buf_get			libxfs_buf_get
 #define xfs_buf_get_uncached		libxfs_buf_get_uncached
 #define xfs_buf_lock			libxfs_buf_lock
+#define xfs_buf_trylock			libxfs_buf_trylock
 #define xfs_buf_read			libxfs_buf_read
 #define xfs_buf_read_uncached		libxfs_buf_read_uncached
 #define xfs_buf_rele			libxfs_buf_rele

@@ -228,6 +228,7 @@ xfs_buf_hold(struct xfs_buf *bp)
 }
 
 void xfs_buf_lock(struct xfs_buf *bp);
+int xfs_buf_trylock(struct xfs_buf *bp);
 void xfs_buf_unlock(struct xfs_buf *bp);
 
 int libxfs_buf_get_uncached(struct xfs_buftarg *targ, size_t bblen, int flags,
