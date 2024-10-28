@@ -20,6 +20,7 @@
 #include "libfrog/rbtree.h"
 #include "libfrog/bitmask.h"
 #include "libfrog/div64.h"
+#include "libfrog/percpu_counter.h"
 #include "atomic.h"
 #include "spinlock.h"
 
@@ -264,6 +265,8 @@ bool libxfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
 #define xfs_mod_frextents(mp, delta) \
 	libxfs_mod_incore_sb(mp, XFS_TRANS_SB_FREXTENTS, delta, 0)
 int  libxfs_mod_incore_sb(struct xfs_mount *, int, int64_t, int);
+
+void xfs_reinit_percpu_counters(struct xfs_mount *mp);
 
 /*
  * Superblock helpers for programs that act on independent superblock

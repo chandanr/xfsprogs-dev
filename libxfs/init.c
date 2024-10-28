@@ -614,6 +614,14 @@ xfs_set_low_space_thresholds(
 		mp->m_low_space[i] = dblocks * (i + 1);
 }
 
+void xfs_reinit_percpu_counters(struct xfs_mount *mp)
+{
+	percpu_counter_set(&mp->m_icount, mp->m_sb.sb_icount);
+	percpu_counter_set(&mp->m_ifree, mp->m_sb.sb_ifree);
+	percpu_counter_set(&mp->m_fdblocks, mp->m_sb.sb_fdblocks);
+	percpu_counter_set(&mp->m_frextents, mp->m_sb.sb_frextents);
+}
+
 /*
  * Mount structure initialization, provides a filled-in xfs_mount_t
  * such that the numerous XFS_* macros can be used.  If dev is zero,
@@ -632,6 +640,8 @@ libxfs_mount(
 	int			error;
 
 	mp->m_features = xfs_sb_version_to_features(sb);
+	xfs_reinit_percpu_counters(mp);
+
 	if (flags & LIBXFS_MOUNT_DEBUGGER)
 		xfs_set_debugger(mp);
 	if (flags & LIBXFS_MOUNT_REPORT_CORRUPTION)

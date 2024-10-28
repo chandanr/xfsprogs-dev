@@ -7,6 +7,7 @@
 #ifndef __XFS_MOUNT_H__
 #define __XFS_MOUNT_H__
 
+#include "libfrog/percpu_counter.h"
 struct xfs_inode;
 struct xfs_buftarg;
 struct xfs_da_geometry;
@@ -30,9 +31,10 @@ enum {
  */
 typedef struct xfs_mount {
 	xfs_sb_t		m_sb;		/* copy of fs superblock */
-#define m_icount	m_sb.sb_icount
-#define m_ifree		m_sb.sb_ifree
-#define m_fdblocks	m_sb.sb_fdblocks
+	struct percpu_counter	m_icount;
+	struct percpu_counter	m_ifree;
+	struct percpu_counter	m_fdblocks;
+	struct percpu_counter	m_frextents;
 	spinlock_t		m_sb_lock;
 
 	/*
