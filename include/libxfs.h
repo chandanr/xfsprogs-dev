@@ -116,6 +116,10 @@ static inline bool WARN_ON(bool expr) {
 
 #define xfs_force_shutdown(d,n)		((void) 0)
 
+#define XFS_STATS_INC(mp, count)	do { (mp) = (mp); } while (0)
+#define XFS_STATS_DEC(mp, count, x)	do { (mp) = (mp); } while (0)
+#define XFS_STATS_ADD(mp, count, x)	do { (mp) = (mp); } while (0)
+
 /* TODO: chandan: Dummy mutex */
 struct mutex {
 	;
