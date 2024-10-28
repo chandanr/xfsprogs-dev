@@ -5,6 +5,8 @@
  * All Rights Reserved.
  */
 #include "libxlog_priv.h"
+#include "libxfs.h"
+#include "libxlog.h"
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
