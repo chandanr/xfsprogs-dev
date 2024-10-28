@@ -4,6 +4,10 @@
  * All Rights Reserved.
  */
 #include "libxfs_priv.h"
+
+#include "libxfs.h"
+#include "libxlog.h"
+
 #include "xfs_fs.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
@@ -16,6 +20,7 @@
 #include "xfs_rmap.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_alloc.h"
+#include "xfs_extent_busy.h"
 #include "xfs_errortag.h"
 #include "xfs_trace.h"
 #include "xfs_ag.h"

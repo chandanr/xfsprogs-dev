@@ -4,6 +4,8 @@
  * All Rights Reserved.
  */
 #include "libxfs_priv.h"
+#include "libxfs.h"
+#include "libxlog.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -23,8 +25,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_rmap_btree.h"
 #include "xfs_refcount_btree.h"
-
-#include "libxlog.h"
 
 /*
  * Btree magic numbers.

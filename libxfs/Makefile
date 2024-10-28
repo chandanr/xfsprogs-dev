@@ -9,6 +9,7 @@ LTLIBRARY = libxfs.la
 LT_CURRENT = 0
 LT_REVISION = 0
 LT_AGE = 0
+CFLAGS += -Wno-pointer-sign
 # we need a static build even if --disable-static is specified
 LTLDFLAGS += -static
 
@@ -54,7 +55,8 @@ HFILES = \
 	xfs_shared.h \
 	xfs_trans_resv.h \
 	xfs_trans_space.h \
-	xfs_dir2_priv.h
+	xfs_dir2_priv.h \
+	xfs_extent_busy.h
 
 CFILES = cache.c \
 	init.c \
@@ -98,7 +100,8 @@ CFILES = cache.c \
 	xfs_symlink_remote.c \
 	xfs_trans_inode.c \
 	xfs_trans_resv.c \
-	xfs_types.c
+	xfs_types.c \
+	xfs_extent_busy.c
 
 #
 # Tracing flags:

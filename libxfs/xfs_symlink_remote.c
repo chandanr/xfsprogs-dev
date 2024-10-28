@@ -5,6 +5,8 @@
  * All rights reserved.
  */
 #include "libxfs_priv.h"
+#include "libxfs.h"
+#include "libxlog.h"
 #include "xfs_fs.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
@@ -12,8 +14,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
-
-#include "libxlog.h"
 
 /*
  * Each contiguous block has a header, so it is not just a simple pathlen

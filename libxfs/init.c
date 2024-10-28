@@ -9,6 +9,10 @@
 
 #include "libxfs_priv.h"
 #include "libxlog_priv.h"
+
+#include "libxfs.h"
+#include "libxlog.h"
+
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -22,9 +26,6 @@
 #include "xfs_rmap_btree.h"
 #include "xfs_refcount_btree.h"
 #include "libfrog/platform.h"
-
-#include "libxfs.h"		/* for now */
-#include "libxlog.h"
 
 #ifndef HAVE_LIBURCU_ATOMIC64
 pthread_mutex_t	atomic64_lock = PTHREAD_MUTEX_INITIALIZER;

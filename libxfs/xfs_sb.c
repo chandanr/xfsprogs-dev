@@ -4,6 +4,8 @@
  * All Rights Reserved.
  */
 #include "libxfs_priv.h"
+#include "libxfs.h"
+#include "libxlog.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -24,8 +26,6 @@
 #include "xfs_ag.h"
 
 #include "xfs_inode.h"
-#include "libxfs.h"
-#include "libxlog.h"
 
 /*
  * Physical superblock buffer manipulations. Shared with libxfs in userspace.

@@ -5,6 +5,8 @@
  */
 
 #include "libxfs_priv.h"
+#include "libxfs.h"
+#include "libxlog.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -22,8 +24,6 @@
 #include "xfs_attr_leaf.h"
 #include "xfs_types.h"
 #include "xfs_errortag.h"
-
-#include "libxlog.h"
 
 struct kmem_cache *xfs_ifork_cache;
 

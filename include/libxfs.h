@@ -16,11 +16,13 @@
 #include "cache.h"
 #include "bitops.h"
 #include "kmem.h"
+#include "libfrog/delayed-work.h"
 #include "libfrog/radix-tree.h"
 #include "libfrog/rbtree.h"
 #include "libfrog/bitmask.h"
 #include "libfrog/div64.h"
 #include "libfrog/percpu_counter.h"
+#include "libfrog/waitqueue.h"
 #include "atomic.h"
 #include "spinlock.h"
 

@@ -4,6 +4,8 @@
  * All Rights Reserved.
  */
 #include "libxfs_priv.h"
+#include "libxfs.h"
+#include "libxlog.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -15,8 +17,6 @@
 #include "xfs_errortag.h"
 #include "xfs_ialloc.h"
 #include "xfs_dir2.h"
-
-#include "libxlog.h"
 
 /*
  * If we are doing readahead on an inode buffer, we might be in log recovery

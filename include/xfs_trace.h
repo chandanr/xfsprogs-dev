@@ -341,5 +341,9 @@
 #define trace_xfs_trans_add_item(...) ((void)0)
 #define trace_xfs_trans_free_items(...) ((void)0)
 #define trace_xfs_trans_roll(...) ((void)0)
-
+#define trace_xfs_extent_busy(...) ((void)0)
+#define trace_xfs_extent_busy_reuse(...) ((void)0)
+#define trace_xfs_extent_busy_force(...) ((void)0)
+#define trace_xfs_extent_busy_trim(...) ((void)0)
+#define trace_xfs_extent_busy_clear(...) ((void)0)
 #endif /* __TRACE_H__ */

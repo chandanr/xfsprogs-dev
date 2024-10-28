@@ -281,11 +281,6 @@ int libxfs_flush_mount(struct xfs_mount *mp);
 int		libxfs_umount(struct xfs_mount *mp);
 extern void	libxfs_rtmount_destroy (xfs_mount_t *);
 
-typedef struct wait_queue_head {
-} wait_queue_head_t;
-
-static inline void wake_up(wait_queue_head_t *wq) {}
-
 struct xfs_defer_drain { /* empty */ };
 
 #define xfs_defer_drain_init(dr)		((void)0)

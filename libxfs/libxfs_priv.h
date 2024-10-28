@@ -363,19 +363,6 @@ void __xfs_buf_mark_corrupt(struct xfs_buf *bp, xfs_failaddr_t fa);
 #define XFS_EXTENT_BUSY_DISCARDED	0x01	/* undergoing a discard op. */
 #define XFS_EXTENT_BUSY_SKIP_DISCARD	0x02	/* do not discard */
 
-#define xfs_extent_busy_reuse(mp,ag,bno,len,user)	((void) 0)
-/* avoid unused variable warning */
-#define xfs_extent_busy_insert(tp,pag,bno,len,flags)({ 	\
-	struct xfs_perag *__foo = pag;			\
-	__foo = __foo; /* no set-but-unused warning */	\
-})
-#define xfs_extent_busy_trim(args,bno,len,busy_gen) 	({	\
-	unsigned __foo = *(busy_gen);				\
-	*(busy_gen) = __foo;					\
-	false;							\
-})
-#define xfs_extent_busy_flush(tp,pag,busy_gen,alloc_flags)	((int)(0))
-
 #define xfs_rotorstep				1
 #define xfs_bmap_rtalloc(a)			(-ENOSYS)
 #define xfs_get_extsz_hint(ip)			(0)
@@ -467,8 +454,6 @@ int libxfs_zero_extent(struct xfs_inode *ip, xfs_fsblock_t start_fsb,
 struct xfs_item_ops;
 bool xfs_log_check_lsn(struct xfs_mount *, xfs_lsn_t);
 
-#define xfs_attr_use_log_assist(mp)	(0)
-#define xlog_drop_incompat_feat(log)	do { } while (0)
 #define xfs_log_in_recovery(mp)		(false)
 
 /* xfs_icache.c */

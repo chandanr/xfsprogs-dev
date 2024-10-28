@@ -4,6 +4,8 @@
  * All Rights Reserved.
  */
 #include "libxfs_priv.h"
+#include "libxfs.h"
+#include "libxlog.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -16,8 +18,6 @@
 #include "xfs_dir2_priv.h"
 #include "xfs_errortag.h"
 #include "xfs_trace.h"
-
-#include "libxlog.h"
 
 const struct xfs_name xfs_name_dotdot = {
 	.name	= (const unsigned char *)"..",

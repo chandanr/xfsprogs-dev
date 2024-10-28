@@ -4,6 +4,8 @@
  * All Rights Reserved.
  */
 #include "libxfs_priv.h"
+#include "libxfs.h"
+#include "libxlog.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -21,7 +23,6 @@
 #include "xfs_ag.h"
 
 #include "xfs_inode.h"
-#include "libxlog.h"
 
 static struct kmem_cache	*xfs_inobt_cur_cache;
 

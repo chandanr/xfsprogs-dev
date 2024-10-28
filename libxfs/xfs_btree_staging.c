@@ -4,6 +4,10 @@
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
  */
 #include "libxfs_priv.h"
+
+#include "libxfs.h"
+#include "libxlog.h"
+
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -15,8 +19,6 @@
 #include "xfs_btree.h"
 #include "xfs_trace.h"
 #include "xfs_btree_staging.h"
-
-#include "libxlog.h"
 
 /*
  * Staging Cursors and Fake Roots for Btrees

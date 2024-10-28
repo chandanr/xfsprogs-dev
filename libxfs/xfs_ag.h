@@ -71,6 +71,11 @@ struct xfs_perag {
 	xfs_agino_t		agino_min;
 	xfs_agino_t		agino_max;
 
+	spinlock_t	pagb_lock;	/* lock for pagb_tree */
+	struct rb_root	pagb_tree;	/* ordered tree of busy extents */
+	unsigned int	pagb_gen;	/* generation count for pagb_tree */
+	wait_queue_head_t pagb_wait;	/* woken when pagb_gen changes */
+
 #ifdef __KERNEL__
 	/* -- kernel only structures below this line -- */
 
@@ -81,11 +86,6 @@ struct xfs_perag {
 	uint16_t	pag_checked;
 	uint16_t	pag_sick;
 	spinlock_t	pag_state_lock;
-
-	spinlock_t	pagb_lock;	/* lock for pagb_tree */
-	struct rb_root	pagb_tree;	/* ordered tree of busy extents */
-	unsigned int	pagb_gen;	/* generation count for pagb_tree */
-	wait_queue_head_t pagb_wait;	/* woken when pagb_gen changes */
 
 	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */
 

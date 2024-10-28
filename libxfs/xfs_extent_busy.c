@@ -5,6 +5,11 @@
  * Copyright (c) 2011 Christoph Hellwig.
  * All Rights Reserved.
  */
+#include "libxfs_priv.h"
+#include "libxfs.h"
+#include "libxlog.h"
+#include "libfrog/workqueue.h"
+
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_format.h"
@@ -671,7 +676,7 @@ xfs_extent_busy_ag_cmp(
 		container_of(l1, struct xfs_extent_busy, list);
 	struct xfs_extent_busy	*b2 =
 		container_of(l2, struct xfs_extent_busy, list);
-	s32 diff;
+	__s32 diff;
 
 	diff = b1->agno - b2->agno;
 	if (!diff)
