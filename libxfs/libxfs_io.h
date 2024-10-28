@@ -109,6 +109,9 @@ bool xfs_verify_magic16(struct xfs_buf *bp, __be16 dmagic);
 #define LIBXFS_B_UPTODATE	0x0008	/* buffer is sync'd to disk */
 #define LIBXFS_B_DISCONTIG	0x0010	/* discontiguous buffer */
 #define LIBXFS_B_UNCHECKED	0x0020	/* needs verification */
+#define LIBXFS_B_INODES		0x0040	/* Inode cluster buffer */
+
+#define _XBF_INODES LIBXFS_B_INODES
 
 typedef unsigned int xfs_buf_flags_t;
 

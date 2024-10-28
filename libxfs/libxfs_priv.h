@@ -316,7 +316,6 @@ roundup_pow_of_two(uint v)
 #define XFS_BUF_UNDELAYWRITE(bp)	((bp)->b_flags &= ~LIBXFS_B_DIRTY)
 
 /* buffer type flags for write callbacks */
-#define _XBF_INODES	0 /* inode buffer */
 #define _XBF_DQUOTS	0 /* dquot buffer */
 #define _XBF_LOGRECOVERY	0 /* log recovery buffer */
 
