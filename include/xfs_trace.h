@@ -346,4 +346,12 @@
 #define trace_xfs_extent_busy_force(...) ((void)0)
 #define trace_xfs_extent_busy_trim(...) ((void)0)
 #define trace_xfs_extent_busy_clear(...) ((void)0)
+#define trace_xfs_ail_push(...) ((void)0)
+#define trace_xfs_ail_flushing(...) ((void)0)
+#define trace_xfs_ail_pinned(...) ((void)0)
+#define trace_xfs_ail_locked(...) ((void)0)
+#define trace_xfs_ail_move(...) ((void)0)
+#define trace_xfs_ail_insert(...) ((void)0)
+#define trace_xfs_ail_delete(...) ((void)0)
+
 #endif /* __TRACE_H__ */
