@@ -958,6 +958,9 @@ main(int argc, char **argv)
 	xfs_mount_t	*mp;
 	struct xfs_buf	*sbp;
 	xfs_mount_t	xfs_m;
+	struct super_block vfs_sb = {
+		.s_writers.frozen = SB_UNFROZEN;
+	};
 	struct xlog	log = {0};
 	char		*msgbuf;
 	struct xfs_sb	psb;
@@ -1031,6 +1034,7 @@ main(int argc, char **argv)
 	 * initialized in phase 2.
 	 */
 	memset(&xfs_m, 0, sizeof(xfs_mount_t));
+	xfs_m.m_super = &vfs_sb;
 	mp = libxfs_mount(&xfs_m, &psb, &x, 0);
 
 	if (!mp)  {

@@ -25,12 +25,31 @@ enum {
 	XFS_LOWSP_MAX,
 };
 
+/* Possible states of 'frozen' field */
+enum {
+	SB_UNFROZEN = 0,		/* FS is unfrozen */
+	SB_FREEZE_WRITE = 1,		/* Writes, dir ops, ioctls frozen */
+	SB_FREEZE_PAGEFAULT = 2,	/* Page faults stopped as well */
+	SB_FREEZE_FS = 3,		/* For internal FS use (e.g. to stop
+					 * internal threads if needed) */
+	SB_FREEZE_COMPLETE = 4,		/* ->freeze_fs finished successfully */
+};
+
+struct sb_writers {
+	unsigned short frozen;
+};
+
+struct super_block {
+	struct sb_writers s_writers;
+};
+
 /*
  * Define a user-level mount structure with all we need
  * in order to make use of the numerous XFS_* macros.
  */
 typedef struct xfs_mount {
 	xfs_sb_t		m_sb;		/* copy of fs superblock */
+	struct super_block	*m_super;
 	struct percpu_counter	m_icount;
 	struct percpu_counter	m_ifree;
 	struct percpu_counter	m_fdblocks;
