@@ -50,6 +50,7 @@ struct super_block {
 typedef struct xfs_mount {
 	xfs_sb_t		m_sb;		/* copy of fs superblock */
 	struct super_block	*m_super;
+	struct xfs_ail		*m_ail;
 	struct percpu_counter	m_icount;
 	struct percpu_counter	m_ifree;
 	struct percpu_counter	m_fdblocks;
