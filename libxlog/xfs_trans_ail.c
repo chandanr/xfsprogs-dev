@@ -591,6 +591,14 @@ out_done:
 	return tout;
 }
 
+#define set_freezable()
+#define set_current_state(...)
+#define kthread_run(...) (NULL)
+#define kthread_should_stop() (0)
+#define schedule_timeout(tout)
+#define try_to_freeze()
+#define smp_wmb()
+
 static int
 xfsaild(
 	void		*data)
