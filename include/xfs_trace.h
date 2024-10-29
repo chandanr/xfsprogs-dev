@@ -353,5 +353,8 @@
 #define trace_xfs_ail_move(...) ((void)0)
 #define trace_xfs_ail_insert(...) ((void)0)
 #define trace_xfs_ail_delete(...) ((void)0)
+#define trace_xfs_trans_read_buf_shut(...) ((void)0)
+#define trace_xfs_trans_read_buf_shut(...) ((void)0)
+#define trace_xfs_buf_item_ordered(...) ((void)0)
 
 #endif /* __TRACE_H__ */
