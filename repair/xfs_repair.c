@@ -1033,6 +1033,8 @@ main(int argc, char **argv)
 	 * copy so it's available to the various phases. The log bits are
 	 * initialized in phase 2.
 	 */
+	/* TODO: chandan: Set s_id to only the basename of fs_name */
+	snprintf(vfs_sb.s_id, sizeof(vfs_sb.s_id), "%s", fs_name);
 	memset(&xfs_m, 0, sizeof(xfs_mount_t));
 	xfs_m.m_super = &vfs_sb;
 	mp = libxfs_mount(&xfs_m, &psb, &x, 0);

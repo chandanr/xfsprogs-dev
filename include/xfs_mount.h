@@ -41,6 +41,7 @@ struct sb_writers {
 
 struct super_block {
 	struct sb_writers s_writers;
+	char s_id[32];
 };
 
 /*
