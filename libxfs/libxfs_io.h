@@ -16,6 +16,9 @@ struct xfs_mount;
 struct xfs_perag;
 struct libxfs_init;
 
+/* TODO: chandan: Implement this API */
+#define xfs_buf_delwri_submit_nowait(...) (0)
+
 /*
  * IO verifier callbacks need the xfs_mount pointer, so we have to behave
  * somewhat like the kernel now for userspace IO in terms of having buftarg

@@ -11,9 +11,12 @@ struct wait_queue_entry {
 	;
 };
 
+#define init_waitqueue_head(wq_head) ((void)0)
 
 #define wake_up(...) ((void)0)
 #define wake_up_all(...) ((void)0)
+#define wake_up_process(...) ((void)0)
+
 #define DEFINE_WAIT(name) \
 	do {\
 		struct wait_queue_entry name = {}; \

@@ -7,4 +7,6 @@
 
 #define STATIC				static
 
+#define xfs_alert_tag(...)
+
 #endif	/* _LIBXLOG_PRIV_H */

@@ -98,6 +98,9 @@ static inline int list_empty(const struct list_head *head)
 	return head->next == head;
 }
 
+/* TODO: chandan: Implement this API  */
+#define list_empty_careful(head) list_empty((head))
+
 static inline void __list_splice(struct list_head *list,
 				 struct list_head *prev,
 				 struct list_head *next)
