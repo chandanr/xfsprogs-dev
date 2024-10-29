@@ -25,6 +25,7 @@
 #include "libfrog/waitqueue.h"
 #include "atomic.h"
 #include "spinlock.h"
+#include "linux-err.h"
 
 #include "xfs_types.h"
 #include "xfs_fs.h"
