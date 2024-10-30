@@ -3,7 +3,10 @@
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
  */
+#include "libxfs.h"
 #include "libxlog_priv.h"
+#include "libxlog.h"
+
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_format.h"
