@@ -217,6 +217,33 @@ extern int	libxfs_log_header(char *, uuid_t *, int, int, int, xfs_lsn_t,
 })
 #define xfs_lock_two_inodes(ip0,mode0,ip1,mode1)	((void) 0)
 
+/* stop unused var warnings by assigning mp to itself */
+
+#define xfs_corruption_error(e,l,mp,b,sz,fi,ln,fa)	do { \
+	(mp) = (mp); \
+	cmn_err(CE_ALERT, "%s: XFS_CORRUPTION_ERROR", (e));  \
+} while (0)
+
+#define XFS_CORRUPTION_ERROR(e, lvl, mp, buf, bufsize)	do { \
+	(mp) = (mp); \
+	cmn_err(CE_ALERT, "%s: XFS_CORRUPTION_ERROR", (e));  \
+} while (0)
+
+#define XFS_ERROR_REPORT(e,l,mp)	do { \
+	(mp) = (mp); \
+	cmn_err(CE_ALERT, "%s: XFS_ERROR_REPORT", (e));  \
+} while (0)
+
+#define XFS_WARN_CORRUPT(mp, expr) \
+	( xfs_is_reporting_corruption(mp) ? \
+	   (printf("%s: XFS_WARN_CORRUPT at %s:%d", #expr, \
+		   __func__, __LINE__), true) : true)
+
+#define XFS_IS_CORRUPT(mp, expr)	\
+	(unlikely(expr) ? XFS_WARN_CORRUPT((mp), (expr)) : false)
+
+#define XFS_ERRLEVEL_LOW		1
+
 /* Shared utility routines */
 
 extern int	libxfs_alloc_file_space (struct xfs_inode *, xfs_off_t,
