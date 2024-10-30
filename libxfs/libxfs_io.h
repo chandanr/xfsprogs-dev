@@ -121,6 +121,7 @@ bool xfs_verify_magic16(struct xfs_buf *bp, __be16 dmagic);
 #define XBF_TRYLOCK			0
 #define XBF_UNMAPPED			0
 #define XBF_DONE			0
+#define XBF_STALE			LIBXFS_B_STALE
 #define XFS_BUF_UNDELAYWRITE(bp)	((bp)->b_flags &= ~LIBXFS_B_DIRTY)
 
 /* buffer type flags for write callbacks */
