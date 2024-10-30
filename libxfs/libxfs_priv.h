@@ -163,7 +163,6 @@ enum ce { CE_DEBUG, CE_CONT, CE_NOTE, CE_WARN, CE_ALERT, CE_PANIC };
 	(unlikely(expr) ? XFS_WARN_CORRUPT((mp), (expr)) : false)
 
 #define XFS_ERRLEVEL_LOW		1
-#define XFS_ILOCK_EXCL			0
 
 #define __section(section)	__attribute__((__section__(section)))
 
@@ -332,15 +331,6 @@ void __xfs_buf_mark_corrupt(struct xfs_buf *bp, xfs_failaddr_t fa);
 #define xfs_buf_readahead_map(a,b,c,ops)	((void) 0)	/* no readahead */
 
 #define xfs_sort					qsort
-
-#define xfs_ilock(ip,mode)				((void) 0)
-#define xfs_ilock_data_map_shared(ip)			(0)
-#define xfs_ilock_attr_map_shared(ip)			(0)
-#define xfs_iunlock(ip,mode)				({	\
-	typeof(mode) __mode = mode;				\
-	__mode = __mode; /* no set-but-unused warning */	\
-})
-#define xfs_lock_two_inodes(ip0,mode0,ip1,mode1)	((void) 0)
 
 /* space allocation */
 #define XFS_EXTENT_BUSY_DISCARDED	0x01	/* undergoing a discard op. */
