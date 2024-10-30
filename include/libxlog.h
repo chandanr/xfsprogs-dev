@@ -9,6 +9,7 @@
 #include "platform_defs.h"
 #include "ksemaphore.h"
 #include "libfrog/pseudo_percpu.h"
+#include "libfrog/refcount.h"
 #include "xfs.h"
 
 #define memalloc_nofs_save() (0);
