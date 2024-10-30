@@ -209,6 +209,7 @@
 #define xfs_verify_rtbno		libxfs_verify_rtbno
 #define xfs_zero_extent			libxfs_zero_extent
 
+#define xfs_buf_get_map libxfs_buf_get_map
 /* Please keep this list alphabetized. */
 
 #endif /* __LIBXFS_API_DEFS_H__ */
