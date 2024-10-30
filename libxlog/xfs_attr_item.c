@@ -4,8 +4,8 @@
  * Author: Allison Henderson <allison.henderson@oracle.com>
  */
 
-#include "libxlog_priv.h"
 #include "libxfs.h"
+#include "libxlog_priv.h"
 #include "libxlog.h"
 
 #include "xfs.h"
