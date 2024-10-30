@@ -78,4 +78,9 @@ static inline void kfree(const void *ptr)
 	return kmem_free(ptr);
 }
 
+static inline void kvfree(const void *ptr)
+{
+	return kmem_free(ptr);
+}
+
 #endif
