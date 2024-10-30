@@ -18,7 +18,6 @@ LIBHFILES = libxfs.h \
 	parent.h \
 	spinlock.h \
 	xfs_inode.h \
-	xfs_log_recover.h \
 	xfs_metadump.h \
 	xfs_mount.h \
 	xfs_quota_defs.h \

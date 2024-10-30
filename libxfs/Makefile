@@ -56,7 +56,8 @@ HFILES = \
 	xfs_trans_resv.h \
 	xfs_trans_space.h \
 	xfs_dir2_priv.h \
-	xfs_extent_busy.h
+	xfs_extent_busy.h \
+	xfs_log_recover.h
 
 CFILES = cache.c \
 	init.c \
