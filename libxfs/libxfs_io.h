@@ -116,6 +116,17 @@ bool xfs_verify_magic16(struct xfs_buf *bp, __be16 dmagic);
 
 #define _XBF_INODES LIBXFS_B_INODES
 
+/* chandan: Fix the dummy values assigned below */
+/* buffer management */
+#define XBF_TRYLOCK			0
+#define XBF_UNMAPPED			0
+#define XBF_DONE			0
+#define XFS_BUF_UNDELAYWRITE(bp)	((bp)->b_flags &= ~LIBXFS_B_DIRTY)
+
+/* buffer type flags for write callbacks */
+#define _XBF_DQUOTS	0 /* dquot buffer */
+#define _XBF_LOGRECOVERY	0 /* log recovery buffer */
+
 typedef unsigned int xfs_buf_flags_t;
 
 #define XFS_BUF_DADDR_NULL		((xfs_daddr_t) (-1LL))

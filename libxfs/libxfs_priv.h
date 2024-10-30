@@ -304,16 +304,6 @@ roundup_pow_of_two(uint v)
 	return 0;
 }
 
-/* buffer management */
-#define XBF_TRYLOCK			0
-#define XBF_UNMAPPED			0
-#define XBF_DONE			0
-#define XFS_BUF_UNDELAYWRITE(bp)	((bp)->b_flags &= ~LIBXFS_B_DIRTY)
-
-/* buffer type flags for write callbacks */
-#define _XBF_DQUOTS	0 /* dquot buffer */
-#define _XBF_LOGRECOVERY	0 /* log recovery buffer */
-
 static inline int
 xfs_buf_incore(
 	struct xfs_buftarg	*target,
