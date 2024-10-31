@@ -370,4 +370,14 @@
 #define trace_xfs_buf_item_relse(...) ((void)0)
 #define trace_xfs_buf_item_relse(...) ((void)0)
 
+#define trace_xfs_log_recover_buf_not_cancel(...)  ((void)0)
+#define trace_xfs_log_recover_buf_cancel_add(...)  ((void)0)
+#define trace_xfs_log_recover_buf_cancel_ref_inc(...)  ((void)0)
+#define trace_xfs_log_recover_buf_reg_buf(...)  ((void)0)
+#define trace_xfs_log_recover_buf_dquot_buf(...)  ((void)0)
+#define trace_xfs_log_recover_buf_inode_buf(...)  ((void)0)
+#define trace_xfs_log_recover_buf_recover(...)  ((void)0)
+#define trace_xfs_log_recover_buf_skip(...)  ((void)0)
+#define trace_xfs_log_recover_buf_cancel(...)  ((void)0)
+
 #endif /* __TRACE_H__ */
