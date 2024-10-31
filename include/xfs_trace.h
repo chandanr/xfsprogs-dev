@@ -356,5 +356,18 @@
 #define trace_xfs_trans_read_buf_shut(...) ((void)0)
 #define trace_xfs_trans_read_buf_shut(...) ((void)0)
 #define trace_xfs_buf_item_ordered(...) ((void)0)
+#define trace_xfs_buf_item_size_stale(...) ((void)0)
+#define trace_xfs_buf_item_size_ordered(...) ((void)0)
+#define trace_xfs_buf_item_size(...) ((void)0)
+#define trace_xfs_buf_item_format_stale(...) ((void)0)
+#define trace_xfs_buf_item_format(...) ((void)0)
+#define trace_xfs_buf_item_pin(...) ((void)0)
+#define trace_xfs_buf_item_unpin(...) ((void)0)
+#define trace_xfs_buf_item_unpin_stale(...) ((void)0)
+#define trace_xfs_buf_item_push(...) ((void)0)
+#define trace_xfs_buf_item_release(...) ((void)0)
+#define trace_xfs_buf_item_committed(...) ((void)0)
+#define trace_xfs_buf_item_relse(...) ((void)0)
+#define trace_xfs_buf_item_relse(...) ((void)0)
 
 #endif /* __TRACE_H__ */
