@@ -44,6 +44,13 @@ struct super_block {
 	char s_id[32];
 };
 
+#define SHUTDOWN_META_IO_ERROR  (1u << 0) /* write attempt to metadata failed */
+#define SHUTDOWN_LOG_IO_ERROR	(1u << 1)   /* write attempt to the log failed */
+#define SHUTDOWN_FORCE_UMOUNT   (1u << 2) /* shutdown from a forced unmount */
+#define SHUTDOWN_CORRUPT_INCORE (1u << 3) /* corrupt in-memory structures */
+#define SHUTDOWN_CORRUPT_ONDISK (1u << 4)  /* corrupt metadata on device */
+#define SHUTDOWN_DEVICE_REMOVED (1u << 5)  /* device removed underneath us */
+
 /*
  * Define a user-level mount structure with all we need
  * in order to make use of the numerous XFS_* macros.
