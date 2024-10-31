@@ -3,7 +3,11 @@
  * Copyright (c) 2000-2003 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
+
+#include "libxfs.h"
 #include "libxlog_priv.h"
+#include "libxlog.h"
+
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
