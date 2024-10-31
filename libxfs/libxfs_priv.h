@@ -108,28 +108,6 @@ extern char    *progname;
 
 #define STATIC				static
 
-/*
- * Starting in Linux 4.15, the %p (raw pointer value) printk modifier
- * prints a hashed version of the pointer to avoid leaking kernel
- * pointers into dmesg.  If we're trying to debug the kernel we want the
- * raw values, so override this behavior as best we can.
- *
- * In userspace we don't have this problem.
- */
-#define PTR_FMT "%p"
-
-#define XFS_IGET_CREATE			0x1
-#define XFS_IGET_UNTRUSTED		0x2
-
-extern void cmn_err(int, char *, ...);
-enum ce { CE_DEBUG, CE_CONT, CE_NOTE, CE_WARN, CE_ALERT, CE_PANIC };
-
-#define xfs_info(mp,fmt,args...)	cmn_err(CE_CONT, _(fmt), ## args)
-#define xfs_notice(mp,fmt,args...)	cmn_err(CE_NOTE, _(fmt), ## args)
-#define xfs_warn(mp,fmt,args...)	cmn_err((mp) ? CE_WARN : CE_WARN, _(fmt), ## args)
-#define xfs_err(mp,fmt,args...)		cmn_err(CE_ALERT, _(fmt), ## args)
-#define xfs_alert(mp,fmt,args...)	cmn_err(CE_ALERT, _(fmt), ## args)
-
 #define xfs_buf_ioerror_alert(bp,f)	((void) 0);
 
 #define xfs_hex_dump(d,n)		((void) 0)
