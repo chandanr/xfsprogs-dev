@@ -139,6 +139,8 @@ void complete(struct completion *completion) { return; }
 void wait_for_completion(struct completion *completion) { return; }
 int try_wait_for_completion(struct completion *completion) { return 1; }
 
+#define uuid_equal(s, d) (platform_uuid_compare((s), (d)) == 0)
+#define uuid_copy(s,d)		platform_uuid_copy((s),(d))
 
 struct libxfs_dev {
 	/* input parameters */
