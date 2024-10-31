@@ -88,6 +88,7 @@ struct xfs_buf {
 	struct xfs_buftarg	*b_target;
 	pthread_mutex_t		b_lock;
 	pthread_t		b_holder;
+	atomic_t		b_pin_count;
 	unsigned int		b_recur;
 	void			*b_log_item;
 	struct list_head	b_li_list;	/* Log items list head */
