@@ -90,11 +90,12 @@ struct xfs_buf {
 	pthread_t		b_holder;
 	atomic_t		b_pin_count;
 	unsigned int		b_recur;
-	void			*b_log_item;
+	struct xfs_buf_log_item	*b_log_item;
 	struct list_head	b_li_list;	/* Log items list head */
 	void			*b_transp;
 	void			*b_addr;
 	int			b_error;
+	int			b_map_count;
 	const struct xfs_buf_ops *b_ops;
 	struct xfs_perag	*b_pag;
 	struct xfs_mount	*b_mount;
@@ -148,11 +149,17 @@ static inline void xfs_buf_set_daddr(struct xfs_buf *bp, xfs_daddr_t blkno)
 	bp->b_maps[0].bm_bn = blkno;
 }
 
+static inline int xfs_buf_ispinned(struct xfs_buf *bp)
+{
+	return atomic_read(&bp->b_pin_count);
+}
+
 void libxfs_buf_set_priority(struct xfs_buf *bp, int priority);
 int libxfs_buf_priority(struct xfs_buf *bp);
 
 #define xfs_buf_set_ref(bp,ref)		((void) 0)
 #define xfs_buf_ioerror(bp,err)		((bp)->b_error = (err))
+#define xfs_buf_ioend_fail(bp) ((void) 0)
 
 #define xfs_daddr_to_agno(mp,d) \
 	((xfs_agnumber_t)(XFS_BB_TO_FSBT(mp, d) / (mp)->m_sb.sb_agblocks))
