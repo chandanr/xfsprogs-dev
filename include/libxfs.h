@@ -244,15 +244,22 @@ enum ce { CE_DEBUG, CE_CONT, CE_NOTE, CE_WARN, CE_ALERT, CE_PANIC };
 
 /* stop unused var warnings by assigning mp to itself */
 
-#define xfs_corruption_error(e,l,mp,b,sz,fi,ln,fa)	do { \
-	(mp) = (mp); \
-	cmn_err(CE_ALERT, "%s: XFS_CORRUPTION_ERROR", (e));  \
-} while (0)
+static inline
+void xfs_corruption_error(
+	const char *tag,
+	int level,
+	struct xfs_mount *mp,
+	const void *buf,
+	size_t bufsize,
+	const char *filename,
+	int linenum,
+	void *failaddr)
+{
+	cmn_err(CE_ALERT, "%s: XFS_CORRUPTION_ERROR", tag);
+}
 
-#define XFS_CORRUPTION_ERROR(e, lvl, mp, buf, bufsize)	do { \
-	(mp) = (mp); \
-	cmn_err(CE_ALERT, "%s: XFS_CORRUPTION_ERROR", (e));  \
-} while (0)
+#define XFS_CORRUPTION_ERROR(e, lvl, mp, buf, bufsize) \
+	xfs_corruption_error((e), (lvl), (mp), (buf), (bufsize), __FILE__, __LINE__, NULL)
 
 #define XFS_ERROR_REPORT(e,l,mp)	do { \
 	(mp) = (mp); \
