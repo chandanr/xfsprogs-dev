@@ -68,6 +68,12 @@ static inline void *kmalloc(size_t size, gfp_t flags)
 	return kvmalloc(size, flags);
 }
 
+static inline void *kzalloc(size_t size, gfp_t flags)
+{
+	return kmem_zalloc(size, flags);
+}
+
+
 static inline void *vmalloc(size_t size)
 {
 	return kmem_alloc(size, 0);
