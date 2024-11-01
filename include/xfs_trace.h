@@ -380,4 +380,7 @@
 #define trace_xfs_log_recover_buf_skip(...)  ((void)0)
 #define trace_xfs_log_recover_buf_cancel(...)  ((void)0)
 
+#define trace_xfs_log_recover_icreate_cancel(...) ((void)0)
+#define trace_xfs_log_recover_icreate_recover(...) ((void)0)
+
 #endif /* __TRACE_H__ */
