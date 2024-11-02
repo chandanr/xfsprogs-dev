@@ -383,4 +383,7 @@
 #define trace_xfs_log_recover_icreate_cancel(...) ((void)0)
 #define trace_xfs_log_recover_icreate_recover(...) ((void)0)
 
+#define trace_xfs_inode_pin(...) ((void)0)
+#define trace_xfs_inode_unpin(...) ((void)0)
+
 #endif /* __TRACE_H__ */

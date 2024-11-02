@@ -261,10 +261,20 @@ void xfs_corruption_error(
 #define XFS_CORRUPTION_ERROR(e, lvl, mp, buf, bufsize) \
 	xfs_corruption_error((e), (lvl), (mp), (buf), (bufsize), __FILE__, __LINE__, NULL)
 
-#define XFS_ERROR_REPORT(e,l,mp)	do { \
-	(mp) = (mp); \
-	cmn_err(CE_ALERT, "%s: XFS_ERROR_REPORT", (e));  \
-} while (0)
+void
+xfs_error_report(
+	const char		*tag,
+	int			level,
+	struct xfs_mount	*mp,
+	const char		*filename,
+	int			linenum,
+	xfs_failaddr_t		failaddr)
+{
+	cmn_err(CE_ALERT, "%s: XFS_ERROR_REPORT", tag);
+}
+
+#define XFS_ERROR_REPORT(e,l,mp) \
+	xfs_error_report((e), (l), (mp), __FILE__, __LINE__, NULL)
 
 #define XFS_WARN_CORRUPT(mp, expr) \
 	( xfs_is_reporting_corruption(mp) ? \
@@ -336,6 +346,10 @@ bool libxfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
 
 #include "xfs_attr.h"
 #include "topology.h"
+
+#define xfs_iflags_set(ip, flags)	do { } while (0)
+#define xfs_iflags_clear(ip, flags)	do { } while (0)
+#define xfs_iflags_test(ip, flags)	(0)
 
 /* local source files */
 #define xfs_mod_fdblocks(mp, delta, rsvd) \

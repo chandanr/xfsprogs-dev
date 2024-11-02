@@ -91,6 +91,55 @@ static inline struct timespec64 inode_set_ctime_current(struct inode *inode)
 	return now;
 }
 
+/*
+ * In-core inode flags.
+ */
+#define XFS_IRECLAIM            (1 << 0) /* started reclaiming this inode */
+#define XFS_ISTALE              (1 << 1) /* inode has been staled */
+#define XFS_IRECLAIMABLE        (1 << 2) /* inode can be reclaimed */
+#define XFS_INEW                (1 << 3) /* inode has just been allocated */
+#define XFS_IPRESERVE_DM_FIELDS (1 << 4) /* has legacy DMAPI fields set */
+#define XFS_ITRUNCATED          (1 << 5) /* truncated down so flush-on-close */
+#define XFS_IDIRTY_RELEASE      (1 << 6) /* dirty release already seen */
+#define XFS_IFLUSHING           (1 << 7) /* inode is being flushed */
+#define __XFS_IPINNED_BIT       8        /* wakeup key for zero pin count */
+#define XFS_IPINNED             (1 << __XFS_IPINNED_BIT)
+#define XFS_IEOFBLOCKS          (1 << 9) /* has the preallocblocks tag set */
+#define XFS_NEED_INACTIVE       (1 << 10) /* see XFS_INACTIVATING below */
+/*
+ * If this unlinked inode is in the middle of recovery, don't let drop_inode
+ * truncate and free the inode.  This can happen if we iget the inode during
+ * log recovery to replay a bmap operation on the inode.
+ */
+#define XFS_IRECOVERY           (1 << 11)
+#define XFS_ICOWBLOCKS          (1 << 12)/* has the cowblocks tag set */
+
+/*
+ * If we need to update on-disk metadata before this IRECLAIMABLE inode can be
+ * freed, then NEED_INACTIVE will be set.  Once we start the updates, the
+ * INACTIVATING bit will be set to keep iget away from this inode.  After the
+ * inactivation completes, both flags will be cleared and the inode is a
+ * plain old IRECLAIMABLE inode.
+ */
+#define XFS_INACTIVATING        (1 << 13)
+
+/* Quotacheck is running but inode has not been added to quota counts. */
+#define XFS_IQUOTAUNCHECKED (1 << 14)
+/* All inode state flags related to inode reclaim. */
+#define XFS_ALL_IRECLAIM_FLAGS  (XFS_IRECLAIMABLE | \
+				 XFS_IRECLAIM | \
+				 XFS_NEED_INACTIVE | \
+				 XFS_INACTIVATING)
+/*
+ * Per-lifetime flags need to be reset when re-using a reclaimable inode during
+ * inode lookup. This prevents unintended behaviour on the new inode from
+ * ocurring.
+ */
+#define XFS_IRECLAIM_RESET_FLAGS        \
+	(XFS_IRECLAIMABLE | XFS_IRECLAIM | \
+	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED | XFS_NEED_INACTIVE | \
+	 XFS_INACTIVATING | XFS_IQUOTAUNCHECKED)
+
 /* TODO: chandan: Do we need to copy fs/xfs/xfs_inode.h from kernel to xfsprogs? */
 typedef struct xfs_inode {
 	struct cache_node	i_node;	   /* chandan: what is this used for? */
@@ -127,8 +176,13 @@ typedef struct xfs_inode {
 	unsigned int		i_cformat;	/* format of cow fork */
 
 	xfs_fsize_t		i_size;		/* in-memory size */
+	atomic_t		i_pincount;
+	unsigned long           i_flags;
+	spinlock_t              i_flags_lock;
 	struct inode		i_vnode;
 } xfs_inode_t;
+
+#define xfs_ipincount(ip)       ((unsigned int) atomic_read(&ip->i_pincount))
 
 static inline bool xfs_inode_has_attr_fork(struct xfs_inode *ip)
 {

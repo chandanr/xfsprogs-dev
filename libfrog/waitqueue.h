@@ -17,6 +17,7 @@ struct wait_queue_entry {
 #define wake_up_all(...) ((void)0)
 #define wake_up_process(...) ((void)0)
 #define wait_event(...) ((void)0)
+#define wake_up_bit(...)((void)0)
 
 #define DEFINE_WAIT(name) \
 	do {\
