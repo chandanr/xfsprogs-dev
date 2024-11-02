@@ -390,4 +390,6 @@
 #define trace_xfs_log_recover_inode_recover(...) ((void)0)
 #define trace_xfs_log_recover_inode_skip(...) ((void)0)
 
+#define trace_xfs_iunlink_update_dinode(...) ((void)0)
+
 #endif /* __TRACE_H__ */
