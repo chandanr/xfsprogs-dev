@@ -3,7 +3,11 @@
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
+
+#include "libxfs.h"
 #include "libxlog_priv.h"
+#include "libxlog.h"
+
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
@@ -18,7 +22,23 @@
 #include "xfs_buf_item.h"
 #include "xfs_log.h"
 
+#include <sys/sysmacros.h>
+
+/*
+ * TODO: chandan: write a dummy linux/iversion.h file with a dummy definition of
+ * inode_peek_iversion().
+ */
+#if 0
 #include <linux/iversion.h>
+#else
+static inline __u64
+inode_peek_iversion(struct inode *inode)
+{
+	ASSERT(0);
+
+	return 0;
+}
+#endif
 
 struct kmem_cache	*xfs_ili_cache;		/* inode log item */
 
@@ -291,6 +311,16 @@ xfs_inode_item_size(
 	if (xfs_inode_has_attr_fork(ip))
 		xfs_inode_item_attr_fork_size(iip, nvecs, nbytes);
 }
+
+/* TODO: chandan: What is this sysv_encode_dev() all about? */
+#define MAJOR(dev) major(dev)
+#define MINOR(dev) minor(dev)
+
+static inline __u32 sysv_encode_dev(dev_t dev)
+{
+	return MINOR(dev) | (MAJOR(dev) << 18);
+}
+
 
 STATIC void
 xfs_inode_item_format_data_fork(
