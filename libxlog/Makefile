@@ -28,11 +28,11 @@ xfs_icreate_item.c \
 xfs_inode_item.c \
 xfs_inode_item_recover.c \
 xfs_iunlink_item.c \
+xfs_refcount_item.c \
+xfs_rmap_item.c \
 xfs_log.c \
 xfs_log_cil.c \
-xfs_log_recover.c \
-xfs_refcount_item.c \
-xfs_rmap_item.c
+xfs_log_recover.c
 
 HFILES = \
 libxlog_priv.h \
