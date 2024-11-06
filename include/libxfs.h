@@ -96,6 +96,11 @@ typedef struct {
 	gid_t val;
 } kgid_t;
 
+struct xfs_globals {
+	int log_recovery_delay;
+};
+extern struct xfs_globals xfs_globals;
+
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif

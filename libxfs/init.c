@@ -243,6 +243,10 @@ libxfs_close_devices(
 		libxfs_device_close(&li->rt);
 }
 
+struct xfs_globals xfs_globals = {
+	.log_recovery_delay = 0,
+};
+
 /*
  * libxfs initialization.
  * Caller gets a 0 on failure (and we print a message), 1 on success.
