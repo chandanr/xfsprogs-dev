@@ -153,6 +153,7 @@ typedef struct xfs_mount {
 	 * if warranted.
 	 */
 	struct xlog		*m_log;		/* log specific stuff */
+	int                     m_logbufs;      /* number of log buffers */
 	int			m_logbsize;	/* size of each log buffer */
 
         /*
