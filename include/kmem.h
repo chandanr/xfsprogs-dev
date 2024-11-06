@@ -24,7 +24,8 @@ typedef unsigned int __bitwise gfp_t;
 #define GFP_KERNEL	((__force gfp_t)0)
 #define GFP_NOFS	((__force gfp_t)0)
 #define __GFP_NOFAIL	((__force gfp_t)0)
-#define __GFP_NOLOCKDEP	((__force gfp_t)0)
+#define __GFP_NOLOCKDEP ((__force gfp_t)0)
+#define __GFP_RETRY_MAYFAIL ((__force gfp_t)0)
 
 #define __GFP_ZERO	(__force gfp_t)1
 #define __GFP_DIRECT_RECLAIM ((__force gfp_t)0)
@@ -69,6 +70,11 @@ static inline void *kmalloc(size_t size, gfp_t flags)
 }
 
 static inline void *kzalloc(size_t size, gfp_t flags)
+{
+	return kmem_zalloc(size, flags);
+}
+
+static inline void *kvzalloc(size_t size, gfp_t flags)
 {
 	return kmem_zalloc(size, flags);
 }
