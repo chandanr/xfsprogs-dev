@@ -92,7 +92,7 @@ path_navigate(
 	unsigned int		i;
 	int			error;
 
-	error = -libxfs_iget(mp, NULL, ino, 0, &dp);
+	error = -libxfs_iget(mp, NULL, ino, 0, 0, &dp);
 	if (error)
 		return error;
 
@@ -118,7 +118,7 @@ path_navigate(
 		libxfs_irele(dp);
 		dp = NULL;
 
-		error = -libxfs_iget(mp, NULL, ino, 0, &dp);
+		error = -libxfs_iget(mp, NULL, ino, 0, 0, &dp);
 		switch (error) {
 		case EFSCORRUPTED:
 		case EFSBADCRC:
@@ -487,7 +487,7 @@ ls_cur(
 	    !S_ISDIR(iocur_top->mode))
 		return ENOTDIR;
 
-	error = -libxfs_iget(mp, NULL, iocur_top->ino, 0, &dp);
+	error = -libxfs_iget(mp, NULL, iocur_top->ino, 0, 0, &dp);
 	if (error)
 		return error;
 

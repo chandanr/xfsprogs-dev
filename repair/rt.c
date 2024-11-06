@@ -133,7 +133,7 @@ check_rtfile_contents(
 	xfs_fileoff_t		bno = 0;
 	int			error;
 
-	error = -libxfs_iget(mp, NULL, ino, 0, &ip);
+	error = -libxfs_iget(mp, NULL, ino, 0, 0, &ip);
 	if (error) {
 		do_warn(_("unable to open %s file, err %d\n"), filename, error);
 		return;

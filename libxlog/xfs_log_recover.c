@@ -119,6 +119,9 @@ xlog_align(
 	return BBTOB(blk_no & ((xfs_daddr_t)log->l_sectBBsize - 1));
 }
 
+/* TODO: chandan: Implement this function */
+#define xfs_rw_bdev(...) (0)
+
 static int
 xlog_do_io(
 	struct xlog		*log,
@@ -246,7 +249,7 @@ xlog_header_check_mount(
 {
 	ASSERT(head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
 
-	if (uuid_is_null(&head->h_fs_uuid)) {
+	if (platform_uuid_is_null(&head->h_fs_uuid)) {
 		/*
 		 * IRIX doesn't write the h_fs_uuid or h_fmt fields. If
 		 * h_fs_uuid is null, we assume this log was last mounted
@@ -1222,6 +1225,9 @@ xlog_set_state(
 					BBTOB(log->l_curr_block));
 }
 
+/* TODO: chandan: Implement this function properly */
+#define xfs_readonly_buftarg(...) (0)
+
 /*
  * Find the sync block number or the tail of the log.
  *
@@ -1930,6 +1936,9 @@ xlog_recover_reorder_trans(
 		list_splice_tail(&cancel_list, &trans->r_itemq);
 	return error;
 }
+
+/* TODO: chandan: Implement this function */
+#define xfs_buf_readahead(...)
 
 void
 xlog_buf_readahead(
@@ -3274,6 +3283,8 @@ out_cancel:
 	return error;
 }
 
+/* TODO: chandan: Implement this function */
+#define _xfs_buf_read(...) (0)
 /*
  * Do the actual recovery
  */

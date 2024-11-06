@@ -33,7 +33,7 @@ update_inode_nlinks(
 	error = -libxfs_trans_alloc(mp, &M_RES(mp)->tr_remove, nres, 0, 0, &tp);
 	ASSERT(error == 0);
 
-	error = -libxfs_iget(mp, tp, ino, 0, &ip);
+	error = -libxfs_iget(mp, tp, ino, 0, 0, &ip);
 	if (error)  {
 		if (!no_modify)
 			do_error(

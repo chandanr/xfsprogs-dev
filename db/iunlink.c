@@ -48,7 +48,7 @@ get_next_unlinked(
 	int			error;
 
 	ino = XFS_AGINO_TO_INO(mp, agno, agino);
-	error = -libxfs_iget(mp, NULL, ino, 0, &ip);
+	error = -libxfs_iget(mp, NULL, ino, 0, 0, &ip);
 	if (error)
 		goto bad;
 

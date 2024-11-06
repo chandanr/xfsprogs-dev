@@ -208,7 +208,7 @@ quotacheck_adjust(
 	    ino == mp->m_sb.sb_pquotino)
 		return;
 
-	error = -libxfs_iget(mp, NULL, ino, 0, &ip);
+	error = -libxfs_iget(mp, NULL, ino, 0, 0, &ip);
 	if (error) {
 		do_warn(
 	_("could not open file %"PRIu64" for quotacheck, err=%d\n"),
@@ -429,7 +429,7 @@ quotacheck_verify(
 	if (!dquots || !chkd_flags)
 		return;
 
-	error = -libxfs_iget(mp, NULL, ino, 0, &ip);
+	error = -libxfs_iget(mp, NULL, ino, 0, 0, &ip);
 	if (error) {
 		do_warn(
 	_("could not open %s inode %"PRIu64" for quotacheck, err=%d\n"),

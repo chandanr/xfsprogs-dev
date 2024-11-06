@@ -210,6 +210,8 @@
 #define xfs_zero_extent			libxfs_zero_extent
 
 #define xfs_buf_get_map libxfs_buf_get_map
+
+#define xfs_iget libxfs_iget
 /* Please keep this list alphabetized. */
 
 #endif /* __LIBXFS_API_DEFS_H__ */

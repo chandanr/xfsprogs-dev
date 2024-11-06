@@ -1119,6 +1119,7 @@ libxfs_iget(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	xfs_ino_t		ino,
+	uint			flags,
 	uint			lock_flags,
 	struct xfs_inode	**ipp)
 {
