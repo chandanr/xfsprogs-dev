@@ -31,6 +31,7 @@ typedef	int64_t	atomic64_t;
 #define atomic_dec_return(a)	uatomic_sub_return(a, 1)
 #define atomic_dec_and_test(a)	(atomic_dec_return(a) == 0)
 #define cmpxchg(a, o, n)	uatomic_cmpxchg(a, o, n);
+#define atomic64_cmpxchg(a, o, n) uatomic_cmpxchg(a, o, n)
 
 static inline bool atomic_add_unless(atomic_t *a, int v, int u)
 {
