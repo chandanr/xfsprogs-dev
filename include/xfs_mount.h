@@ -262,6 +262,8 @@ __XFS_UNSUPP_FEAT(discard)
 #define XFS_OPSTATE_DEBUGGER		1	/* is this the debugger? */
 #define XFS_OPSTATE_REPORT_CORRUPTION	2	/* report buffer corruption? */
 #define XFS_OPSTATE_PERAG_DATA_LOADED	3	/* per-AG data initialized? */
+/* TODO: chandan: Fix the value of the macro if required */
+#define XFS_OPSTATE_CLEAN               4       /* mount was clean */
 
 #define __XFS_IS_OPSTATE(name, NAME) \
 static inline bool xfs_is_ ## name (struct xfs_mount *mp) \

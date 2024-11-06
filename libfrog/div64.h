@@ -66,6 +66,13 @@ div64_u64_rem(uint64_t dividend, uint64_t divisor, uint64_t *remainder)
 	return dividend / divisor;
 }
 
+static inline int64_t
+div_s64_rem(int64_t dividend, int64_t divisor, int32_t *remainder)
+{
+	*remainder = dividend % divisor;
+	return dividend / divisor;
+}
+
 static inline uint64_t rounddown_64(uint64_t x, uint32_t y)
 {
 	do_div(x, y);
