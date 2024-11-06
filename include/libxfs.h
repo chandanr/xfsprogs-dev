@@ -101,6 +101,8 @@ struct xfs_globals {
 };
 extern struct xfs_globals xfs_globals;
 
+#define IS_ALIGNED(x, a)                (((x) & ((typeof(x))(a) - 1)) == 0)
+
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
