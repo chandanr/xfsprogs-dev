@@ -392,4 +392,11 @@
 
 #define trace_xfs_iunlink_update_dinode(...) ((void)0)
 
+#define trace_xfs_log_recover_item_reorder_head(...) ((void)0)
+#define trace_xfs_log_recover_item_reorder_tail(...) ((void)0)
+#define trace_xfs_log_recover_item_recover(...) ((void)0)
+#define trace_xfs_log_recover_record(...) ((void)0)
+#define trace_xlog_intent_recovery_failed(...) ((void)0)
+#define trace_xfs_log_recover(...) ((void)0)
+
 #endif /* __TRACE_H__ */
