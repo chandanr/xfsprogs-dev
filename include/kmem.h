@@ -79,6 +79,11 @@ static inline void *kvzalloc(size_t size, gfp_t flags)
 	return kmem_zalloc(size, flags);
 }
 
+static inline void *kvrealloc(void *ptr, size_t oldsize, size_t newsize,
+		gfp_t flags)
+{
+	return krealloc(ptr, newsize, flags);
+}
 
 static inline void *vmalloc(size_t size)
 {
