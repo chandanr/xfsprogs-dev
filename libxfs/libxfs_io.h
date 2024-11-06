@@ -24,14 +24,14 @@ struct libxfs_init;
  * somewhat like the kernel now for userspace IO in terms of having buftarg
  * based devices...
  */
-struct xfs_buftarg {
+typedef struct xfs_buftarg {
 	struct xfs_mount	*bt_mount;
 	pthread_mutex_t		lock;
 	unsigned long		writes_left;
 	dev_t			bt_bdev;
 	int			bt_bdev_fd;
 	unsigned int		flags;
-};
+} xfs_buftarg_t;
 
 /* We purged a dirty buffer and lost a write. */
 #define XFS_BUFTARG_LOST_WRITE		(1 << 0)

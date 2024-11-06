@@ -376,6 +376,9 @@ xlog_grant_head_check(
 	return error;
 }
 
+/* TODO: chandan: Write proper definitions later */
+#define xfs_has_norecovery(mp) (0)
+#define xfs_readonly_buftarg(buftarg) (0)
 bool
 xfs_log_writable(
 	struct xfs_mount	*mp)
