@@ -152,6 +152,7 @@ typedef struct xfs_mount {
 	 * if warranted.
 	 */
 	struct xlog		*m_log;		/* log specific stuff */
+	int			m_logbsize;	/* size of each log buffer */
 
         /*
 	 * Global count of allocation btree blocks in use across all AGs. Only

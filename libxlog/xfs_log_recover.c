@@ -2851,6 +2851,9 @@ xlog_unpack_data(
 	}
 }
 
+/* TODO: chandan: Implement this function */
+#define xfs_hex_dump(...)
+
 /*
  * CRC check, unpack and process a log record.
  */
