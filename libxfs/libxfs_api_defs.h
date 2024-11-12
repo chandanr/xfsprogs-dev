@@ -212,6 +212,9 @@
 #define xfs_buf_get_map libxfs_buf_get_map
 
 #define xfs_iget libxfs_iget
+
+#define xfs_buf_ispinned libxfs_buf_ispinned
+
 /* Please keep this list alphabetized. */
 
 #endif /* __LIBXFS_API_DEFS_H__ */

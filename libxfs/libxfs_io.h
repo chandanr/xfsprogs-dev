@@ -103,6 +103,7 @@ struct xfs_buf {
 	struct xfs_buf_map	__b_map;
 	int			b_nmaps;
 	struct list_head	b_list;
+	wait_queue_head_t	b_waiters;
 };
 
 bool xfs_verify_magic(struct xfs_buf *bp, __be32 dmagic);

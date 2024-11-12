@@ -197,6 +197,30 @@ libxfs_bhash(cache_key_t key, unsigned int hashsize, unsigned int hashshift)
 	return tmp % hashsize;
 }
 
+/*
+ * TODO: chandan: Invoke this function before submitting delwri buffers for
+ * write operation.
+ */
+static void
+xfs_buf_wait_unpin(
+	struct xfs_buf		*bp)
+{
+	DECLARE_WAITQUEUE	(wait, current);
+
+	if (atomic_read(&bp->b_pin_count) == 0)
+		return;
+
+	add_wait_queue(&bp->b_waiters, &wait);
+	for (;;) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (atomic_read(&bp->b_pin_count) == 0)
+			break;
+		io_schedule();
+	}
+	remove_wait_queue(&bp->b_waiters, &wait);
+	set_current_state(TASK_RUNNING);
+}
+
 static int
 libxfs_bcompare(struct cache_node *node, cache_key_t key)
 {
@@ -235,6 +259,7 @@ __initbuf(struct xfs_buf *bp, struct xfs_buftarg *btp, xfs_daddr_t bno,
 	bp->b_target = btp;
 	bp->b_mount = btp->bt_mount;
 	bp->b_error = 0;
+	atomic_set(&bp->b_pin_count, 0);
 	if (!bp->b_addr)
 		bp->b_addr = memalign(libxfs_device_alignment(), bytes);
 	if (!bp->b_addr) {
@@ -374,6 +399,12 @@ libxfs_getbufr_map(struct xfs_buftarg *btp, xfs_daddr_t blkno, int bblen,
 	if (bp)
 		libxfs_initbuf_map(bp, btp, map, nmaps);
 	return bp;
+}
+
+int
+xfs_buf_ispinned(struct xfs_buf *bp)
+{
+	return atomic_read(&bp->b_pin_count);
 }
 
 void
