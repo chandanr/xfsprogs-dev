@@ -576,9 +576,11 @@ libxfs_buf_get_map(
 
 void libxfs_buf_rele(struct xfs_buf *bp)
 {
-	if (!list_empty(&bp->b_node.cn_hash))
+	if (!list_empty(&bp->b_node.cn_hash)) {
+		if (bp->b_flags & LIBXFS_B_STALE)
+			bp->b_node.cn_flags |= CN_FREE_IMMEDIATELY;
 		cache_node_put(libxfs_bcache, &bp->b_node);
-	else if (--bp->b_node.cn_count == 0) {
+	} else if (--bp->b_node.cn_count == 0) {
 		if (bp->b_flags & LIBXFS_B_DIRTY)
 			libxfs_bwrite(bp);
 		libxfs_brelse(&bp->b_node);
@@ -984,6 +986,15 @@ libxfs_brelse(
 	if (!bp)
 		return;
 	libxfs_buf_prepare_mru(bp);
+
+	if (bp->b_flags & LIBXFS_B_STALE) {
+		ASSERT(node->cn_flags & CN_FREE_IMMEDIATELY);
+		free(bp->b_addr);
+		if (bp->b_maps != &bp->__b_map)
+			free(bp->b_maps);
+		kmem_cache_free(xfs_buf_cache, bp);
+		return;
+	}
 
 	pthread_mutex_lock(&xfs_buf_freelist.cm_mutex);
 	list_add(&bp->b_node.cn_mru, &xfs_buf_freelist.cm_list);
@@ -1562,4 +1573,30 @@ __xfs_buf_mark_corrupt(
 
 	xfs_buf_corruption_error(bp, fa);
 	xfs_buf_stale(bp);
+}
+
+void
+xfs_buf_stale(
+	struct xfs_buf	*bp)
+{
+	ASSERT(xfs_buf_islocked(bp));
+
+	bp->b_flags |= LIBXFS_B_STALE;
+
+	/*
+	 * Clear the delwri status so that a delwri queue walker will not
+	 * flush this buffer to disk now that it is stale. The delwri queue has
+	 * a reference to the buffer, so this is safe to do.
+	 */
+	bp->b_flags &= ~LIBXFS_B_DELWRI_Q
+
+	/*
+	 * Once the buffer is marked stale and unlocked, a subsequent lookup
+	 * could reset b_flags. There is no guarantee that the buffer is
+	 * unaccounted (released to LRU) before that occurs. Drop in-flight
+	 * status now to preserve accounting consistency.
+	 */
+	spin_lock(&bp->b_lock);
+	__xfs_buf_ioacct_dec(bp);
+	spin_unlock(&bp->b_lock);
 }

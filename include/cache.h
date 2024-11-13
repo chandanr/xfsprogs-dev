@@ -86,6 +86,10 @@ struct cache_mru {
 	pthread_mutex_t		cm_mutex;	/* MRU lock */
 };
 
+enum cache_node_flags {
+	CN_FREE_IMMEDIATELY,
+};
+
 struct cache_node {
 	struct list_head	cn_hash;	/* hash chain */
 	struct list_head	cn_mru;		/* MRU chain */
@@ -94,6 +98,7 @@ struct cache_node {
 	int			cn_priority;	/* priority, -1 = free list */
 	int			cn_old_priority;/* saved pre-dirty prio */
 	pthread_mutex_t		cn_mutex;	/* node mutex */
+	enum cache_node_flags	cn_flags;
 };
 
 struct cache {

@@ -486,6 +486,7 @@ cache_node_put(
 	struct cache *		cache,
 	struct cache_node *	node)
 {
+	struct cache_hash	*hash;
 	struct cache_mru *	mru;
 
 	pthread_mutex_lock(&node->cn_mutex);
@@ -504,12 +505,25 @@ cache_node_put(
 	node->cn_count--;
 
 	if (node->cn_count == 0) {
-		/* add unreferenced node to appropriate MRU for shaker */
-		mru = &cache->c_mrus[node->cn_priority];
-		pthread_mutex_lock(&mru->cm_mutex);
-		mru->cm_count++;
-		list_add(&node->cn_mru, &mru->cm_list);
-		pthread_mutex_unlock(&mru->cm_mutex);
+		if (node->cn_flags & CN_FREE_IMMEDIATELY) {
+			hash = cache->c_hash + node->cn_hashidx;
+			pthread_mutex_lock(&hash->ch_mutex);
+			node->cn_priority = -1; /* chandan: what does this mean? */
+			list_del_init(&node->cn_hash);
+			hash->ch_count--;
+			pthread_mutex_unlock(&hash->ch_mutex);
+			pthread_mutex_unlock(&node->cn_mutex);
+			pthread_mutex_destroy(&node->cn_mutex);
+			cache->relse(node);
+			return;	/* chandan: Optimize this later */
+		} else {
+			/* add unreferenced node to appropriate MRU for shaker */
+			mru = &cache->c_mrus[node->cn_priority];
+			pthread_mutex_lock(&mru->cm_mutex);
+			mru->cm_count++;
+			list_add(&node->cn_mru, &mru->cm_list);
+			pthread_mutex_unlock(&mru->cm_mutex);
+		}
 	}
 
 	pthread_mutex_unlock(&node->cn_mutex);
