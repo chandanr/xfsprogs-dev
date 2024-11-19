@@ -16,9 +16,6 @@ struct xfs_mount;
 struct xfs_perag;
 struct libxfs_init;
 
-/* TODO: chandan: Implement this API */
-#define xfs_buf_delwri_submit_nowait(...) (0)
-
 /*
  * IO verifier callbacks need the xfs_mount pointer, so we have to behave
  * somewhat like the kernel now for userspace IO in terms of having buftarg
@@ -104,18 +101,27 @@ struct xfs_buf {
 	int			b_nmaps;
 	struct list_head	b_list;
 	wait_queue_head_t	b_waiters;
+	struct work_struct	b_ioend_work;
 };
 
 bool xfs_verify_magic(struct xfs_buf *bp, __be32 dmagic);
 bool xfs_verify_magic16(struct xfs_buf *bp, __be16 dmagic);
 
 /* b_flags bits */
-#define LIBXFS_B_DIRTY		0x0002	/* buffer has been modified */
-#define LIBXFS_B_STALE		0x0004	/* buffer marked as invalid */
-#define LIBXFS_B_UPTODATE	0x0008	/* buffer is sync'd to disk */
-#define LIBXFS_B_DISCONTIG	0x0010	/* discontiguous buffer */
-#define LIBXFS_B_UNCHECKED	0x0020	/* needs verification */
-#define LIBXFS_B_INODES		0x0040	/* Inode cluster buffer */
+#define LIBXFS_B_DIRTY		(1ULL << 1)	/* buffer has been modified */
+#define LIBXFS_B_STALE		(1ULL << 2)	/* buffer marked as invalid */
+#define LIBXFS_B_UPTODATE	(1ULL << 3)	/* buffer is sync'd to disk */
+#define LIBXFS_B_DISCONTIG	(1ULL << 4)	/* discontiguous buffer */
+#define LIBXFS_B_UNCHECKED	(1ULL << 5)	/* needs verification */
+#define LIBXFS_B_INODES		(1ULL << 6)	/* Inode cluster buffer */
+#define LIBXFS_B_DQUOTS		(1ULL << 7)
+#define LIBXFS_B_DELWRI_Q	(1ULL << 8)
+#define LIBXFS_B_READ		(1ULL << 9)
+#define LIBXFS_B_WRITE		(1ULL << 10)
+#define LIBXFS_B_ASYNC		(1ULL << 11)
+#define LIBXFS_B_WRITE_FAIL	(1ULL << 12)
+#define LIBXFS_B_DONE		(1ULL << 13)
+#define LIBXFS_B_LOGRECOVERY	(1ULL << 14)
 
 #define _XBF_INODES LIBXFS_B_INODES
 
@@ -160,7 +166,6 @@ int libxfs_buf_priority(struct xfs_buf *bp);
 
 #define xfs_buf_set_ref(bp,ref)		((void) 0)
 #define xfs_buf_ioerror(bp,err)		((bp)->b_error = (err))
-#define xfs_buf_ioend_fail(bp) ((void) 0)
 
 #define xfs_daddr_to_agno(mp,d) \
 	((xfs_agnumber_t)(XFS_BB_TO_FSBT(mp, d) / (mp)->m_sb.sb_agblocks))
@@ -276,6 +281,7 @@ int libxfs_buf_read_uncached(struct xfs_buftarg *targ, xfs_daddr_t daddr,
 static inline bool
 xfs_buf_delwri_queue(struct xfs_buf *bp, struct list_head *buffer_list)
 {
+	bp->b_flags |= LIBXFS_B_DELWRI_Q;
 	xfs_buf_hold(bp);
 	list_add_tail(&bp->b_list, buffer_list);
 	return true;

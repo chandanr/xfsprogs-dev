@@ -197,10 +197,6 @@ libxfs_bhash(cache_key_t key, unsigned int hashsize, unsigned int hashshift)
 	return tmp % hashsize;
 }
 
-/*
- * TODO: chandan: Invoke this function before submitting delwri buffers for
- * write operation.
- */
 static void
 xfs_buf_wait_unpin(
 	struct xfs_buf		*bp)
@@ -877,14 +873,7 @@ libxfs_bwrite(
 	 * dirty it must *never* be written. Verifiers are wonderful for finding
 	 * bugs like this. Make sure the error is obvious as to the cause.
 	 */
-	if (bp->b_flags & LIBXFS_B_STALE) {
-		bp->b_error = -ESTALE;
-		return bp->b_error;
-	}
-
-	/* Trigger the writeback hook if there is one. */
-	if (bp->b_mount->m_buf_writeback_fn)
-		bp->b_mount->m_buf_writeback_fn(bp);
+	ASSERT((bp->b_flags & LIBXFS_B_STALE) == 0);
 
 	/*
 	 * clear any pre-existing error status on the buffer. This can occur if
@@ -1280,6 +1269,271 @@ xfs_buf_delwri_submit(
 	}
 
 	return error;
+}
+
+static bool
+xfs_buf_ioend_handle_error(
+	struct xfs_buf		*bp)
+{
+	ASSERT(0);
+
+	return false;
+}
+
+void
+xfs_buf_ioend_fail(
+	struct xfs_buf	*bp)
+{
+	ASSERT(0);
+}
+
+static void
+xfs_buf_ioend(
+	struct xfs_buf	*bp)
+{
+	if (bp->b_flags & XBF_READ) {
+		if (!bp->b_error && bp->b_ops)
+			bp->b_ops->verify_read(bp);
+		if (!bp->b_error)
+			bp->b_flags |= XBF_DONE;
+	} else {
+		if (!bp->b_error) {
+			bp->b_flags &= ~LIBXFS_B_WRITE_FAIL;
+			bp->b_flags |= LIBXFS_B_DONE;
+		}
+
+		if (unlikely(bp->b_error) && xfs_buf_ioend_handle_error(bp))
+			return;
+
+		/*
+		 * Note that for things like remote attribute buffers, there may
+		 * not be a buffer log item here, so processing the buffer log
+		 * item must remain optional.
+		 */
+		if (bp->b_log_item)
+			xfs_buf_item_done(bp);
+
+		if (bp->b_flags & LIBXFS_B_INODES)
+			xfs_buf_inode_iodone(bp);
+		else if (bp->b_flags & LIBXFS_B_DQUOTS)
+			xfs_buf_dquot_iodone(bp);
+	}
+
+	bp->b_flags &= ~(LIBXFS_B_READ | LIBXFS_B_WRITE | LIBXFS_B_LOGRECOVERY);
+
+	if (bp->b_flags & XBF_ASYNC)
+		xfs_buf_relse(bp);
+	else
+		complete(&bp->b_iowait);
+}
+
+static void
+xfs_buf_ioend_work(
+	struct work_struct	*work)
+{
+	struct xfs_buf		*bp =
+		container_of(work, struct xfs_buf, b_ioend_work);
+
+	xfs_buf_ioend(bp);
+}
+
+static void
+xfs_buf_ioend_async(
+	struct xfs_buf	*bp)
+{
+	INIT_WORK(&bp->b_ioend_work, xfs_buf_ioend_work);
+	queue_work(bp->b_mount->m_buf_workqueue, &bp->b_ioend_work);
+}
+
+STATIC void
+_xfs_buf_ioapply(
+	struct xfs_buf	*bp)
+{
+	struct blk_plug	plug;
+	int		offset;
+	int		size;
+	int		i;
+
+	/*
+	 * Make sure we capture only current IO errors rather than stale errors
+	 * left over from previous use of the buffer (e.g. failed readahead).
+	 */
+	bp->b_error = 0;
+
+	if (bp->b_flags & LIBXFS_B_WRITE) {
+		/*
+		 * Run the write verifier callback function if it exists. If
+		 * this function fails it will mark the buffer with an error and
+		 * the IO should not be dispatched.
+		 */
+		if (bp->b_ops) {
+			bp->b_ops->verify_write(bp);
+			if (bp->b_error) {
+				xfs_force_shutdown(bp->b_mount,
+						   SHUTDOWN_CORRUPT_INCORE);
+				return;
+			}
+		} else if (bp->b_rhash_key != XFS_BUF_DADDR_NULL) {
+			struct xfs_mount *mp = bp->b_mount;
+
+			/*
+			 * non-crc filesystems don't attach verifiers during
+			 * log recovery, so don't warn for such filesystems.
+			 */
+			if (xfs_has_crc(mp)) {
+				xfs_warn(mp,
+					"%s: no buf ops on daddr 0x%llx len %d",
+					__func__, xfs_buf_daddr(bp),
+					bp->b_length);
+				xfs_hex_dump(bp->b_addr,
+						XFS_CORRUPTION_DUMP_LEN);
+				dump_stack();
+			}
+		}
+	}
+
+	if (bp->b_flags & LIBXFS_B_WRITE) {
+		error = libxfs_bwrite(bp);
+		xfs_buf_ioend_async(bp);
+	} else {
+		/* TODO: chandan: Implement read operation via libxfs_getbuf() and friends */
+		return 0;
+	}
+}
+
+/*
+ * Wait for I/O completion of a sync buffer and return the I/O error code.
+ */
+static int
+xfs_buf_iowait(
+	struct xfs_buf	*bp)
+{
+	ASSERT(!(bp->b_flags & XBF_ASYNC));
+
+	trace_xfs_buf_iowait(bp, _RET_IP_);
+	wait_for_completion(&bp->b_iowait);
+	trace_xfs_buf_iowait_done(bp, _RET_IP_);
+
+	return bp->b_error;
+}
+
+static int
+__xfs_buf_submit(
+	struct xfs_buf	*bp,
+	bool		wait)
+{
+	int		error = 0;
+
+	trace_xfs_buf_submit(bp, _RET_IP_);
+
+	ASSERT(!(bp->b_flags & LIBXFS_B_DELWRI_Q));
+
+	/*
+	 * Grab a reference so the buffer does not go away underneath us. For
+	 * async buffers, I/O completion drops the callers reference, which
+	 * could occur before submission returns.
+	 */
+	xfs_buf_hold(bp);
+
+	if (bp->b_flags & LIBXFS_B_WRITE)
+		xfs_buf_wait_unpin(bp);
+
+	/*
+	 * Set the count to 1 initially, this will stop an I/O completion
+	 * callout which happens before we have started all the I/O from calling
+	 * xfs_buf_ioend too early.
+	 */
+	atomic_set(&bp->b_io_remaining, 1);
+	if (bp->b_flags & LIBXFS_B_ASYNC)
+		xfs_buf_ioacct_inc(bp);
+	_xfs_buf_ioapply(bp);
+
+	/*
+	 * If _xfs_buf_ioapply failed, we can get back here with only the IO
+	 * reference we took above. If we drop it to zero, run completion so
+	 * that we don't return to the caller with completion still pending.
+	 */
+	if (atomic_dec_and_test(&bp->b_io_remaining) == 1) {
+		if (bp->b_error || !(bp->b_flags & LIBXFS_B_ASYNC))
+			xfs_buf_ioend(bp);
+		else
+			xfs_buf_ioend_async(bp);
+	}
+
+	if (wait)
+		error = xfs_buf_iowait(bp);
+
+	/*
+	 * Release the hold that keeps the buffer referenced for the entire
+	 * I/O. Note that if the buffer is async, it is not safe to reference
+	 * after this release.
+	 */
+	xfs_buf_rele(bp);
+	return error;
+}
+
+static int
+xfs_buf_delwri_submit_buffers(
+	struct list_head	*buffer_list,
+	struct list_head	*wait_list)
+{
+	struct xfs_buf		*bp, *n;
+	int			pinned = 0;
+
+	/* TODO: chandan: Should we sort buffer like how the kernel does? */
+	list_sort(NULL, buffer_list, xfs_buf_cmp);
+
+	list_for_each_entry_safe(bp, n, buffer_list, b_list) {
+		if (!wait_list) {
+			if (!xfs_buf_trylock(bp))
+				continue;
+			if (xfs_buf_ispinned(bp)) {
+				xfs_buf_unlock(bp);
+				pinned++;
+				continue;
+			}
+		} else {
+			xfs_buf_lock(bp);
+		}
+
+		/*
+		 * Someone else might have written the buffer synchronously or
+		 * marked it stale in the meantime.  In that case only the
+		 * _XBF_DELWRI_Q flag got cleared, and we have to drop the
+		 * reference and remove it from the list here.
+		 */
+		if (!(bp->b_flags & LIBXFS_B_DELWRI_Q)) {
+			list_del_init(&bp->b_list);
+			xfs_buf_relse(bp);
+			continue;
+		}
+
+		/*
+		 * If we have a wait list, each buffer (and associated delwri
+		 * queue reference) transfers to it and is submitted
+		 * synchronously. Otherwise, drop the buffer from the delwri
+		 * queue and submit async.
+		 */
+		bp->b_flags &= ~LIBXFS_B_DELWRI_Q;
+		bp->b_flags |= LIBXFS_B_WRITE;
+		if (wait_list) {
+			bp->b_flags &= ~LIBXFS_B_ASYNC;
+			list_move_tail(&bp->b_list, wait_list);
+		} else {
+			bp->b_flags |= LIBXFS_B_ASYNC;
+			list_del_init(&bp->b_list);
+		}
+		__xfs_buf_submit(bp, false);
+	}
+
+	return pinned;
+}
+
+int
+xfs_buf_delwri_submit_nowait(
+	struct list_head	*buffer_list)
+{
+	return xfs_buf_delwri_submit_buffers(buffer_list, NULL);
 }
 
 /*
