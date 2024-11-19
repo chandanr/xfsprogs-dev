@@ -75,6 +75,8 @@ enum req_op {
 #define REQ_OP_MASK     (__force blk_opf_t)((1 << REQ_OP_BITS) - 1)
 #define REQ_FLAG_BITS   24
 
+#define REQ_META 0
+
 /*
  * bio flags
  */
