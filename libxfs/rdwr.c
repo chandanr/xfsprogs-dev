@@ -5,6 +5,7 @@
  */
 
 
+#include "libxfs_io.h"
 #include "libxfs_priv.h"
 #include "init.h"
 #include "xfs_fs.h"
@@ -675,6 +676,20 @@ libxfs_readbuf_verify(
 }
 
 int
+_xfs_buf_read(
+	struct xfs_buf          *bp,
+	xfs_buf_flags_t         flags)
+{
+	ASSERT(!(flags & LIBXFS_B_WRITE));
+	ASSERT(bp->b_maps[0].bm_bn != XFS_BUF_DADDR_NULL);
+
+	bp->b_flags &= ~(LIBXFS_B_WRITE | LIBXFS_B_ASYNC | LIBXFS_B_UPTODATE);
+	bp->b_flags |= flags & (LIBXFS_B_READ | LIBXFS_B_ASYNC);
+
+	return xfs_buf_submit(bp);
+}
+
+int
 libxfs_readbufr_map(struct xfs_buftarg *btp, struct xfs_buf *bp, int flags)
 {
 	int	fd = btp->bt_bdev_fd;
@@ -746,25 +761,14 @@ libxfs_buf_read_map(
 		goto ok;
 	}
 
-	/*
-	 * Set the ops on a cache miss (i.e. first physical read) as the
-	 * verifier may change the ops to match the type of buffer it contains.
-	 * A cache hit might reset the verifier to the original type if we set
-	 * it again, but it won't get called again and set to match the buffer
-	 * contents. *cough* xfs_da_node_buf_ops *cough*.
-	 */
-	if (nmaps == 1)
-		error = libxfs_readbufr(btp, map[0].bm_bn, bp, map[0].bm_len,
-				flags);
-	else
-		error = libxfs_readbufr_map(btp, bp, flags);
+	if (!(bp->b_flags & LIBXFS_B_UPTODATE)) {
+		bp->b_ops = ops;
+		error = _xfs_buf_read(bp, flags);
+		ASSERT(!(flags & LIBXFS_B_ASYNC));
+	}
+
 	if (error)
 		goto err;
-
-	error = libxfs_readbuf_verify(bp, ops);
-	if (error && !salvage)
-		goto err;
-
 ok:
 	*bpp = bp;
 	return 0;
@@ -1394,11 +1398,11 @@ _xfs_buf_ioapply(
 
 	if (bp->b_flags & LIBXFS_B_WRITE) {
 		error = libxfs_bwrite(bp);
-		xfs_buf_ioend_async(bp);
 	} else {
-		/* TODO: chandan: Implement read operation via libxfs_getbuf() and friends */
-		return 0;
+		error = libxfs_readbufr_map(bp->b_target, bp, bp->b_flags);
 	}
+	xfs_buf_ioend_async(bp);
+
 }
 
 /*
@@ -1470,6 +1474,13 @@ __xfs_buf_submit(
 	 */
 	xfs_buf_rele(bp);
 	return error;
+}
+
+static inline int
+xfs_buf_submit(
+	struct xfs_buf		*bp)
+{
+	return __xfs_buf_submit(bp, !(bp->b_flags & LIBXFS_B_ASYNC));
 }
 
 static int

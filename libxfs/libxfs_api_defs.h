@@ -215,6 +215,8 @@
 
 #define xfs_buf_ispinned libxfs_buf_ispinned
 
+#define xfs_buf_read_map		libxfs_buf_read_map
+
 /* Please keep this list alphabetized. */
 
 #endif /* __LIBXFS_API_DEFS_H__ */

@@ -3286,8 +3286,6 @@ out_cancel:
 	return error;
 }
 
-/* TODO: chandan: Implement this function */
-#define _xfs_buf_read(...) (0)
 /*
  * Do the actual recovery
  */
