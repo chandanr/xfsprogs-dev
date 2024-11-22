@@ -407,7 +407,7 @@ rmtval_get(xfs_mount_t *mp, xfs_ino_t ino, blkmap_t *blkmap,
 			break;
 		}
 		error = -libxfs_buf_read(mp->m_dev, XFS_FSB_TO_DADDR(mp, bno),
-				XFS_FSB_TO_BB(mp, 1), LIBXFS_READBUF_SALVAGE,
+				XFS_FSB_TO_BB(mp, 1), LIBXFS_B_SALVAGE,
 				&bp, &xfs_attr3_rmt_buf_ops);
 		if (error) {
 			do_warn(
@@ -787,7 +787,7 @@ process_leaf_attr_level(xfs_mount_t	*mp,
 
 		error = -libxfs_buf_read(mp->m_dev,
 				XFS_FSB_TO_DADDR(mp, dev_bno),
-				XFS_FSB_TO_BB(mp, 1), LIBXFS_READBUF_SALVAGE,
+				XFS_FSB_TO_BB(mp, 1), LIBXFS_B_SALVAGE,
 				&bp, &xfs_attr3_leaf_buf_ops);
 		if (error) {
 			do_warn(
@@ -1119,7 +1119,7 @@ process_longform_attr(
 	}
 
 	error = -libxfs_buf_read(mp->m_dev, XFS_FSB_TO_DADDR(mp, bno),
-			XFS_FSB_TO_BB(mp, 1), LIBXFS_READBUF_SALVAGE, &bp,
+			XFS_FSB_TO_BB(mp, 1), LIBXFS_B_SALVAGE, &bp,
 			&xfs_da3_node_buf_ops);
 	if (error) {
 		do_warn(

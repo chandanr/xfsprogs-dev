@@ -1278,7 +1278,7 @@ _("cannot read inode %" PRIu64 ", file block %d, NULL disk block\n"),
 
 		error = -libxfs_buf_read(mp->m_dev,
 				XFS_FSB_TO_DADDR(mp, fsbno), BTOBB(byte_cnt),
-				LIBXFS_READBUF_SALVAGE, &bp,
+				LIBXFS_B_SALVAGE, &bp,
 				&xfs_symlink_buf_ops);
 		if (error) {
 			do_warn(

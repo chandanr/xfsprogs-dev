@@ -61,7 +61,7 @@ salvage_buffer(
 	int			error;
 
 	error = -libxfs_buf_read(target, blkno, numblks,
-			LIBXFS_READBUF_SALVAGE, bpp, ops);
+			LIBXFS_B_SALVAGE, bpp, ops);
 	if (error != EIO)
 		return error;
 

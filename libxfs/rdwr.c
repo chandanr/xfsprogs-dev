@@ -684,7 +684,7 @@ _xfs_buf_read(
 	ASSERT(bp->b_maps[0].bm_bn != XFS_BUF_DADDR_NULL);
 
 	bp->b_flags &= ~(LIBXFS_B_WRITE | LIBXFS_B_ASYNC | LIBXFS_B_UPTODATE);
-	bp->b_flags |= flags & (LIBXFS_B_READ | LIBXFS_B_ASYNC);
+	bp->b_flags |= flags & (LIBXFS_B_READ | LIBXFS_B_ASYNC | LIBXFS_B_SALVAGE);
 
 	return xfs_buf_submit(bp);
 }
@@ -725,7 +725,7 @@ libxfs_buf_read_map(
 	const struct xfs_buf_ops *ops)
 {
 	struct xfs_buf		*bp;
-	bool			salvage = flags & LIBXFS_READBUF_SALVAGE;
+	bool			salvage = flags & LIBXFS_B_SALVAGE;
 	int			error = 0;
 
 	*bpp = NULL;
@@ -749,7 +749,7 @@ libxfs_buf_read_map(
 	 * here because it's dirty and unchecked indicates we've screwed up
 	 * somewhere else.
 	 *
-	 * Note that if the caller passes in LIBXFS_READBUF_SALVAGE, that means
+	 * Note that if the caller passes in LIBXFS_B_SALVAGE, that means
 	 * they want the buffer even if it fails verification.
 	 */
 	bp->b_error = 0;
@@ -1296,10 +1296,14 @@ xfs_buf_ioend(
 	struct xfs_buf	*bp)
 {
 	if (bp->b_flags & XBF_READ) {
-		if (!bp->b_error && bp->b_ops)
-			bp->b_ops->verify_read(bp);
-		if (!bp->b_error)
+		if (!bp->b_error) {
 			bp->b_flags |= XBF_DONE;
+			if (bp->b_ops) {
+				bp->b_ops->verify_read(bp);
+				if (bp->b_error)
+					bp->b_flags |= LIBXFS_B_VER_FAIL;
+			}
+		}
 	} else {
 		if (!bp->b_error) {
 			bp->b_flags &= ~LIBXFS_B_WRITE_FAIL;
@@ -1417,6 +1421,10 @@ xfs_buf_iowait(
 	trace_xfs_buf_iowait(bp, _RET_IP_);
 	wait_for_completion(&bp->b_iowait);
 	trace_xfs_buf_iowait_done(bp, _RET_IP_);
+
+	if (bp->b_error && bp->b_flags & LIBXFS_B_VER_FAIL &&
+		bp->b_flags & LIBXFS_B_SALVAGE)
+		return 0;
 
 	return bp->b_error;
 }

@@ -64,7 +64,7 @@ da_read_buf(
 		map[i].bm_bn = XFS_FSB_TO_DADDR(mp, bmp[i].startblock);
 		map[i].bm_len = XFS_FSB_TO_BB(mp, bmp[i].blockcount);
 	}
-	libxfs_buf_read_map(mp->m_dev, map, nex, LIBXFS_READBUF_SALVAGE,
+	libxfs_buf_read_map(mp->m_dev, map, nex, LIBXFS_B_SALVAGE,
 			&bp, ops);
 	if (map != map_array)
 		free(map);

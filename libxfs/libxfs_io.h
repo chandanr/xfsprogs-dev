@@ -122,6 +122,8 @@ bool xfs_verify_magic16(struct xfs_buf *bp, __be16 dmagic);
 #define LIBXFS_B_WRITE_FAIL	(1ULL << 12)
 #define LIBXFS_B_DONE		(1ULL << 13)
 #define LIBXFS_B_LOGRECOVERY	(1ULL << 14)
+#define LIBXFS_B_SALVAGE	(1ULL << 15)	/* Return the buffer even if the verifiers fail. */
+#define LIBXFS_B_VER_FAIL	(1ULL << 16)
 
 #define _XBF_INODES LIBXFS_B_INODES
 
@@ -184,9 +186,6 @@ extern struct cache	*libxfs_bcache;
 extern struct cache_operations	libxfs_bcache_operations;
 
 #define LIBXFS_GETBUF_TRYLOCK	(1 << 0)
-
-/* Return the buffer even if the verifiers fail. */
-#define LIBXFS_READBUF_SALVAGE		(1 << 1)
 
 int libxfs_buf_read_map(struct xfs_buftarg *btp, struct xfs_buf_map *maps,
 			int nmaps, int flags, struct xfs_buf **bpp,

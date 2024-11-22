@@ -276,7 +276,7 @@ pf_scan_lbtree(
 	int			error;
 
 	error = -libxfs_buf_read(mp->m_dev, XFS_FSB_TO_DADDR(mp, dbno),
-			XFS_FSB_TO_BB(mp, 1), LIBXFS_READBUF_SALVAGE, &bp,
+			XFS_FSB_TO_BB(mp, 1), LIBXFS_B_SALVAGE, &bp,
 			&xfs_bmbt_buf_ops);
 	if (error)
 		return 0;

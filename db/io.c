@@ -579,11 +579,11 @@ __set_cur(
 			return;
 		memcpy(iocur_top->bbmap, bbmap, sizeof(struct bbmap));
 		error = -libxfs_buf_read_map(btargp, bbmap->b,
-				bbmap->nmaps, LIBXFS_READBUF_SALVAGE, &bp,
+				bbmap->nmaps, LIBXFS_B_SALVAGE, &bp,
 				ops);
 	} else {
 		error = -libxfs_buf_read(btargp, blknum, len,
-				LIBXFS_READBUF_SALVAGE, &bp, ops);
+				LIBXFS_B_SALVAGE, &bp, ops);
 		iocur_top->bbmap = NULL;
 	}
 
