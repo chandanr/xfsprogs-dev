@@ -307,6 +307,7 @@ __XFS_UNSUPP_OPSTATE(shutdown)
 #define LIBXFS_MOUNT_REPORT_CORRUPTION	(1U << 1)
 
 #define LIBXFS_BHASHSIZE(sbp) 		(1<<10)
+#define LIBXFS_IHASHSIZE(sbp)		(1<<10)
 
 void libxfs_compute_all_maxlevels(struct xfs_mount *mp);
 struct xfs_mount *libxfs_mount(struct xfs_mount *mp, struct xfs_sb *sb,

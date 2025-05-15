@@ -38,6 +38,9 @@ int libxfs_bhash_size;		/* #buckets in bcache */
 
 int	use_xfs_buf_lock;	/* global flag: use xfs_buf locks for MT */
 
+struct cache *libxfs_icache;
+int libxfs_ihash_size;		/* #buckets in icache */
+
 static int nextfakedev = -1;	/* device number to give to next fake device */
 
 /*
@@ -270,6 +273,12 @@ libxfs_init(struct libxfs_init *a)
 	libxfs_bcache = cache_init(a->bcache_flags, libxfs_bhash_size,
 				   &libxfs_bcache_operations);
 	use_xfs_buf_lock = a->flags & LIBXFS_USEBUFLOCK;
+
+	if (!libxfs_ihash_size)
+		libxfs_ihash_size = LIBXFS_IHASHSIZE(sbp);
+	libxfs_icache = cache_init(0, libxfs_ihash_size,
+				   &libxfs_icache_operations);
+
 	xfs_dir_startup();
 	init_caches();
 	return 1;

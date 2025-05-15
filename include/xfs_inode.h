@@ -142,7 +142,7 @@ static inline struct timespec64 inode_set_ctime_current(struct inode *inode)
 
 /* TODO: chandan: Do we need to copy fs/xfs/xfs_inode.h from kernel to xfsprogs? */
 typedef struct xfs_inode {
-	struct cache_node	i_node;	   /* chandan: what is this used for? */
+	struct cache_node	i_node;
 	struct xfs_mount	*i_mount;	/* fs mount struct ptr */
 	struct xfs_dquot	*i_udquot;	/* user dquot */
 	struct xfs_dquot	*i_gdquot;	/* group dquot */

@@ -1126,6 +1126,20 @@ xfs_verify_magic16(
 struct kmem_cache		*xfs_inode_cache;
 extern struct kmem_cache	*xfs_ili_cache;
 
+/* chandan: TODO: Add/Remove operations listed below as required */
+struct cache_operations libxfs_icache_operations = {
+	.hash		= libxfs_ihash,
+	.alloc		= libxfs_ialloc,
+	/* chandan: TODO: make calls to ->flush() conditional */
+	.flush		= NULL,
+	.relse		= NULL,
+	/* chandan: TODO: key == i_ino */
+	.compare	= libxfs_icompare,
+	.bulkrelse	= libxfs_ibulkrelse,
+	.pre_cache_shake_hook = libxfs_ipre_cache_shake_hook,
+	.can_node_be_freed = libxfs_ican_node_be_freed,
+};
+
 /*
  * Allocate and initialise an xfs_inode.
  */
