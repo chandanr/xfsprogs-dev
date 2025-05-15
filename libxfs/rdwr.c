@@ -1190,6 +1190,20 @@ libxfs_ialloc(
 	return &ip->i_node;
 }
 
+static int
+libxfs_icompare(
+	struct cache_node *node,
+	cache_key_t key)
+{
+	struct xfs_inode *ip = container_of(node, struct xfs_inode, i_node);
+	xfs_ino_t ino = *((xfs_ino_t *)key);
+
+	if (ip->i_ino == ino)
+		return CACHE_HIT;
+
+	return CACHE_MISS;
+}
+
 /* chandan: TODO: Add/Remove operations listed below as required */
 struct cache_operations libxfs_icache_operations = {
 	.hash		= libxfs_ihash,
