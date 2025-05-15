@@ -1126,6 +1126,17 @@ xfs_verify_magic16(
 struct kmem_cache		*xfs_inode_cache;
 extern struct kmem_cache	*xfs_ili_cache;
 
+static unsigned int
+libxfs_ihash(cache_key_t key, unsigned int hashsize, unsigned int hashshift)
+{
+	uint64_t	hashval = *((xfs_ino_t *)key);
+	uint64_t	tmp;
+
+	tmp = hashval ^ (GOLDEN_RATIO_PRIME + hashval) / CACHE_LINE_SIZE;
+	tmp = tmp ^ ((tmp ^ GOLDEN_RATIO_PRIME) >> hashshift);
+	return tmp % hashsize;
+}
+
 /* chandan: TODO: Add/Remove operations listed below as required */
 struct cache_operations libxfs_icache_operations = {
 	.hash		= libxfs_ihash,
