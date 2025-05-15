@@ -5,9 +5,11 @@
  */
 
 
+#include "cache.h"
 #include "libxfs_io.h"
 #include "libxfs_priv.h"
 #include "init.h"
+#include "list.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -1126,6 +1128,10 @@ xfs_verify_magic16(
 struct kmem_cache		*xfs_inode_cache;
 extern struct kmem_cache	*xfs_ili_cache;
 
+static struct cache_mru		xfs_inode_freelist =
+	{{&xfs_inode_freelist.cm_list, &xfs_inode_freelist.cm_list},
+	 0, PTHREAD_MUTEX_INITIALIZER };
+
 static unsigned int
 libxfs_ihash(cache_key_t key, unsigned int hashsize, unsigned int hashshift)
 {
@@ -1135,6 +1141,53 @@ libxfs_ihash(cache_key_t key, unsigned int hashsize, unsigned int hashshift)
 	tmp = hashval ^ (GOLDEN_RATIO_PRIME + hashval) / CACHE_LINE_SIZE;
 	tmp = tmp ^ ((tmp ^ GOLDEN_RATIO_PRIME) >> hashshift);
 	return tmp % hashsize;
+}
+
+static struct xfs_inode *
+__libxfs_getinode(void)
+{
+	struct xfs_inode *ip;
+
+	pthread_mutex_lock(&xfs_inode_freelist.cm_mutex);
+	ip = list_first_entry_or_null(&xfs_inode_freelist.cm_list,
+			struct xfs_inode, xfs_inode.i_node.cn_mru);
+	if (ip) {
+		ip->i_ino = 0;
+		list_del_init(ip->i_node.cn_mru);
+		goto out;
+	}
+
+	ip = kmem_cache_zalloc(xfs_inode_cache, 0);
+
+out:
+	pthread_mutex_unlock(&xfs_inode_freelist.cm_mutex);
+	return ip;
+}
+
+static struct xfs_inode *
+libxfs_getinode(
+	xfs_ino_t ino)
+{
+	struct xfs_inode *ip;
+
+	ip = __libxfs_getinode();
+	if (ip) {
+		ip->i_ino = ino;
+	}
+
+	return ip;
+}
+
+static struct cache_node *
+libxfs_ialloc(
+	cache_key_t		key)
+{
+	xfs_ino_t ino = *((xfs_ino_t *)key);
+	struct xfs_inode *ip;
+
+	ip = libxfs_getinode(ino);
+
+	return &ip->i_node;
 }
 
 /* chandan: TODO: Add/Remove operations listed below as required */
