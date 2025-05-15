@@ -1204,6 +1204,25 @@ libxfs_icompare(
 	return CACHE_MISS;
 }
 
+static unsigned int
+libxfs_ibulkrelse(
+	struct cache		*cache,
+	struct list_head	*list)
+{
+	struct xfs_inode *ip;
+	int count = 0;
+
+	list_for_each_entry(ip, list, i_node.cn_mru)
+		count++;
+
+	pthread_mutex_lock(&xfs_inode_freelist.cm_mutex);
+	list_splice(list, &xfs_inode_freelist.cm_list);
+	pthread_mutex_unlock(&xfs_inode_freelist.cm_mutex);
+
+	/* chandan: TODO: None of the callers are using 'count' */
+	return count;
+}
+
 /* chandan: TODO: Add/Remove operations listed below as required */
 struct cache_operations libxfs_icache_operations = {
 	.hash		= libxfs_ihash,
