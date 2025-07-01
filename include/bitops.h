@@ -113,4 +113,16 @@ static inline int lowbit64(uint64_t v)
 	return n - 1;
 }
 
+/**
+ * __rounddown_pow_of_two() - round down to nearest power of two
+ * @n: value to round down
+ */
+static inline __attribute__((const))
+unsigned long __rounddown_pow_of_two(unsigned long n)
+{
+	return 1UL << (fls_long(n) - 1);
+}
+
+#define rounddown_pow_of_two(n) __rounddown_pow_of_two(n)
+
 #endif

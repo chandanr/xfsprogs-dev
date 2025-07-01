@@ -94,6 +94,7 @@ enum {
 	I_SPINODES,
 	I_NREXT64,
 	I_EXCHANGE,
+	I_MAX_ATOMIC_WRITE,
 	I_MAX_OPTS,
 };
 
@@ -489,6 +490,7 @@ static struct opt_params iopts = {
 		[I_SPINODES] = "sparse",
 		[I_NREXT64] = "nrext64",
 		[I_EXCHANGE] = "exchange",
+		[I_MAX_ATOMIC_WRITE] = "max_atomic_write",
 		[I_MAX_OPTS] = NULL,
 	},
 	.subopt_params = {
@@ -549,6 +551,13 @@ static struct opt_params iopts = {
 		  .minval = 0,
 		  .maxval = 1,
 		  .defaultval = 1,
+		},
+		{ .index = I_MAX_ATOMIC_WRITE,
+		  .conflicts = { { NULL, LAST_CONFLICT } },
+		  .convert = true,
+		  .minval = 1,
+		  .maxval = 1ULL << 30, /* 1GiB */
+		  .defaultval = SUBOPT_NEEDS_VAL,
 		},
 	},
 };
@@ -1069,6 +1078,7 @@ struct cli_params {
 	char	*rtsize;
 	char	*rtstart;
 	uint64_t rtreserved;
+	char	*max_atomic_write;
 
 	/* parameters where 0 is a valid CLI value */
 	int	dsunit;
@@ -1157,6 +1167,8 @@ struct mkfs_params {
 	struct sb_feat_args	sb_feat;
 	uint64_t	rtstart;
 	uint64_t	rtreserved;
+
+	uint64_t	max_atomic_write;
 };
 
 /*
@@ -1197,7 +1209,7 @@ usage( void )
 /* force overwrite */	[-f]\n\
 /* inode size */	[-i perblock=n|size=num,maxpct=n,attr=0|1|2,\n\
 			    projid32bit=0|1,sparse=0|1,nrext64=0|1,\n\
-			    exchange=0|1]\n\
+			    exchange=0|1,max_atomic_write=n]\n\
 /* no discard */	[-K]\n\
 /* log subvol */	[-l agnum=n,internal,size=num,logdev=xxx,version=n\n\
 			    sunit=value|su=num,sectsize=num,lazy-count=0|1,\n\
@@ -1926,6 +1938,9 @@ inode_opts_parser(
 		break;
 	case I_EXCHANGE:
 		cli->sb_feat.exchrange = getnum(value, opts, subopt);
+		break;
+	case I_MAX_ATOMIC_WRITE:
+		cli->max_atomic_write = getstr(value, opts, subopt);
 		break;
 	default:
 		return -EINVAL;
@@ -4093,6 +4108,18 @@ align_ag_geometry(
 		dsunit = max(DTOBT(ft->data.awu_max, cfg->blocklog),
 				dsunit);
 
+	/*
+	 * If the user gave us a maximum atomic write size that is less than
+	 * a whole AG, try to align the AG size to that value.
+	 */
+	if (cfg->max_atomic_write > 0) {
+		xfs_extlen_t	max_atomic_fsbs =
+			cfg->max_atomic_write >> cfg->blocklog;
+
+		if (max_atomic_fsbs < cfg->agsize)
+			dsunit = max(dsunit, max_atomic_fsbs);
+	}
+
 	if (!dsunit)
 		goto validate;
 
@@ -4972,6 +4999,140 @@ out:
 	return logblocks;
 }
 
+#define MAX_RW_COUNT (INT_MAX & ~(getpagesize() - 1))
+
+/* Maximum atomic write IO size that the kernel allows. */
+static inline xfs_extlen_t calc_atomic_write_max(struct mkfs_params *cfg)
+{
+	return rounddown_pow_of_two(MAX_RW_COUNT >> cfg->blocklog);
+}
+
+static inline unsigned int max_pow_of_two_factor(const unsigned int nr)
+{
+	return 1 << (ffs(nr) - 1);
+}
+
+/*
+ * If the data device advertises atomic write support, limit the size of data
+ * device atomic writes to the greatest power-of-two factor of the AG size so
+ * that every atomic write unit aligns with the start of every AG.  This is
+ * required so that the per-AG allocations for an atomic write will always be
+ * aligned compatibly with the alignment requirements of the storage.
+ *
+ * If the data device doesn't advertise atomic writes, then there are no
+ * alignment restrictions and the largest out-of-place write we can do
+ * ourselves is the number of blocks that user files can allocate from any AG.
+ */
+static inline xfs_extlen_t
+calc_perag_awu_max(
+	struct mkfs_params	*cfg,
+	struct fs_topology	*ft)
+{
+	if (ft->data.awu_min > 0)
+		return max_pow_of_two_factor(cfg->agsize);
+	return cfg->agsize;
+}
+
+/*
+ * Reflink on the realtime device requires rtgroups, and atomic writes require
+ * reflink.
+ *
+ * If the realtime device advertises atomic write support, limit the size of
+ * data device atomic writes to the greatest power-of-two factor of the rtgroup
+ * size so that every atomic write unit aligns with the start of every rtgroup.
+ * This is required so that the per-rtgroup allocations for an atomic write
+ * will always be aligned compatibly with the alignment requirements of the
+ * storage.
+ *
+ * If the rt device doesn't advertise atomic writes, then there are no
+ * alignment restrictions and the largest out-of-place write we can do
+ * ourselves is the number of blocks that user files can allocate from any
+ * rtgroup.
+ */
+static inline xfs_extlen_t
+calc_rtgroup_awu_max(
+	struct mkfs_params	*cfg,
+	struct fs_topology	*ft)
+{
+	if (ft->rt.awu_min > 0)
+		return max_pow_of_two_factor(cfg->rgsize);
+	return cfg->rgsize;
+}
+
+/*
+ * Validate the maximum atomic out of place write size passed in by the user.
+ */
+static void
+validate_max_atomic_write(
+	struct mkfs_params	*cfg,
+	struct cli_params	*cli,
+	struct fs_topology	*ft,
+	struct xfs_mount	*mp)
+{
+	const xfs_extlen_t	max_write = calc_atomic_write_max(cfg);
+	xfs_filblks_t		max_atomic_fsbcount;
+
+	cfg->max_atomic_write = getnum(cli->max_atomic_write, &iopts,
+			I_MAX_ATOMIC_WRITE);
+	max_atomic_fsbcount = cfg->max_atomic_write >> cfg->blocklog;
+
+	/* generic_atomic_write_valid enforces power of two length */
+	if (!is_power_of_2(cfg->max_atomic_write)) {
+		fprintf(stderr,
+ _("Max atomic write size of %llu bytes is not a power of 2\n"),
+			(unsigned long long)cfg->max_atomic_write);
+		exit(1);
+	}
+
+	if (cfg->max_atomic_write % cfg->blocksize) {
+		fprintf(stderr,
+ _("Max atomic write size of %llu bytes not aligned with fsblock.\n"),
+			(unsigned long long)cfg->max_atomic_write);
+		exit(1);
+	}
+
+	if (max_atomic_fsbcount > max_write) {
+		fprintf(stderr,
+ _("Max atomic write size of %lluk cannot be larger than max write size %lluk.\n"),
+			(unsigned long long)cfg->max_atomic_write >> 10,
+			(unsigned long long)max_write << (cfg->blocklog - 10));
+		exit(1);
+	}
+}
+
+/*
+ * Validate the maximum atomic out of place write size passed in by the user
+ * actually works with the allocation groups sizes.
+ */
+static void
+validate_max_atomic_write_ags(
+	struct mkfs_params	*cfg,
+	struct fs_topology	*ft,
+	struct xfs_mount	*mp)
+{
+	const xfs_extlen_t	max_group = max(cfg->agsize, cfg->rgsize);
+	const xfs_extlen_t	max_group_write =
+		max(calc_perag_awu_max(cfg, ft), calc_rtgroup_awu_max(cfg, ft));
+	xfs_filblks_t		max_atomic_fsbcount =
+		XFS_B_TO_FSBT(mp, cfg->max_atomic_write);
+
+	if (max_atomic_fsbcount > max_group) {
+		fprintf(stderr,
+ _("Max atomic write size of %lluk cannot be larger than allocation group size %lluk.\n"),
+			(unsigned long long)cfg->max_atomic_write >> 10,
+			(unsigned long long)XFS_FSB_TO_B(mp, max_group) >> 10);
+		exit(1);
+	}
+
+	if (max_atomic_fsbcount > max_group_write) {
+		fprintf(stderr,
+ _("Max atomic write size of %lluk cannot be larger than max allocation group write size %lluk.\n"),
+			(unsigned long long)cfg->max_atomic_write >> 10,
+			(unsigned long long)XFS_FSB_TO_B(mp, max_group_write) >> 10);
+		exit(1);
+	}
+}
+
 static void
 calculate_log_size(
 	struct mkfs_params	*cfg,
@@ -4996,6 +5157,22 @@ calculate_log_size(
 
 		libxfs_log_get_max_trans_res(&mount, &res);
 		max_tx_bytes = res.tr_logres * res.tr_logcount;
+	}
+	if (cfg->max_atomic_write > 0) {
+		unsigned int	dontcare;
+		xfs_extlen_t	atomic_min_logblocks =
+			libxfs_calc_atomic_write_log_geometry(&mount,
+					cfg->max_atomic_write >> cfg->blocklog,
+					&dontcare);
+
+		if (!atomic_min_logblocks) {
+			fprintf(stderr,
+ _("atomic write size %lluk is too big for the log to handle.\n"),
+				(unsigned long long)cfg->max_atomic_write >> 10);
+			exit(1);
+		}
+
+		min_logblocks = max(min_logblocks, atomic_min_logblocks);
 	}
 	libxfs_umount(&mount);
 
@@ -5925,6 +6102,13 @@ main(
 	calc_stripe_factors(&cfg, &cli, &ft);
 
 	/*
+	 * Now that we have basic geometry set up, we can validate the CLI
+	 * max atomic write parameter.
+	 */
+	if (cli.max_atomic_write)
+		validate_max_atomic_write(&cfg, &cli, &ft, mp);
+
+	/*
 	 * At this point when know exactly what size all the devices are,
 	 * so we can start validating and calculating layout options that are
 	 * dependent on device sizes. Once calculated, make sure everything
@@ -5946,6 +6130,14 @@ main(
 	 */
 	start_superblock_setup(&cfg, mp, sbp);
 	initialise_mount(mp, sbp);
+
+	/*
+	 * Now that we have computed the allocation group geometry, we can
+	 * continue validating the maximum software atomic write parameter, if
+	 * one was given.
+	 */
+	if (cfg.max_atomic_write)
+		validate_max_atomic_write_ags(&cfg, &ft, mp);
 
 	/*
 	 * With the mount set up, we can finally calculate the log size

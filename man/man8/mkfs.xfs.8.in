@@ -742,6 +742,13 @@ Online repair uses this functionality to rebuild extended attributes,
 directories, symbolic links, and realtime metadata files.
 This feature is disabled by default.
 This feature is only available for filesystems formatted with -m crc=1.
+.TP
+.BI max_atomic_write[= value]
+When enabled, application programs can use the RWF_ATOMIC write flag to
+persist changes of up to this size without tearing.
+The default is chosen to allow a reasonable amount of scalability.
+This value must also be passed via mount option.
+This feature is only available for filesystems formatted with reflink.
 .RE
 .PP
 .PD 0

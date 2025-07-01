@@ -107,6 +107,7 @@
 #define xfs_buftarg_drain		libxfs_buftarg_drain
 #define xfs_bunmapi			libxfs_bunmapi
 #define xfs_bwrite			libxfs_bwrite
+#define xfs_calc_atomic_write_log_geometry	libxfs_calc_atomic_write_log_geometry
 #define xfs_calc_dquots_per_chunk	libxfs_calc_dquots_per_chunk
 #define xfs_calc_finish_bui_reservation	libxfs_calc_finish_bui_reservation
 #define xfs_calc_finish_cui_reservation	libxfs_calc_finish_cui_reservation
