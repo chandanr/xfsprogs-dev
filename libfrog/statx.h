@@ -146,7 +146,24 @@ struct statx {
 	__u64	__spare3[9];	/* Spare space for future expansion */
 	/* 0x100 */
 };
+
+static inline ssize_t
+statx(
+	int		dfd,
+	const char	*filename,
+	unsigned int	flags,
+	unsigned int	mask,
+	struct statx	*buffer)
+{
+#ifdef __NR_statx
+	return syscall(__NR_statx, dfd, filename, flags, mask, buffer);
+#else
+	errno = ENOSYS;
+	return -1;
 #endif
+}
+
+#endif /* OVERRIDE_SYSTEM_STATX */
 
 #ifndef STATX_TYPE
 /*

@@ -14,7 +14,7 @@
 #include "input.h"
 #include "init.h"
 #include "io.h"
-#include "statx.h"
+#include "libfrog/statx.h"
 #include "libxfs.h"
 #include "libfrog/logging.h"
 #include "libfrog/fsgeom.h"
@@ -305,22 +305,6 @@ statfs_f(
 	return 0;
 }
 
-static ssize_t
-_statx(
-	int		dfd,
-	const char	*filename,
-	unsigned int	flags,
-	unsigned int	mask,
-	struct statx	*buffer)
-{
-#ifdef __NR_statx
-	return syscall(__NR_statx, dfd, filename, flags, mask, buffer);
-#else
-	errno = ENOSYS;
-	return -1;
-#endif
-}
-
 struct statx_masks {
 	const char	*name;
 	unsigned int	mask;
@@ -525,7 +509,7 @@ statx_f(
 		return command_usage(&statx_cmd);
 
 	memset(&stx, 0xbf, sizeof(stx));
-	if (_statx(file->fd, "", atflag | AT_EMPTY_PATH, mask, &stx) < 0) {
+	if (statx(file->fd, "", atflag | AT_EMPTY_PATH, mask, &stx) < 0) {
 		perror("statx");
 		exitcode = 1;
 		return 0;

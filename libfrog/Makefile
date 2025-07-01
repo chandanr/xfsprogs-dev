@@ -62,6 +62,7 @@ ptvar.h \
 radix-tree.h \
 randbytes.h \
 scrub.h \
+statx.h \
 workqueue.h
 
 GETTEXT_PY = \
