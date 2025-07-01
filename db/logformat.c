@@ -192,8 +192,137 @@ static const struct cmdinfo logres_cmd = {
 	.help =		logres_help,
 };
 
+STATIC void
+untorn_cow_limits(
+	struct xfs_mount	*mp,
+	unsigned int		logres,
+	unsigned int		desired_max)
+{
+	const unsigned int	efi = xfs_efi_log_space(1);
+	const unsigned int	efd = xfs_efd_log_space(1);
+	const unsigned int	rui = xfs_rui_log_space(1);
+	const unsigned int	rud = xfs_rud_log_space();
+	const unsigned int	cui = xfs_cui_log_space(1);
+	const unsigned int	cud = xfs_cud_log_space();
+	const unsigned int	bui = xfs_bui_log_space(1);
+	const unsigned int	bud = xfs_bud_log_space();
+
+	/*
+	 * Maximum overhead to complete an untorn write ioend in software:
+	 * remove data fork extent + remove cow fork extent + map extent into
+	 * data fork.
+	 *
+	 * tx0: Creates a BUI and a CUI and that's all it needs.
+	 *
+	 * tx1: Roll to finish the BUI.  Need space for the BUD, an RUI, and
+	 * enough space to relog the CUI (== CUI + CUD).
+	 *
+	 * tx2: Roll again to finish the RUI.  Need space for the RUD and space
+	 * to relog the CUI.
+	 *
+	 * tx3: Roll again, need space for the CUD and possibly a new EFI.
+	 *
+	 * tx4: Roll again, need space for an EFD.
+	 *
+	 * If the extent referenced by the pair of BUI/CUI items is not the one
+	 * being currently processed, then we need to reserve space to relog
+	 * both items.
+	 */
+	const unsigned int	tx0 = bui + cui;
+	const unsigned int	tx1 = bud + rui + cui + cud;
+	const unsigned int	tx2 = rud + cui + cud;
+	const unsigned int	tx3 = cud + efi;
+	const unsigned int	tx4 = efd;
+	const unsigned int	relog = bui + bud + cui + cud;
+
+	const unsigned int	per_intent = max(max3(tx0, tx1, tx2),
+						 max3(tx3, tx4, relog));
+
+	/* Overhead to finish one step of each intent item type */
+	const unsigned int	f1 = libxfs_calc_finish_efi_reservation(mp, 1);
+	const unsigned int	f2 = libxfs_calc_finish_rui_reservation(mp, 1);
+	const unsigned int	f3 = libxfs_calc_finish_cui_reservation(mp, 1);
+	const unsigned int	f4 = libxfs_calc_finish_bui_reservation(mp, 1);
+
+	/* We only finish one item per transaction in a chain */
+	const unsigned int	step_size = max(f4, max3(f1, f2, f3));
+
+	if (desired_max) {
+		dbprintf(
+ "desired_max: %u\nstep_size: %u\nper_intent: %u\nlogres: %u\n",
+				desired_max, step_size, per_intent,
+				(desired_max * per_intent) + step_size);
+	} else if (logres) {
+		dbprintf(
+ "logres: %u\nstep_size: %u\nper_intent: %u\nmax_awu: %u\n",
+				logres, step_size, per_intent,
+				logres >= step_size ? (logres - step_size) / per_intent : 0);
+	}
+}
+
+static void
+untorn_write_max_help(void)
+{
+	dbprintf(_(
+"\n"
+" The 'untorn_write_max' command computes either the log reservation needed to\n"
+" complete an untorn write of a given block count; or the maximum number of\n"
+" blocks that can be completed given a specific log reservation.\n"
+"\n"
+	));
+}
+
+static int
+untorn_write_max_f(
+	int		argc,
+	char		**argv)
+{
+	unsigned int	logres = 0;
+	unsigned int	desired_max = 0;
+	int		c;
+
+	while ((c = getopt(argc, argv, "l:b:")) != EOF) {
+		switch (c) {
+		case 'l':
+			logres = atoi(optarg);
+			break;
+		case 'b':
+			desired_max = atoi(optarg);
+			break;
+		default:
+			untorn_write_max_help();
+			return 0;
+		}
+	}
+
+	if (!logres && !desired_max) {
+		dbprintf("untorn_write_max needs -l or -b option\n");
+		return 0;
+	}
+
+	if (xfs_has_reflink(mp))
+		untorn_cow_limits(mp, logres, desired_max);
+	else
+		dbprintf("untorn write emulation not supported\n");
+
+	return 0;
+}
+
+static const struct cmdinfo untorn_write_max_cmd = {
+	.name =		"untorn_write_max",
+	.altname =	NULL,
+	.cfunc =	untorn_write_max_f,
+	.argmin =	0,
+	.argmax =	-1,
+	.canpush =	0,
+	.args =		NULL,
+	.oneline =	N_("compute untorn write max"),
+	.help =		logres_help,
+};
+
 void
 logres_init(void)
 {
 	add_command(&logres_cmd);
+	add_command(&untorn_write_max_cmd);
 }

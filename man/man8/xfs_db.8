@@ -1366,6 +1366,16 @@ In the current directory, remove a directory entry with the given
 .IR name .
 The file being targetted will not be put on the iunlink list.
 .TP
+.BI "untorn_write_max [\-b " blockcount "|\-l " logres "]"
+If
+.B -l
+is specified, compute the maximum (in fsblocks) untorn write that we can
+emulate with copy on write given a log reservation size (in bytes).
+If
+.B -b
+is specified, compute the log reservation size that would be needed to
+emulate an untorn write of the given number of fsblocks.
+.TP
 .BI "uuid [" uuid " | " generate " | " rewrite " | " restore ]
 Set the filesystem universally unique identifier (UUID).
 The filesystem UUID can be used by

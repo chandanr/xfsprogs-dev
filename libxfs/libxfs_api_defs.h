@@ -108,6 +108,10 @@
 #define xfs_bunmapi			libxfs_bunmapi
 #define xfs_bwrite			libxfs_bwrite
 #define xfs_calc_dquots_per_chunk	libxfs_calc_dquots_per_chunk
+#define xfs_calc_finish_bui_reservation	libxfs_calc_finish_bui_reservation
+#define xfs_calc_finish_cui_reservation	libxfs_calc_finish_cui_reservation
+#define xfs_calc_finish_efi_reservation	libxfs_calc_finish_efi_reservation
+#define xfs_calc_finish_rui_reservation	libxfs_calc_finish_rui_reservation
 #define xfs_cntbt_init_cursor		libxfs_cntbt_init_cursor
 #define xfs_compute_rextslog		libxfs_compute_rextslog
 #define xfs_compute_rgblklog		libxfs_compute_rgblklog
