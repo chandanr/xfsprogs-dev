@@ -143,7 +143,11 @@ struct statx {
 	__u32	stx_dio_read_offset_align;
 
 	/* 0xb8 */
-	__u64	__spare3[9];	/* Spare space for future expansion */
+	/* Optimised max atomic write unit in bytes */
+	__u32	stx_atomic_write_unit_max_opt;
+	__u32	__spare2[1];
+	/* 0xc0 */
+	__u64	__spare3[8];	/* Spare space for future expansion */
 	/* 0x100 */
 };
 

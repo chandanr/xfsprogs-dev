@@ -396,6 +396,7 @@ dump_raw_statx(struct statx *stx)
 	printf("stat.atomic_write_unit_max = %u\n", stx->stx_atomic_write_unit_max);
 	printf("stat.atomic_write_segments_max = %u\n", stx->stx_atomic_write_segments_max);
 	printf("stat.dio_read_offset_align = %u\n", stx->stx_dio_read_offset_align);
+	printf("stat.atomic_write_unit_max_opt = %u\n", stx->stx_atomic_write_unit_max_opt);
 	return 0;
 }
 
