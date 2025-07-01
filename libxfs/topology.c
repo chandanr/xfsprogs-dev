@@ -4,11 +4,18 @@
  * All Rights Reserved.
  */
 
+#ifdef OVERRIDE_SYSTEM_STATX
+#define statx sys_statx
+#endif
+#include <fcntl.h>
+#include <sys/stat.h>
+
 #include "libxfs_priv.h"
 #include "libxcmd.h"
 #include <blkid/blkid.h>
 #include "xfs_multidisk.h"
 #include "libfrog/platform.h"
+#include "libfrog/statx.h"
 
 #define TERABYTES(count, blog)	((uint64_t)(count) << (40 - (blog)))
 #define GIGABYTES(count, blog)	((uint64_t)(count) << (30 - (blog)))
@@ -279,6 +286,34 @@ out_free_probe:
 }
 
 static void
+get_hw_atomic_writes_topology(
+	struct libxfs_dev	*dev,
+	struct device_topology	*dt)
+{
+	struct statx		sx;
+	int			fd;
+	int			ret;
+
+	fd = open(dev->name, O_RDONLY);
+	if (fd < 0)
+		return;
+
+	ret = statx(fd, "", AT_EMPTY_PATH, STATX_WRITE_ATOMIC, &sx);
+	if (ret)
+		goto out_close;
+
+	if (!(sx.stx_mask & STATX_WRITE_ATOMIC))
+		goto out_close;
+
+	dt->awu_min = sx.stx_atomic_write_unit_min >> 9;
+	dt->awu_max = max(sx.stx_atomic_write_unit_max_opt,
+			  sx.stx_atomic_write_unit_max) >> 9;
+
+out_close:
+	close(fd);
+}
+
+static void
 get_device_topology(
 	struct libxfs_dev	*dev,
 	struct device_topology	*dt,
@@ -316,6 +351,7 @@ get_device_topology(
 		}
 	} else {
 		blkid_get_topology(dev->name, dt, force_overwrite);
+		get_hw_atomic_writes_topology(dev, dt);
 	}
 
 	ASSERT(dt->logical_sector_size);
