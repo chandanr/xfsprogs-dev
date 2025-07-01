@@ -3629,7 +3629,7 @@ _("log stripe unit (%d) must be a multiple of the block size (%d)\n"),
 	if (cfg->sb_feat.log_version == 2 &&
 	    cfg->lsunit * cfg->blocksize > 256 * 1024) {
 		/* Warn only if specified on commandline */
-		if (cli->lsu || cli->lsunit != -1) {
+		if (cli->lsu || cli->lsunit) {
 			fprintf(stderr,
 _("log stripe unit (%d bytes) is too large (maximum is 256KiB)\n"
   "log stripe unit adjusted to 32KiB\n"),
