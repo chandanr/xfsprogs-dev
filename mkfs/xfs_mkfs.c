@@ -3615,7 +3615,8 @@ _("log stripe unit (%d) must be a multiple of the block size (%d)\n"),
 	}
 
 	/*
-	 * check that log sunit is modulo fsblksize or default it to dsunit.
+	 * check that log sunit is modulo fsblksize; default it to dsunit for
+	 * an internal log; or the log device stripe unit if it's external.
 	 */
 	if (lsunit) {
 		/* convert from 512 byte blocks to fs blocks */
@@ -3624,6 +3625,10 @@ _("log stripe unit (%d) must be a multiple of the block size (%d)\n"),
 		   cfg->loginternal && cfg->dsunit) {
 		/* lsunit and dsunit now in fs blocks */
 		cfg->lsunit = cfg->dsunit;
+	} else if (cfg->sb_feat.log_version == 2 &&
+		   !cfg->loginternal) {
+		/* use the external log device properties */
+		cfg->lsunit = DTOBT(ft->log.sunit, cfg->blocklog);
 	}
 
 	if (cfg->sb_feat.log_version == 2 &&
