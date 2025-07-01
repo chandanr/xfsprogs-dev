@@ -730,9 +730,6 @@ main(
 	hist_init(&ctx.datadev_hist);
 	hist_init(&ctx.rtdev_hist);
 
-	fprintf(stdout, "EXPERIMENTAL xfs_scrub program in use! Use at your own risk!\n");
-	fflush(stdout);
-
 	progname = basename(argv[0]);
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, LOCALEDIR);
