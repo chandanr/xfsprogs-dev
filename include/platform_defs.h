@@ -262,6 +262,20 @@ static inline bool __must_check __must_check_overflow(bool overflow)
 }))
 
 /**
+ * check_mul_overflow() - Calculate multiplication with overflow checking
+ * @a: first factor
+ * @b: second factor
+ * @d: pointer to store product
+ *
+ * Returns true on wrap-around, false otherwise.
+ *
+ * *@d holds the results of the attempted multiplication, regardless of whether
+ * wrap-around occurred.
+ */
+#define check_mul_overflow(a, b, d)	\
+	__must_check_overflow(__builtin_mul_overflow(a, b, d))
+
+/**
  * abs_diff - return absolute value of the difference between the arguments
  * @a: the first argument
  * @b: the second argument
