@@ -287,6 +287,20 @@ static inline xfs_fsize_t XFS_ISIZE(struct xfs_inode *ip)
 		return ip->i_size;
 	return ip->i_disk_size;
 }
+
+static inline int
+xfs_iflags_test_and_set(xfs_inode_t *ip, unsigned short flags)
+{
+	int ret;
+
+	spin_lock(&ip->i_flags_lock);
+	ret = ip->i_flags & flags;
+	if (!ret)
+		ip->i_flags |= flags;
+	spin_unlock(&ip->i_flags_lock);
+	return ret;
+}
+
 #define XFS_IS_REALTIME_INODE(ip) ((ip)->i_diflags & XFS_DIFLAG_REALTIME)
 
 /* inode link counts */

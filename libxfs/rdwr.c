@@ -1231,6 +1231,34 @@ static void libxfs_ipre_cache_purge_hook(struct cache *cache)
 	xfs_ail_push_all(mp->m_ail);
 }
 
+static bool
+libxfs_ican_node_be_freed(
+	struct cache_node	*node)
+{
+	struct xfs_inode *ip = container_of(node, struct xfs_inode, i_node);
+	bool can_free = false;
+
+	/* chandan: TODO: Obtain the xfs inode lock  */
+
+	if (xfs_iflags_test_and_set(ip, XFS_IFLUSHING))
+		goto out_unlock;
+
+	if (xfs_ipincount(ip))
+		goto out_unlock;
+
+	if (!xfs_inode_clean(ip))
+		goto out_unlock;
+
+	xfs_iflags_clear(ip, XFS_IFLUSHING);
+
+	can_free = true;
+
+out_unlock:
+	/* chandan: TODO: unlock the xfs inode lock */
+
+	return can_free;
+}
+
 
 /* chandan: TODO: Add/Remove operations listed below as required */
 struct cache_operations libxfs_icache_operations = {
