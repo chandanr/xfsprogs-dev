@@ -1223,6 +1223,15 @@ libxfs_ibulkrelse(
 	return count;
 }
 
+/* chandan: TODO: Initialize cache->private to mp */
+static void libxfs_ipre_cache_purge_hook(struct cache *cache)
+{
+	struct xfs_mount *mp = cache->private;
+
+	xfs_ail_push_all(mp->m_ail);
+}
+
+
 /* chandan: TODO: Add/Remove operations listed below as required */
 struct cache_operations libxfs_icache_operations = {
 	.hash		= libxfs_ihash,

@@ -102,6 +102,7 @@ struct cache_node {
 };
 
 struct cache {
+	void			*private;
 	int			c_flags;	/* behavioural flags */
 	unsigned int		c_maxcount;	/* max cache nodes */
 	unsigned int		c_count;	/* count of nodes */
