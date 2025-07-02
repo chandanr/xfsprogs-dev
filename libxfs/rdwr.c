@@ -1270,7 +1270,7 @@ struct cache_operations libxfs_icache_operations = {
 	/* chandan: TODO: key == i_ino */
 	.compare	= libxfs_icompare,
 	.bulkrelse	= libxfs_ibulkrelse,
-	.pre_cache_shake_hook = libxfs_ipre_cache_shake_hook,
+	.pre_cache_purge_hook = libxfs_ipre_cache_purge_hook,
 	.can_node_be_freed = libxfs_ican_node_be_freed,
 };
 

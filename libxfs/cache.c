@@ -61,6 +61,9 @@ cache_init(
 	cache->compare = cache_operations->compare;
 	cache->bulkrelse = cache_operations->bulkrelse ?
 		cache_operations->bulkrelse : cache_generic_bulkrelse;
+	cache->pre_cache_purge_hook = cache_operations->pre_cache_purge_hook;
+	cache->can_node_be_freed = cache_operations->can_node_be_freed;
+
 	pthread_mutex_init(&cache->c_mutex, NULL);
 
 	for (i = 0; i < hashsize; i++) {
@@ -244,6 +247,12 @@ cache_shake(
 			pthread_mutex_unlock(&node->cn_mutex);
 			cache_add_to_dirty_mru(cache, node);
 			continue;
+		}
+
+		if (cache->can_node_be_freed) {
+			while (!cache->can_node_be_freed(node)) {
+				sleep(1);
+			}
 		}
 
 		hash = cache->c_hash + node->cn_hashidx;
@@ -620,6 +629,9 @@ cache_purge(
 	struct cache *		cache)
 {
 	int			i;
+
+	if (cache->pre_cache_purge_hook)
+		cache->pre_cache_purge_hook(cache);
 
 	for (i = 0; i <= CACHE_DIRTY_PRIORITY; i++)
 		cache_shake(cache, i, true);

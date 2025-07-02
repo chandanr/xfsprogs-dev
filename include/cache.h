@@ -64,6 +64,9 @@ typedef unsigned int (*cache_node_hash_t)(cache_key_t, unsigned int,
 					  unsigned int);
 typedef int (*cache_node_compare_t)(struct cache_node *, cache_key_t);
 typedef unsigned int (*cache_bulk_relse_t)(struct cache *, struct list_head *);
+typedef void (*cache_pre_cache_purge_hook_t)(struct cache *);
+typedef bool (*cache_can_node_be_freed_t)(struct cache_node *);
+
 
 struct cache_operations {
 	cache_node_hash_t	hash;
@@ -72,6 +75,8 @@ struct cache_operations {
 	cache_node_relse_t	relse;
 	cache_node_compare_t	compare;
 	cache_bulk_relse_t	bulkrelse;	/* optional */
+	cache_pre_cache_purge_hook_t pre_cache_purge_hook;
+	cache_can_node_be_freed_t can_node_be_freed;
 };
 
 struct cache_hash {
@@ -113,6 +118,8 @@ struct cache {
 	cache_node_relse_t	relse;		/* memory free function */
 	cache_node_compare_t	compare;	/* comparison routine */
 	cache_bulk_relse_t	bulkrelse;	/* bulk release routine */
+	cache_pre_cache_purge_hook_t	pre_cache_purge_hook;
+	cache_can_node_be_freed_t	can_node_be_freed;
 	unsigned int		c_hashsize;	/* hash bucket count */
 	unsigned int		c_hashshift;	/* hash key shift */
 	struct cache_hash	*c_hash;	/* hash table buckets */
