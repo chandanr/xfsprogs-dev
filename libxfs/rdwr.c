@@ -23,6 +23,7 @@
 
 #include "libxfs.h"
 #include "libxlog.h"
+#include <stdint.h>
 
 static void libxfs_brelse(struct cache_node *node);
 
@@ -1259,6 +1260,16 @@ out_unlock:
 	return can_free;
 }
 
+static int
+libxfs_izero_refcount_node_hook(struct cache_node *node)
+{
+	struct xfs_inode *ip = container_of(node, struct xfs_inode, i_node);
+
+	if ((ip->i_flags & XFS_IRECOVERY) || (VFS_I(ip)->i_nlink != 0))
+		return 0;
+
+	return xfs_inactive();
+}
 
 /* chandan: TODO: Add/Remove operations listed below as required */
 struct cache_operations libxfs_icache_operations = {
@@ -1272,6 +1283,7 @@ struct cache_operations libxfs_icache_operations = {
 	.bulkrelse	= libxfs_ibulkrelse,
 	.pre_cache_purge_hook = libxfs_ipre_cache_purge_hook,
 	.can_node_be_freed = libxfs_ican_node_be_freed,
+	.zero_refcount_node_hook = libxfs_izero_refcount_node_hook,
 };
 
 /*

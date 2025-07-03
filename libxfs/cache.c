@@ -63,6 +63,8 @@ cache_init(
 		cache_operations->bulkrelse : cache_generic_bulkrelse;
 	cache->pre_cache_purge_hook = cache_operations->pre_cache_purge_hook;
 	cache->can_node_be_freed = cache_operations->can_node_be_freed;
+	cache->zero_refcount_node_hook =
+		cache_operations->zero_refcount_node_hook;
 
 	pthread_mutex_init(&cache->c_mutex, NULL);
 
@@ -514,6 +516,10 @@ cache_node_put(
 	node->cn_count--;
 
 	if (node->cn_count == 0) {
+		if (cache->zero_refcount_node_hook) {
+			error = cache->zero_refcount_node_hook(node);
+			ASSERT(error == 0);
+		}
 		if (node->cn_flags & CN_FREE_IMMEDIATELY) {
 			hash = cache->c_hash + node->cn_hashidx;
 			pthread_mutex_lock(&hash->ch_mutex);

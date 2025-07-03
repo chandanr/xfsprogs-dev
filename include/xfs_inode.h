@@ -318,6 +318,23 @@ static inline bool xfs_is_reflink_inode(struct xfs_inode *ip)
 	return ip->i_diflags2 & XFS_DIFLAG2_REFLINK;
 }
 
+static inline bool xfs_is_metadata_inode(struct xfs_inode *ip)
+{
+	struct xfs_mount        *mp = ip->i_mount;
+
+	return ip == mp->m_rbmip || ip == mp->m_rsumip ||
+		xfs_is_quota_inode(&mp->m_sb, ip->i_ino);
+}
+
+/*
+ * Check if an inode has any data in the COW fork.  This might be often false
+ * even for inodes with the reflink flag when there is no pending COW operation.
+ */
+static inline bool xfs_inode_has_cow_data(struct xfs_inode *ip)
+{
+	return ip->i_cowfp && ip->i_cowfp->if_bytes;
+}
+
 static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
 {
 	return ip->i_diflags2 & XFS_DIFLAG2_BIGTIME;
@@ -350,5 +367,17 @@ extern int	libxfs_iflush_int (struct xfs_inode *, struct xfs_buf *);
 extern int	libxfs_iget(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
 		uint, uint, struct xfs_inode **);
 extern void	libxfs_irele(struct xfs_inode *ip);
+
+int		xfs_itruncate_extents_flags(struct xfs_trans **,
+				struct xfs_inode *, int, xfs_fsize_t, int);
+static inline int
+xfs_itruncate_extents(
+	struct xfs_trans	**tpp,
+	struct xfs_inode	*ip,
+	int			whichfork,
+	xfs_fsize_t		new_size)
+{
+	return xfs_itruncate_extents_flags(tpp, ip, whichfork, new_size, 0);
+}
 
 #endif /* __XFS_INODE_H__ */
