@@ -140,7 +140,7 @@ xlog_print_add_to_trans(xlog_tid_t	tid,
 {
     xlog_split_item_t *item;
 
-    item	  = (xlog_split_item_t *)calloc(sizeof(xlog_split_item_t), 1);
+    item	  = (xlog_split_item_t *)calloc(1, sizeof(xlog_split_item_t));
     item->si_xtid  = tid;
     item->si_skip = skip;
     item->si_next = split_list;

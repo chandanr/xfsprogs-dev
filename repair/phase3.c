@@ -150,7 +150,7 @@ phase3(
 	do_log(_("        - process newly discovered inodes...\n"));
 	set_progress_msg(PROG_FMT_NEW_INODES, (uint64_t) glob_agcount);
 
-	counts = calloc(sizeof(*counts), mp->m_sb.sb_agcount);
+	counts = calloc(mp->m_sb.sb_agcount, sizeof(*counts));
 	if (!counts) {
 		do_abort(_("no memory for uncertain inode counts\n"));
 		return;

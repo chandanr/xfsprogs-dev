@@ -48,7 +48,7 @@ path_parse(
 	const char	*p = path;
 	const char	*endp = path + strlen(path);
 
-	dirpath = calloc(sizeof(*dirpath), 1);
+	dirpath = calloc(1, sizeof(*dirpath));
 	if (!dirpath)
 		return NULL;
 

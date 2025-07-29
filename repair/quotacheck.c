@@ -116,7 +116,7 @@ qc_rec_get(
 	pthread_mutex_lock(&dquots->lock);
 	node = avl64_find(&dquots->tree, id);
 	if (!node && can_alloc) {
-		qrec = calloc(sizeof(struct qc_rec), 1);
+		qrec = calloc(1, sizeof(struct qc_rec));
 		if (qrec) {
 			qrec->id = id;
 			node = avl64_insert(&dquots->tree, &qrec->node);

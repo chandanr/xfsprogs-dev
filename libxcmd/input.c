@@ -90,7 +90,7 @@ breakline(
 {
 	int	c = 0;
 	char	*p;
-	char	**rval = calloc(sizeof(char *), 1);
+	char	**rval = calloc(1, sizeof(char *));
 
 	while (rval && (p = strsep(&input, " ")) != NULL) {
 		if (!*p)
