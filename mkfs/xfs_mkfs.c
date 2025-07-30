@@ -124,6 +124,7 @@ enum {
 
 enum {
 	P_FILE = 0,
+	P_ATIME,
 	P_SLASHES,
 	P_MAX_OPTS,
 };
@@ -723,6 +724,7 @@ static struct opt_params popts = {
 	.ini_section = "proto",
 	.subopts = {
 		[P_FILE] = "file",
+		[P_ATIME] = "atime",
 		[P_SLASHES] = "slashes_are_spaces",
 		[P_MAX_OPTS] = NULL,
 	},
@@ -730,6 +732,12 @@ static struct opt_params popts = {
 		{ .index = P_FILE,
 		  .conflicts = { { NULL, LAST_CONFLICT } },
 		  .defaultval = SUBOPT_NEEDS_VAL,
+		},
+		{ .index = P_ATIME,
+		  .conflicts = { { NULL, LAST_CONFLICT } },
+		  .minval = 0,
+		  .maxval = 1,
+		  .defaultval = 1,
 		},
 		{ .index = P_SLASHES,
 		  .conflicts = { { NULL, LAST_CONFLICT } },
@@ -1089,6 +1097,7 @@ struct cli_params {
 	int	lsunit;
 	int	is_supported;
 	int	proto_slashes_are_spaces;
+	int	proto_atime;
 	int	data_concurrency;
 	int	log_concurrency;
 	int	rtvol_concurrency;
@@ -1218,6 +1227,7 @@ usage( void )
 /* naming */		[-n size=num,version=2|ci,ftype=0|1,parent=0|1]]\n\
 /* no-op info only */	[-N]\n\
 /* prototype file */	[-p fname]\n\
+/* populate from directory */	[-p dirname,atime=0|1]\n\
 /* quiet */		[-q]\n\
 /* realtime subvol */	[-r extsize=num,size=num,rtdev=xxx,rgcount=n,rgsize=n,\n\
 			    concurrency=num,zoned=0|1,start=n,reserved=n]\n\
@@ -2145,6 +2155,9 @@ proto_opts_parser(
 	switch (subopt) {
 	case P_SLASHES:
 		cli->proto_slashes_are_spaces = getnum(value, opts, subopt);
+		break;
+	case P_ATIME:
+		cli->proto_atime = getnum(value, opts, subopt);
 		break;
 	case P_FILE:
 		fallthrough;
@@ -5907,7 +5920,7 @@ main(
 	int			discard = 1;
 	int			force_overwrite = 0;
 	int			quiet = 0;
-	char			*protostring = NULL;
+	struct proto_source	protosource;
 	int			worst_freelist = 0;
 
 	struct libxfs_init	xi = {
@@ -6056,8 +6069,6 @@ main(
 	 * and bounds checking and making the filesystem.
 	 */
 	cfgfile_parse(&cli);
-
-	protostring = setup_proto(cli.protofile);
 
 	/*
 	 * Extract as much of the valid config as we can from the CLI input
@@ -6251,7 +6262,11 @@ main(
 	/*
 	 * Allocate the root inode and anything else in the proto file.
 	 */
-	parse_proto(mp, &cli.fsx, &protostring, cli.proto_slashes_are_spaces);
+	protosource = setup_proto(cli.protofile);
+	parse_proto(mp, &cli.fsx,
+			&protosource,
+			cli.proto_slashes_are_spaces,
+			cli.proto_atime);
 
 	/*
 	 * Protect ourselves against possible stupidity

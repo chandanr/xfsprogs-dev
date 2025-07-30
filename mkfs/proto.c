@@ -5,6 +5,8 @@
  */
 
 #include "libxfs.h"
+#include <dirent.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/xattr.h>
 #include <linux/xattr.h>
@@ -21,6 +23,11 @@ static void rsvfile(xfs_mount_t *mp, xfs_inode_t *ip, long long len);
 static int newregfile(char **pp, char **fname);
 static void rtinit(xfs_mount_t *mp);
 static off_t filesize(int fd);
+static void populate_from_dir(struct xfs_mount *mp, struct fsxattr *fsxp,
+		char *source_dir);
+static void walk_dir(struct xfs_mount *mp, struct xfs_inode *pip,
+		struct fsxattr *fsxp, char *path_buf, int path_len);
+static int preserve_atime;
 static int slashes_are_spaces;
 
 /*
@@ -54,23 +61,49 @@ getnum(
 	return i;
 }
 
-char *
+struct proto_source
 setup_proto(
-	char	*fname)
+	char			*fname)
 {
-	char		*buf = NULL;
-	static char	dflt[] = "d--755 0 0 $";
-	int		fd;
-	long		size;
+	struct proto_source	result = {};
+	struct stat		statbuf;
+	char			*buf = NULL;
+	static char		dflt[] = "d--755 0 0 $";
+	int			fd;
+	long			size;
 
-	if (!fname)
-		return dflt;
+	/*
+	 * If no prototype path is supplied, use the default protofile which
+	 * creates only a root directory.
+	 */
+	if (!fname) {
+		result.type = PROTO_SRC_PROTOFILE;
+		result.data = dflt;
+		return result;
+	}
+
 	if ((fd = open(fname, O_RDONLY)) < 0 || (size = filesize(fd)) < 0) {
 		fprintf(stderr, _("%s: failed to open %s: %s\n"),
 			progname, fname, strerror(errno));
 		goto out_fail;
 	}
 
+	if (fstat(fd, &statbuf) < 0)
+		fail(_("invalid or unreadable source path"), errno);
+
+	/*
+	 * Handle directory inputs.
+	 */
+	if (S_ISDIR(statbuf.st_mode)) {
+		close(fd);
+		result.type = PROTO_SRC_DIR;
+		result.data = fname;
+		return result;
+	}
+
+	/*
+	 * Else this is a protofile, let's handle traditionally.
+	 */
 	buf = malloc(size + 1);
 	if (read(fd, buf, size) < size) {
 		fprintf(stderr, _("%s: read failed on %s: %s\n"),
@@ -90,7 +123,10 @@ setup_proto(
 	(void)getnum(getstr(&buf), 0, 0, false);	/* block count */
 	(void)getnum(getstr(&buf), 0, 0, false);	/* inode count */
 	close(fd);
-	return buf;
+
+	result.type = PROTO_SRC_PROTOFILE;
+	result.data = buf;
+	return result;
 
 out_fail:
 	if (fd >= 0)
@@ -379,6 +415,13 @@ writeattr(
 	int			error;
 
 	ret = fgetxattr(fd, attrname, valuebuf, valuelen);
+	/*
+	 * In case of filedescriptors with O_PATH, fgetxattr() will fail with
+	 * EBADF.
+	 * Let's try to fallback to lgetxattr() using input path.
+	 */
+	if (ret < 0 && errno == EBADF)
+		ret = lgetxattr(fname, attrname, valuebuf, valuelen);
 	if (ret < 0) {
 		if (errno == EOPNOTSUPP)
 			return;
@@ -425,6 +468,13 @@ writeattrs(
 		fail(_("error allocating xattr name buffer"), errno);
 
 	ret = flistxattr(fd, namebuf, XATTR_LIST_MAX);
+	/*
+	 * In case of filedescriptors with O_PATH, flistxattr() will fail with
+	 * EBADF.
+	 * Let's try to fallback to llistxattr() using input path.
+	 */
+	if (ret < 0 && errno == EBADF)
+		ret = llistxattr(fname, namebuf, XATTR_LIST_MAX);
 	if (ret < 0) {
 		if (errno == EOPNOTSUPP)
 			goto out_namebuf;
@@ -931,13 +981,29 @@ parseproto(
 
 void
 parse_proto(
-	xfs_mount_t	*mp,
-	struct fsxattr	*fsx,
-	char		**pp,
-	int		proto_slashes_are_spaces)
+	xfs_mount_t		*mp,
+	struct fsxattr		*fsx,
+	struct proto_source	*protosource,
+	int			proto_slashes_are_spaces,
+	int			proto_preserve_atime)
 {
+	preserve_atime = proto_preserve_atime;
 	slashes_are_spaces = proto_slashes_are_spaces;
-	parseproto(mp, NULL, fsx, pp, NULL);
+
+	/*
+	 * In case of a file input, we will use the prototype file logic else
+	 * we will fallback to populate from dir.
+	 */
+	switch(protosource->type) {
+	case PROTO_SRC_PROTOFILE:
+		parseproto(mp, NULL, fsx, &protosource->data, NULL);
+		break;
+	case PROTO_SRC_DIR:
+		populate_from_dir(mp, fsx, protosource->data);
+		break;
+	case PROTO_SRC_NONE:
+		fail(_("invalid or unreadable source path"), ENOENT);
+	}
 }
 
 /* Create a sb-rooted metadata file. */
@@ -1171,4 +1237,681 @@ filesize(
 	if (fstat(fd, &stb) < 0)
 		return -1;
 	return stb.st_size;
+}
+
+/* Try to allow as many open directories as possible. */
+static void
+bump_max_fds(void)
+{
+	struct rlimit	rlim = {};
+	int		ret;
+
+	ret = getrlimit(RLIMIT_NOFILE, &rlim);
+	if (ret)
+		return;
+
+	rlim.rlim_cur = rlim.rlim_max;
+	ret = setrlimit(RLIMIT_NOFILE, &rlim);
+	if (ret < 0)
+		fprintf(stderr, _("%s: could not bump fd limit: [ %d - %s]\n"),
+			progname, errno, strerror(errno));
+}
+
+static void
+writefsxattrs(
+	struct xfs_inode	*ip,
+	struct fsxattr		*fsxp)
+{
+	ip->i_projid  = fsxp->fsx_projid;
+	ip->i_extsize = fsxp->fsx_extsize;
+	ip->i_diflags = xfs_flags2diflags(ip, fsxp->fsx_xflags);
+	if (xfs_has_v3inodes(ip->i_mount)) {
+		ip->i_diflags2   = xfs_flags2diflags2(ip, fsxp->fsx_xflags);
+		ip->i_cowextsize = fsxp->fsx_cowextsize;
+	}
+}
+
+static void
+writetimestamps(
+	struct xfs_inode	*ip,
+	struct stat		*statbuf)
+{
+	struct timespec64	ts;
+
+	/*
+	 * Copy timestamps from source file to destination inode.
+	 * Usually reproducible archives will delete or not register
+	 * atime and ctime, for example:
+	 *    https://www.gnu.org/software/tar/manual/html_section/Reproducibility.html
+	 * hence we will only copy mtime, and let ctime/crtime be set to
+	 * current time.
+	 * atime will be copied over if atime is true.
+	 */
+	ts.tv_sec  = statbuf->st_mtim.tv_sec;
+	ts.tv_nsec = statbuf->st_mtim.tv_nsec;
+	inode_set_mtime_to_ts(VFS_I(ip), ts);
+
+	/*
+	 * In case of atime option, we will copy the atime  timestamp
+	 * from source.
+	 */
+	if (preserve_atime) {
+		ts.tv_sec  = statbuf->st_atim.tv_sec;
+		ts.tv_nsec = statbuf->st_atim.tv_nsec;
+		inode_set_atime_to_ts(VFS_I(ip), ts);
+	}
+}
+
+struct hardlink {
+	ino_t		src_ino;
+	xfs_ino_t	dst_ino;
+};
+
+struct hardlinks {
+	size_t		count;
+	size_t		size;
+	struct hardlink	*entries;
+};
+
+/* Growth strategy for hardlink tracking array */
+/* Double size for small arrays */
+#define HARDLINK_DEFAULT_GROWTH_FACTOR	2
+/* Grow by 25% for large arrays */
+#define HARDLINK_LARGE_GROWTH_FACTOR	0.25
+/* Threshold to switch growth strategies */
+#define HARDLINK_THRESHOLD		1024
+/* Initial allocation size */
+#define HARDLINK_TRACKER_INITIAL_SIZE	4096
+
+/*
+ * Keep track of source inodes that are from hardlinks so we can retrieve them
+ * when needed to setup in destination.
+ */
+static struct hardlinks hardlink_tracker = { 0 };
+
+static void
+init_hardlink_tracker(void)
+{
+	hardlink_tracker.size = HARDLINK_TRACKER_INITIAL_SIZE;
+	hardlink_tracker.entries = calloc(
+			hardlink_tracker.size,
+			sizeof(struct hardlink));
+	if (!hardlink_tracker.entries)
+		fail(_("error allocating hardlinks tracking array"), errno);
+}
+
+static void
+cleanup_hardlink_tracker(void)
+{
+	free(hardlink_tracker.entries);
+	hardlink_tracker.entries = NULL;
+	hardlink_tracker.count = 0;
+	hardlink_tracker.size = 0;
+}
+
+static xfs_ino_t
+get_hardlink_dst_inode(
+	xfs_ino_t	i_ino)
+{
+	for (size_t i = 0; i < hardlink_tracker.count; i++) {
+		if (hardlink_tracker.entries[i].src_ino == i_ino)
+			return hardlink_tracker.entries[i].dst_ino;
+	}
+	return 0;
+}
+
+static void
+track_hardlink_inode(
+	ino_t	src_ino,
+	xfs_ino_t	dst_ino)
+{
+	if (hardlink_tracker.count >= hardlink_tracker.size) {
+		/*
+		 * double for smaller capacity.
+		 * instead grow by 25% steps for larger capacities.
+		 */
+		const size_t old_size = hardlink_tracker.size;
+		size_t new_size = old_size * HARDLINK_DEFAULT_GROWTH_FACTOR;
+		if (old_size > HARDLINK_THRESHOLD)
+			new_size = old_size + (old_size * HARDLINK_LARGE_GROWTH_FACTOR);
+
+		struct hardlink *resized_array = reallocarray(
+				hardlink_tracker.entries,
+				new_size,
+				sizeof(struct hardlink));
+		if (!resized_array)
+			fail(_("error enlarging hardlinks tracking array"), errno);
+
+		memset(&resized_array[old_size], 0,
+				(new_size - old_size) * sizeof(struct hardlink));
+
+		hardlink_tracker.entries = resized_array;
+		hardlink_tracker.size = new_size;
+	}
+	hardlink_tracker.entries[hardlink_tracker.count].src_ino = src_ino;
+	hardlink_tracker.entries[hardlink_tracker.count].dst_ino = dst_ino;
+	hardlink_tracker.count++;
+}
+
+/*
+ * This function will first check in our tracker if the input hardlink has
+ * already been stored, if not report false so create_nondir_inode() can continue
+ * handling the inode as regularly, and later save the source inode in our
+ * buffer for future consumption.
+ */
+static bool
+handle_hardlink(
+	struct xfs_mount	*mp,
+	struct xfs_inode	*pip,
+	struct xfs_name		xname,
+	struct stat		file_stat)
+{
+	int			error;
+	xfs_ino_t		dst_ino;
+	struct xfs_inode	*ip;
+	struct xfs_trans	*tp;
+	struct xfs_parent_args	*ppargs = NULL;
+
+	tp = getres(mp, 0);
+	ppargs = newpptr(mp);
+	dst_ino = get_hardlink_dst_inode(file_stat.st_ino);
+
+	/*
+	 * We didn't find the hardlink inode, this means it's the first time
+	 * we see it, report error so create_nondir_inode() can continue handling the
+	 * inode as a regular file type, and later save the source inode in our
+	 * buffer for future consumption.
+	 */
+	if (dst_ino == 0)
+		return false;
+
+	error = libxfs_iget(mp, NULL, dst_ino, 0, &ip);
+	if (error)
+		fail(_("failed to get inode"), error);
+
+	/*
+	 * In case the inode was already in our tracker we need to setup the
+	 * hardlink and skip file copy.
+	 */
+	libxfs_trans_ijoin(tp, pip, 0);
+	libxfs_trans_ijoin(tp, ip, 0);
+	newdirent(mp, tp, pip, &xname, ip, ppargs);
+
+	/*
+	 * Increment the link count
+	 */
+	libxfs_bumplink(tp, ip);
+
+	libxfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+
+	error = -libxfs_trans_commit(tp);
+	if (error)
+		fail(_("Error encountered creating file from prototype file"), error);
+
+	libxfs_parent_finish(mp, ppargs);
+	libxfs_irele(ip);
+
+	return true;
+}
+
+static void
+create_directory_inode(
+	struct xfs_mount	*mp,
+	struct xfs_inode	*pip,
+	struct fsxattr		*fsxp,
+	int			mode,
+	struct cred		creds,
+	struct xfs_name		xname,
+	int			flags,
+	struct stat		file_stat,
+	int			fd,
+	char			*entryname,
+	char			*path_buf,
+	int			path_len)
+{
+
+	int			error;
+	struct xfs_inode	*ip;
+	struct xfs_trans	*tp;
+	struct xfs_parent_args	*ppargs = NULL;
+
+	tp = getres(mp, 0);
+	ppargs = newpptr(mp);
+
+	error = creatproto(&tp, pip, mode, 0, &creds, fsxp, &ip);
+	if (error)
+		fail(_("Inode allocation failed"), error);
+
+	libxfs_trans_ijoin(tp, pip, 0);
+
+	newdirent(mp, tp, pip, &xname, ip, ppargs);
+
+	libxfs_bumplink(tp, pip);
+	libxfs_trans_log_inode(tp, pip, XFS_ILOG_CORE);
+	newdirectory(mp, tp, ip, pip);
+
+	/*
+	 * Copy over timestamps.
+	 */
+	writetimestamps(ip, &file_stat);
+
+	libxfs_trans_log_inode(tp, ip, flags);
+
+	error = -libxfs_trans_commit(tp);
+	if (error)
+		fail(_("Directory inode allocation failed."), error);
+
+	libxfs_parent_finish(mp, ppargs);
+	tp = NULL;
+
+	/*
+	 * Copy over attributes.
+	 */
+	writeattrs(ip, entryname, fd);
+	writefsxattrs(ip, fsxp);
+	close(fd);
+
+	walk_dir(mp, ip, fsxp, path_buf, path_len);
+
+	libxfs_irele(ip);
+}
+
+static void
+create_nondir_inode(
+	struct xfs_mount	*mp,
+	struct xfs_inode	*pip,
+	struct fsxattr		*fsxp,
+	int			mode,
+	struct cred		creds,
+	struct xfs_name		xname,
+	int			flags,
+	struct stat		file_stat,
+	xfs_dev_t		rdev,
+	int			fd,
+	char			*src_fname)
+{
+
+	char			link_target[XFS_SYMLINK_MAXLEN];
+	int			error;
+	ssize_t			link_len = 0;
+	struct xfs_inode	*ip;
+	struct xfs_trans	*tp;
+	struct xfs_parent_args	*ppargs = NULL;
+
+	/*
+	 * If handle_hardlink() returns true it means the hardlink has been
+	 * correctly found and set, so we don't need to do anything else.
+	 */
+	if (file_stat.st_nlink > 1 && handle_hardlink(mp, pip, xname, file_stat)) {
+		close(fd);
+		return;
+	}
+	/*
+	 * If instead we have an error it means the hardlink was not registered,
+	 * so we proceed to treat it like a regular file, and save it to our
+	 * tracker later.
+	 */
+	tp = getres(mp, 0);
+	/*
+	 * In case of symlinks, we need to handle things a little differently.
+	 * We need to read out our link target and act accordingly.
+	 */
+	if (xname.type == XFS_DIR3_FT_SYMLINK) {
+		link_len = readlink(src_fname, link_target, XFS_SYMLINK_MAXLEN);
+		if (link_len < 0)
+			fail(_("could not resolve symlink"), errno);
+		if (link_len >= PATH_MAX)
+			fail(_("symlink target too long"), ENAMETOOLONG);
+		tp = getres(mp, XFS_B_TO_FSB(mp, link_len));
+	}
+	ppargs = newpptr(mp);
+
+	error = creatproto(&tp, pip, mode, rdev, &creds, fsxp, &ip);
+	if (error)
+		fail(_("Inode allocation failed"), error);
+
+	/*
+	 * In case of symlinks, we now write it down, for other file types
+	 * this is handled later before cleanup.
+	 */
+	if (xname.type == XFS_DIR3_FT_SYMLINK)
+		writesymlink(tp, ip, link_target, link_len);
+
+	libxfs_trans_ijoin(tp, pip, 0);
+	newdirent(mp, tp, pip, &xname, ip, ppargs);
+
+	/*
+	 * Copy over timestamps.
+	 */
+	writetimestamps(ip, &file_stat);
+
+	libxfs_trans_log_inode(tp, ip, flags);
+
+	error = -libxfs_trans_commit(tp);
+	if (error)
+		fail(_("Error encountered creating non dir inode"), error);
+
+	libxfs_parent_finish(mp, ppargs);
+
+	/*
+	 * Copy over file content, attributes, extended attributes and
+	 * timestamps.
+	 */
+	if (fd >= 0) {
+		/* We need to writefile only when not dealing with a symlink. */
+		if (xname.type != XFS_DIR3_FT_SYMLINK)
+			writefile(ip, src_fname, fd);
+		writeattrs(ip, src_fname, fd);
+		close(fd);
+	}
+	/*
+	 * We do fsxattr also for file types where we don't have an fd,
+	 * for example FIFOs.
+	 */
+	writefsxattrs(ip, fsxp);
+
+	/*
+	 * If we're here it means this is the first time we're encountering an
+	 * hardlink, so we need to store it.
+	 */
+	if (file_stat.st_nlink > 1)
+		track_hardlink_inode(file_stat.st_ino, ip->i_ino);
+
+	libxfs_irele(ip);
+}
+
+static void
+handle_direntry(
+	struct xfs_mount	*mp,
+	struct xfs_inode	*pip,
+	struct fsxattr		*fsxp,
+	char			*path_buf,
+	int			path_len,
+	struct dirent		*entry)
+{
+	char			*fname = "";
+	int			flags;
+	int			majdev;
+	int			mindev;
+	int			mode;
+	int			pathfd,fd = -1;
+	int			rdev = 0;
+	struct stat		file_stat;
+	struct xfs_name		xname;
+
+	pathfd = open(path_buf, O_NOFOLLOW | O_PATH);
+	if (pathfd < 0){
+		fprintf(stderr, _("%s: cannot open %s: %s\n"), progname,
+			path_buf, strerror(errno));
+		exit(1);
+	}
+
+	/*
+	 * Symlinks and sockets will need to be opened with O_PATH to work, so
+	 * we handle this special case.
+	 */
+	fd = openat(pathfd, entry->d_name, O_NOFOLLOW | O_PATH);
+	if(fd < 0) {
+		fprintf(stderr, _("%s: cannot open %s: %s\n"), progname,
+			path_buf, strerror(errno));
+		exit(1);
+	}
+
+	if (fstat(fd, &file_stat) < 0) {
+		fprintf(stderr, _("%s: cannot stat '%s': %s (errno=%d)\n"),
+			progname, path_buf, strerror(errno), errno);
+		exit(1);
+	}
+
+	/* Ensure we're within the limits of PATH_MAX. */
+	size_t avail = PATH_MAX - path_len;
+	size_t wrote = snprintf(path_buf + path_len, avail, "/%s", entry->d_name);
+	if (wrote > avail)
+		fail(path_buf, ENAMETOOLONG);
+
+	/*
+	 * Regular files instead need to be reopened with broader flags so we
+	 * check if that's the case and reopen those.
+	 */
+	if (!S_ISSOCK(file_stat.st_mode) &&
+	    !S_ISLNK(file_stat.st_mode)  &&
+	    !S_ISFIFO(file_stat.st_mode)) {
+		close(fd);
+		/*
+		 * Try to open the source file noatime to avoid a flood of
+		 * writes to the source fs, but we can fall back to plain
+		 * readonly mode if we don't have enough permission.
+		 */
+		fd = openat(pathfd, entry->d_name,
+			    O_NOFOLLOW | O_RDONLY | O_NOATIME);
+		if (fd < 0)
+			fd = openat(pathfd, entry->d_name,
+				    O_NOFOLLOW | O_RDONLY);
+		if(fd < 0) {
+			fprintf(stderr, _("%s: cannot open %s: %s\n"), progname,
+				path_buf, strerror(errno));
+			exit(1);
+		}
+	}
+
+	struct cred creds = {
+		.cr_uid = file_stat.st_uid,
+		.cr_gid = file_stat.st_gid,
+	};
+
+	xname.name = (unsigned char *)entry->d_name;
+	xname.len = strlen(entry->d_name);
+	xname.type = 0;
+	mode = file_stat.st_mode;
+	flags = XFS_ILOG_CORE;
+
+	switch (file_stat.st_mode & S_IFMT) {
+	case S_IFDIR:
+		xname.type = XFS_DIR3_FT_DIR;
+		create_directory_inode(mp, pip, fsxp, mode, creds, xname, flags,
+				       file_stat, fd, entry->d_name, path_buf,
+				       path_len + strlen(entry->d_name) + 1);
+		goto out;
+	case S_IFREG:
+		xname.type = XFS_DIR3_FT_REG_FILE;
+		fname = entry->d_name;
+		break;
+	case S_IFCHR:
+		flags |= XFS_ILOG_DEV;
+		xname.type = XFS_DIR3_FT_CHRDEV;
+		majdev = major(file_stat.st_rdev);
+		mindev = minor(file_stat.st_rdev);
+		rdev = IRIX_MKDEV(majdev, mindev);
+		fname = entry->d_name;
+		break;
+	case S_IFBLK:
+		flags |= XFS_ILOG_DEV;
+		xname.type = XFS_DIR3_FT_BLKDEV;
+		majdev = major(file_stat.st_rdev);
+		mindev = minor(file_stat.st_rdev);
+		rdev = IRIX_MKDEV(majdev, mindev);
+		fname = entry->d_name;
+		break;
+	case S_IFLNK:
+		/*
+		 * Being a symlink we opened the filedescriptor with O_PATH
+		 * this will make flistxattr() and fgetxattr() fail with EBADF,
+		 * so we  will need to fallback to llistxattr() and lgetxattr(),
+		 * this will need the full path to the original file, not just
+		 * the entry name.
+		 */
+		xname.type = XFS_DIR3_FT_SYMLINK;
+		fname = path_buf;
+		break;
+	case S_IFIFO:
+		/*
+		 * Being a fifo we opened the filedescriptor with O_PATH
+		 * this will make flistxattr() and fgetxattr() fail with EBADF,
+		 * so we  will need to fallback to llistxattr() and lgetxattr(),
+		 * this will need the full path to the original file, not just
+		 * the entry name.
+		 */
+		xname.type = XFS_DIR3_FT_FIFO;
+		fname = path_buf;
+		break;
+	case S_IFSOCK:
+		/*
+		 * Being a socket we opened the filedescriptor with O_PATH
+		 * this will make flistxattr() and fgetxattr() fail with EBADF,
+		 * so we  will need to fallback to llistxattr() and lgetxattr(),
+		 * this will need the full path to the original file, not just
+		 * the entry name.
+		 */
+		xname.type = XFS_DIR3_FT_SOCK;
+		fname = path_buf;
+		break;
+	default:
+		break;
+	}
+
+	create_nondir_inode(mp, pip, fsxp, mode, creds, xname, flags, file_stat,
+			    rdev, fd, fname);
+out:
+	/* Reset path_buf to original */
+	path_buf[path_len] = '\0';
+}
+
+/*
+ * Walk_dir will recursively list files and directories and populate the
+ * mountpoint *mp with them using handle_direntry().
+ */
+static void
+walk_dir(
+	struct xfs_mount	*mp,
+	struct xfs_inode	*pip,
+	struct fsxattr		*fsxp,
+	char			*path_buf,
+	int			path_len)
+{
+	DIR			*dir;
+	struct dirent		*entry;
+
+	/*
+	 * Open input directory and iterate over all entries in it.
+	 * when another directory is found, we will recursively call walk_dir.
+	 */
+	if ((dir = opendir(path_buf)) == NULL) {
+		fprintf(stderr, _("%s: cannot open input dir: %s [%d - %s]\n"),
+				progname, path_buf, errno, strerror(errno));
+		exit(1);
+	}
+	while ((entry = readdir(dir)) != NULL) {
+		if (strcmp(entry->d_name, ".") == 0 ||
+		    strcmp(entry->d_name, "..") == 0)
+			continue;
+
+		handle_direntry(mp, pip, fsxp, path_buf, path_len, entry);
+	}
+	closedir(dir);
+}
+
+static void
+populate_from_dir(
+	struct xfs_mount	*mp,
+	struct fsxattr		*fsxp,
+	char			*cur_path)
+{
+	int			error;
+	int			mode;
+	int			fd = -1;
+	char			path_buf[PATH_MAX];
+	struct stat		file_stat;
+	struct xfs_inode	*ip;
+	struct xfs_trans	*tp;
+
+	/*
+	 * Initialize path_buf cur_path, strip trailing slashes they're
+	 * automatically added when walking the dir.
+	 */
+	if (strlen(cur_path) > 1 && cur_path[strlen(cur_path)-1] == '/')
+		cur_path[strlen(cur_path)-1] = '\0';
+	if (snprintf(path_buf, PATH_MAX, "%s", cur_path) >= PATH_MAX)
+		fail(_("path name too long"), ENAMETOOLONG);
+
+	if (lstat(path_buf, &file_stat) < 0) {
+		fprintf(stderr, _("%s: cannot stat '%s': %s (errno=%d)\n"),
+			progname, path_buf, strerror(errno), errno);
+		exit(1);
+	}
+	fd = open(path_buf, O_NOFOLLOW | O_RDONLY | O_NOATIME);
+	if (fd < 0) {
+		fprintf(stderr, _("%s: cannot open %s: %s\n"),
+			progname, path_buf, strerror(errno));
+		exit(1);
+	}
+
+	/*
+	 * We first ensure we have the root inode.
+	 */
+	struct cred creds = {
+		.cr_uid = file_stat.st_uid,
+		.cr_gid = file_stat.st_gid,
+	};
+	mode = file_stat.st_mode;
+
+	tp = getres(mp, 0);
+
+	error = creatproto(&tp, NULL, mode | S_IFDIR, 0, &creds, fsxp, &ip);
+	if (error)
+		fail(_("Inode allocation failed"), error);
+
+	mp->m_sb.sb_rootino = ip->i_ino;
+	libxfs_log_sb(tp);
+	newdirectory(mp, tp, ip, ip);
+	libxfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+
+	error = -libxfs_trans_commit(tp);
+	if (error)
+		fail(_("Inode allocation failed"), error);
+
+	libxfs_parent_finish(mp, NULL);
+
+	/*
+	 * Copy over attributes.
+	 */
+	writeattrs(ip, path_buf, fd);
+	writefsxattrs(ip, fsxp);
+	close(fd);
+
+	/*
+	 * RT initialization. Do this here to ensure that the RT inodes get
+	 * placed after the root inode.
+	 */
+	error = create_metadir(mp);
+	if (error)
+		fail(_("Creation of the metadata directory inode failed"), error);
+
+	rtinit(mp);
+
+	/*
+	 * By nature of walk_dir() we could be opening a great number of fds
+	 * for deeply nested directory trees. try to bump max fds limit.
+	 */
+	bump_max_fds();
+
+	/*
+	 * Initialize the hardlinks tracker.
+	 */
+	init_hardlink_tracker();
+	/*
+	 * Now that we have a root inode, let's walk the input dir and populate
+	 * the partition.
+	 */
+	walk_dir(mp, ip, fsxp, path_buf, strlen(cur_path));
+
+	/*
+	 * Cleanup hardlinks tracker.
+	 */
+	cleanup_hardlink_tracker();
+
+	/*
+	 * We free up our root inode only when we finished populating the root
+	 * filesystem.
+	 */
+	libxfs_irele(ip);
 }

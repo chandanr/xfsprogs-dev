@@ -28,7 +28,7 @@ mkfs.xfs \- construct an XFS filesystem
 .I naming_options
 ] [
 .B \-p
-.I protofile_options
+.I prototype_options
 ] [
 .B \-q
 ] [
@@ -984,30 +984,40 @@ option set.
 .PP
 .PD 0
 .TP
-.BI \-p " protofile_options"
+.BI \-p " prototype_options"
 .TP
 .BI "Section Name: " [proto]
 .PD
-These options specify the protofile parameters for populating the filesystem.
+These options specify the prototype parameters for populating the filesystem.
 The valid
-.I protofile_options
+.I prototype_options
 are:
 .RS 1.2i
 .TP
-.BI [file=] protofile
+.BI [file=]
 The
 .B file=
 prefix is not required for this CLI argument for legacy reasons.
 If specified as a config file directive, the prefix is required.
-
+.TP
+.BI [file=] directory
 If the optional
 .PD
-.I protofile
-argument is given,
+.I prototype
+argument is given, and it's a directory,
 .B mkfs.xfs
-uses
-.I protofile
-as a prototype file and takes its directions from that file.
+will populate the root file system with the contents of the given directory
+tree.
+Content, timestamps (atime, mtime), attributes and extended attributes
+are preserved for all file types.
+.TP
+.BI [file=] protofile
+If the optional
+.PD
+.I prototype
+argument is given, and points to a regular file,
+.B mkfs.xfs
+uses it as a prototype file and takes its directions from that file.
 The blocks and inodes specifiers in the
 .I protofile
 are provided for backwards compatibility, but are otherwise unused.
@@ -1143,8 +1153,12 @@ always terminated with the dollar (
 .B $
 ) token.
 .TP
+.BI atime= value
+If set to 1,  mkfs will copy in access timestamps from the source files.
+Otherwise, access timestamps will be set to the current time.
+.TP
 .BI slashes_are_spaces= value
-If set to 1, slashes ("/") in the first token of each line of the protofile
+If set to 1, slashes ("/") in the first token of each line of the prototype file
 are converted to spaces.
 This enables the creation of a filesystem containing filenames with spaces.
 By default, this is set to 0.
