@@ -451,10 +451,6 @@ find_next_zero_bit(const unsigned long *addr, unsigned long size,
 }
 #define find_first_zero_bit(addr, size) find_next_zero_bit((addr), (size), 0)
 
-#define xfs_iflags_set(ip, flags)	do { } while (0)
-#define xfs_iflags_clear(ip, flags)	do { } while (0)
-#define xfs_iflags_test(ip, flags)	(0)
-
 /* local source files */
 #define xfs_mod_fdblocks(mp, delta, rsvd) \
 	libxfs_mod_incore_sb(mp, XFS_TRANS_SB_FDBLOCKS, delta, rsvd)
