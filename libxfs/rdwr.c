@@ -23,6 +23,7 @@
 
 #include "libxfs.h"
 #include "libxlog.h"
+#include <pthread.h>
 #include <stdint.h>
 
 static void libxfs_brelse(struct cache_node *node);
@@ -1331,16 +1332,20 @@ libxfs_iget(
 	if (!ip)
 		return -ENOMEM;
 
+	error = pthread_rwlock_init(&ip->i_lock, NULL);
+	if (error)
+		goto out_free;
+
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
 	error = xfs_imap(pag, tp, ip->i_ino, &ip->i_imap, 0);
 	xfs_perag_put(pag);
 
 	if (error)
-		goto out_destroy;
+		goto out_destroy_ilock;
 
 	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &bp);
 	if (error)
-		goto out_destroy;
+		goto out_destroy_ilock;
 
 	error = xfs_inode_from_disk(ip,
 			xfs_buf_offset(bp, ip->i_imap.im_boffset));
@@ -1349,12 +1354,15 @@ libxfs_iget(
 	xfs_trans_brelse(tp, bp);
 
 	if (error)
-		goto out_destroy;
+		goto out_destroy_ilock;
 
 	*ipp = ip;
 	return 0;
 
-out_destroy:
+out_destroy_ilock:
+	(void)pthread_rwlock_destroy(&ip->i_lock);
+
+out_free:
 	kmem_cache_free(xfs_inode_cache, ip);
 	*ipp = NULL;
 	return error;
@@ -1377,6 +1385,8 @@ libxfs_idestroy(xfs_inode_t *ip)
 		libxfs_idestroy_fork(ip->i_cowfp);
 		kmem_cache_free(xfs_ifork_cache, ip->i_cowfp);
 	}
+
+	(void)pthread_rwlock_destroy(&ip->i_lock);
 }
 
 void

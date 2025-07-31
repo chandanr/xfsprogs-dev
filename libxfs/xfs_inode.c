@@ -1,3 +1,56 @@
+#include <pthread.h>
+
+static inline void
+xfs_lock_flags_assert(
+	uint		lock_flags)
+{
+	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
+			(XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+
+	ASSERT((lock_flags & (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL)) == 0);
+
+	ASSERT((lock_flags & (XFS_MMAPLOCK_SHARED | XFS_MMAPLOCK_EXCL)) == 0);
+
+	ASSERT(lock_flags != 0);
+}
+
+void
+xfs_ilock(
+	xfs_inode_t		*ip,
+	uint			lock_flags)
+{
+	int			error = 0;
+
+	xfs_lock_flags_assert(lock_flags);
+
+	if (lock_flags & XFS_ILOCK_EXCL)
+		error = pthread_rwlock_wrlock(&ip->i_lock);
+	else if (lock_flags & XFS_ILOCK_SHARED)
+		error = pthread_rwlock_rdlock(&ip->i_lock);
+	else
+		ASSERT(0);
+
+	ASSERT(error == 0);
+}
+
+void
+xfs_iunlock(
+	xfs_inode_t		*ip,
+	uint			lock_flags)
+{
+	int			error = 0;
+
+	xfs_lock_flags_assert(lock_flags);
+
+	if (lock_flags & (XFS_ILOCK_EXCL | XFS_ILOCK_SHARED))
+		error = pthread_rwlock_unlock(&ip->i_lock);
+	else
+		ASSERT(0);
+
+	ASSERT(error == 0);
+}
+
+
 /*
  * Look up the inode number specified and if it is not already marked XFS_ISTALE
  * mark it stale. We should only find clean inodes in this lookup that aren't

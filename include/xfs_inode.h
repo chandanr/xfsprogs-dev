@@ -140,6 +140,13 @@ static inline struct timespec64 inode_set_ctime_current(struct inode *inode)
 	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED | XFS_NEED_INACTIVE | \
 	 XFS_INACTIVATING | XFS_IQUOTAUNCHECKED)
 
+#define	XFS_IOLOCK_EXCL		(1u << 0)
+#define	XFS_IOLOCK_SHARED	(1u << 1)
+#define	XFS_ILOCK_EXCL		(1u << 2)
+#define	XFS_ILOCK_SHARED	(1u << 3)
+#define	XFS_MMAPLOCK_EXCL	(1u << 4)
+#define	XFS_MMAPLOCK_SHARED	(1u << 5)
+
 /* TODO: chandan: Do we need to copy fs/xfs/xfs_inode.h from kernel to xfsprogs? */
 typedef struct xfs_inode {
 	struct cache_node	i_node;
@@ -154,6 +161,7 @@ typedef struct xfs_inode {
 	struct xfs_ifork	i_df;		/* data fork */
 	struct xfs_ifork	i_af;		/* attribute fork */
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
+	pthread_rwlock_t	i_lock;		/* inode lock */
 	unsigned int		i_delayed_blks;	/* count of delay alloc blks */
 	xfs_fsize_t		i_disk_size;	/* number of bytes in file */
 	xfs_rfsblock_t		i_nblocks;	/* # of direct & btree blocks */
