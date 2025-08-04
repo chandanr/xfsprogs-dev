@@ -6,6 +6,7 @@
 
 
 #include "cache.h"
+#include "libxfs_api_defs.h"
 #include "libxfs_io.h"
 #include "libxfs_priv.h"
 #include "init.h"
@@ -1311,6 +1312,37 @@ libxfs_inode_alloc(
 }
 
 int
+xfs_read_inode_from_disk(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	uint			flags)
+{
+	struct xfs_perag	*pag;
+	struct xfs_buf		*bp;
+	int			error;
+
+	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
+
+	error = xfs_imap(pag, tp, ip->i_ino, &ip->i_imap, flags);
+	if (error)
+		goto out_error;
+
+	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &bp);
+	if (error)
+		goto out_error;
+
+	error = xfs_inode_from_disk(ip,
+			xfs_buf_offset(bp, ip->i_imap.im_boffset));
+
+	xfs_trans_brelse(bp);
+
+out_error:
+	xfs_perag_put(pag);
+
+	return error;
+}
+
+int
 libxfs_iget(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
@@ -1319,53 +1351,43 @@ libxfs_iget(
 	uint			lock_flags,
 	struct xfs_inode	**ipp)
 {
+	struct cache_node	*cn;
 	struct xfs_inode	*ip;
 	struct xfs_buf		*bp;
 	struct xfs_perag	*pag;
 	int			error = 0;
 
+	ASSERT(flags == 0);
+
 	/* reject inode numbers outside existing AGs */
 	if (!ino || XFS_INO_TO_AGNO(mp, ino) >= mp->m_sb.sb_agcount)
 		return -EINVAL;
 
-	ip = libxfs_inode_alloc(mp, ino);
-	if (!ip)
-		return -ENOMEM;
+	cache_node_get(libxfs_icache, &ino, &cn);
+	ASSERT(cn != NULL);
 
-	error = pthread_rwlock_init(&ip->i_lock, NULL);
-	if (error)
-		goto out_free;
+	ip = container_of(cn, struct xfs_inode, i_node);
+	ip->i_mount = mp;
 
-	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
-	error = xfs_imap(pag, tp, ip->i_ino, &ip->i_imap, 0);
-	xfs_perag_put(pag);
+	if (VFS_I(ip)->i_mode == 0) {
+		error = xfs_read_inode_from_disk(tp, ip, flags);
+		ASSERT(error == 0);
+	}
 
-	if (error)
-		goto out_destroy_ilock;
+	ASSERT(VFS_I(ip)->i_mode != 0);
 
-	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &bp);
-	if (error)
-		goto out_destroy_ilock;
-
-	error = xfs_inode_from_disk(ip,
-			xfs_buf_offset(bp, ip->i_imap.im_boffset));
-	if (!error)
-		xfs_buf_set_ref(bp, XFS_INO_REF);
-	xfs_trans_brelse(tp, bp);
-
-	if (error)
-		goto out_destroy_ilock;
+	/*
+	  chandan: TODO: cache_node_get() would have already inserted the inode
+	  into the cache. Fix this.
+	*/
+	if (lock_flags) {
+		if (!xfs_ilock_nowait(ip, lock_flags))
+			ASSERT(0);
+	}
 
 	*ipp = ip;
+
 	return 0;
-
-out_destroy_ilock:
-	(void)pthread_rwlock_destroy(&ip->i_lock);
-
-out_free:
-	kmem_cache_free(xfs_inode_cache, ip);
-	*ipp = NULL;
-	return error;
 }
 
 static void
@@ -1393,13 +1415,7 @@ void
 libxfs_irele(
 	struct xfs_inode	*ip)
 {
-	VFS_I(ip)->i_count--;
-
-	if (VFS_I(ip)->i_count == 0) {
-		ASSERT(ip->i_itemp == NULL);
-		libxfs_idestroy(ip);
-		kmem_cache_free(xfs_inode_cache, ip);
-	}
+	cache_node_put(libxfs_icache, &ip->i_node);
 }
 
 /*
