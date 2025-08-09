@@ -129,7 +129,15 @@ AC_DEFUN([AC_NEED_INTERNAL_STATX],
         AC_CHECK_MEMBER(struct statx.stx_atomic_write_unit_max_opt,
           ,
           need_internal_statx=yes,
-          [#include <linux/stat.h>]
+          [[
+#define _GNU_SOURCE
+#include <fcntl.h>
+#include <sys/stat.h>
+
+#ifndef STATX_TYPE
+#include <linux/stat.h>
+#endif
+]]
         )
       ],need_internal_statx=yes,
       [#include <linux/stat.h>]
