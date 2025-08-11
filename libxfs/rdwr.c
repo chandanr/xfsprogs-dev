@@ -479,6 +479,11 @@ __cache_lookup(
 		bp->b_holder = pthread_self();
 	}
 
+	if (bp->b_flags & XBF_STALE) {
+		bp->b_flags = 0;
+		bp->b_ops = NULL;
+	}
+
 	cache_node_set_priority(libxfs_bcache, cn,
 			cache_node_get_priority(cn) - CACHE_PREFETCH_PRIORITY);
 	*bpp = bp;
