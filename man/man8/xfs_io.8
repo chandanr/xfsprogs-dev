@@ -550,6 +550,12 @@ With the
 .B -k
 option, use the FALLOC_FL_KEEP_SIZE flag as well.
 .TP
+.BI fwzero " offset length"
+Call fallocate with FALLOC_FL_WRITE_ZEROES flag as described in the
+.BR fallocate (2)
+manual page to allocate and zero blocks within the range by submitting write
+zeroes.
+.TP
 .BI zero " offset length"
 Call xfsctl with
 .B XFS_IOC_ZERO_RANGE

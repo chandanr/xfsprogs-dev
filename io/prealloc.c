@@ -30,6 +30,10 @@
 #define FALLOC_FL_UNSHARE_RANGE 0x40
 #endif
 
+#ifndef FALLOC_FL_WRITE_ZEROES
+#define FALLOC_FL_WRITE_ZEROES 0x80
+#endif
+
 static cmdinfo_t allocsp_cmd;
 static cmdinfo_t freesp_cmd;
 static cmdinfo_t resvsp_cmd;
@@ -41,6 +45,7 @@ static cmdinfo_t fcollapse_cmd;
 static cmdinfo_t finsert_cmd;
 static cmdinfo_t fzero_cmd;
 static cmdinfo_t funshare_cmd;
+static cmdinfo_t fwzero_cmd;
 
 static int
 offset_length(
@@ -377,6 +382,27 @@ funshare_f(
 	return 0;
 }
 
+static int
+fwzero_f(
+	int		argc,
+	char		**argv)
+{
+	xfs_flock64_t	segment;
+	int		mode = FALLOC_FL_WRITE_ZEROES;
+
+	if (!offset_length(argv[1], argv[2], &segment)) {
+		exitcode = 1;
+		return 0;
+	}
+
+	if (fallocate(file->fd, mode, segment.l_start, segment.l_len)) {
+		perror("fallocate");
+		exitcode = 1;
+		return 0;
+	}
+	return 0;
+}
+
 void
 prealloc_init(void)
 {
@@ -489,4 +515,14 @@ prealloc_init(void)
 	funshare_cmd.oneline =
 	_("unshares shared blocks within the range");
 	add_command(&funshare_cmd);
+
+	fwzero_cmd.name = "fwzero";
+	fwzero_cmd.cfunc = fwzero_f;
+	fwzero_cmd.argmin = 2;
+	fwzero_cmd.argmax = 2;
+	fwzero_cmd.flags = CMD_NOMAP_OK | CMD_FOREIGN_OK;
+	fwzero_cmd.args = _("off len");
+	fwzero_cmd.oneline =
+	_("zeroes space and eliminates holes by allocating and submitting write zeroes");
+	add_command(&fwzero_cmd);
 }
