@@ -1576,38 +1576,6 @@ _xfs_buf_ioapply(
 	bp->b_error = 0;
 
 	if (bp->b_flags & LIBXFS_B_WRITE) {
-		/*
-		 * Run the write verifier callback function if it exists. If
-		 * this function fails it will mark the buffer with an error and
-		 * the IO should not be dispatched.
-		 */
-		if (bp->b_ops) {
-			bp->b_ops->verify_write(bp);
-			if (bp->b_error) {
-				xfs_force_shutdown(bp->b_mount,
-						   SHUTDOWN_CORRUPT_INCORE);
-				return;
-			}
-		} else if (bp->b_rhash_key != XFS_BUF_DADDR_NULL) {
-			struct xfs_mount *mp = bp->b_mount;
-
-			/*
-			 * non-crc filesystems don't attach verifiers during
-			 * log recovery, so don't warn for such filesystems.
-			 */
-			if (xfs_has_crc(mp)) {
-				xfs_warn(mp,
-					"%s: no buf ops on daddr 0x%llx len %d",
-					__func__, xfs_buf_daddr(bp),
-					bp->b_length);
-				xfs_hex_dump(bp->b_addr,
-						XFS_CORRUPTION_DUMP_LEN);
-				dump_stack();
-			}
-		}
-	}
-
-	if (bp->b_flags & LIBXFS_B_WRITE) {
 		error = libxfs_bwrite(bp);
 	} else {
 		error = libxfs_readbufr_map(bp->b_target, bp, bp->b_flags);
