@@ -174,12 +174,6 @@ int libxfs_buf_priority(struct xfs_buf *bp);
 #define xfs_daddr_to_agbno(mp,d) \
 	((xfs_agblock_t)(XFS_BB_TO_FSBT(mp, d) % (mp)->m_sb.sb_agblocks))
 
-/*
- * TODO: chandan: The kernel also removes _XBF_DELWRI_Q flag; we probably have
- * to do a lot more in this function
- */
-#define xfs_buf_stale(bp)		((bp)->b_flags |= LIBXFS_B_STALE)
-
 /* Buffer Cache Interfaces */
 
 extern struct cache	*libxfs_bcache;
