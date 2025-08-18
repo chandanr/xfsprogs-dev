@@ -1468,14 +1468,20 @@ int
 xfs_buf_delwri_submit(
 	struct list_head	*buffer_list)
 {
-	struct xfs_buf		*bp, *n;
-	int			error = 0, error2;
+	LIST_HEAD		(wait_list);
+	int			error = 0;
+	struct xfs_buf		*bp;
 
+	xfs_buf_delwri_submit_buffers(buffer_list, &wait_list);
+
+	/* chandan: We don't wait on xfs_bufs since the writes are synchronous. */
 	list_for_each_entry_safe(bp, n, buffer_list, b_list) {
 		list_del_init(&bp->b_list);
-		error2 = libxfs_bwrite(bp);
-		if (!error)
-			error = error2;
+
+		if (bp->b_error && !error) {
+			error = bp->b_error;
+		}
+
 		libxfs_buf_relse(bp);
 	}
 
