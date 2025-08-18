@@ -905,6 +905,22 @@ libxfs_bwrite(
 				bp->b_length);
 			return bp->b_error;
 		}
+	} else if (bp->b_rhash_key != XFS_BUF_DADDR_NULL) {
+		struct xfs_mount *mp = bp->b_mount;
+
+		/*
+		 * non-crc filesystems don't attach verifiers during
+		 * log recovery, so don't warn for such filesystems.
+		 */
+		if (xfs_has_crc(mp)) {
+			xfs_warn(mp,
+				"%s: no buf ops on daddr 0x%llx len %d",
+				__func__, xfs_buf_daddr(bp),
+				bp->b_length);
+			xfs_hex_dump(bp->b_addr,
+					XFS_CORRUPTION_DUMP_LEN);
+			dump_stack();
+		}
 	}
 
 	if (!(bp->b_flags & LIBXFS_B_DISCONTIG)) {
