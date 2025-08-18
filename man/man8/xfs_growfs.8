@@ -70,6 +70,7 @@ otherwise the data section is grown to the largest size possible with the
 option. The size is expressed in filesystem blocks. A filesystem with only
 1 AG cannot be shrunk further, and a filesystem cannot be shrunk to the point
 where it would only have 1 AG.
+.B [NOTE: Only shrinking the last AG without removing it is implemented]
 .TP
 .B \-e
 Allows the real-time extent size to be specified. In
