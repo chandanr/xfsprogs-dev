@@ -1544,8 +1544,6 @@ xfs_buf_ioend(
 
 	if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_relse(bp);
-	else
-		complete(&bp->b_iowait);
 }
 
 static void
@@ -1653,9 +1651,6 @@ __xfs_buf_submit(
 		else
 			xfs_buf_ioend_async(bp);
 	}
-
-	if (wait)
-		error = xfs_buf_iowait(bp);
 
 	/*
 	 * Release the hold that keeps the buffer referenced for the entire
