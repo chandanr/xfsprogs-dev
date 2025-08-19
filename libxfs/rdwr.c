@@ -1586,7 +1586,8 @@ _xfs_buf_ioapply(
 	} else {
 		error = libxfs_readbufr_map(bp->b_target, bp, bp->b_flags);
 	}
-	xfs_buf_ioend_async(bp);
+
+	xfs_buf_ioend(bp);
 
 }
 
