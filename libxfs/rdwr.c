@@ -1630,27 +1630,10 @@ __xfs_buf_submit(
 	if (bp->b_flags & LIBXFS_B_WRITE)
 		xfs_buf_wait_unpin(bp);
 
-	/*
-	 * Set the count to 1 initially, this will stop an I/O completion
-	 * callout which happens before we have started all the I/O from calling
-	 * xfs_buf_ioend too early.
-	 */
-	atomic_set(&bp->b_io_remaining, 1);
 	if (bp->b_flags & LIBXFS_B_ASYNC)
 		xfs_buf_ioacct_inc(bp);
 	_xfs_buf_ioapply(bp);
 
-	/*
-	 * If _xfs_buf_ioapply failed, we can get back here with only the IO
-	 * reference we took above. If we drop it to zero, run completion so
-	 * that we don't return to the caller with completion still pending.
-	 */
-	if (atomic_dec_and_test(&bp->b_io_remaining) == 1) {
-		if (bp->b_error || !(bp->b_flags & LIBXFS_B_ASYNC))
-			xfs_buf_ioend(bp);
-		else
-			xfs_buf_ioend_async(bp);
-	}
 	if (wait)
 		error = bp->b_error;
 
