@@ -1651,6 +1651,8 @@ __xfs_buf_submit(
 		else
 			xfs_buf_ioend_async(bp);
 	}
+	if (wait)
+		error = bp->b_error;
 
 	/*
 	 * Release the hold that keeps the buffer referenced for the entire
