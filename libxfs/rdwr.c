@@ -1630,8 +1630,6 @@ __xfs_buf_submit(
 	if (bp->b_flags & LIBXFS_B_WRITE)
 		xfs_buf_wait_unpin(bp);
 
-	if (bp->b_flags & LIBXFS_B_ASYNC)
-		xfs_buf_ioacct_inc(bp);
 	_xfs_buf_ioapply(bp);
 
 	if (wait)
@@ -2024,14 +2022,4 @@ xfs_buf_stale(
 	 * a reference to the buffer, so this is safe to do.
 	 */
 	bp->b_flags &= ~LIBXFS_B_DELWRI_Q
-
-	/*
-	 * Once the buffer is marked stale and unlocked, a subsequent lookup
-	 * could reset b_flags. There is no guarantee that the buffer is
-	 * unaccounted (released to LRU) before that occurs. Drop in-flight
-	 * status now to preserve accounting consistency.
-	 */
-	spin_lock(&bp->b_lock);
-	__xfs_buf_ioacct_dec(bp);
-	spin_unlock(&bp->b_lock);
 }
