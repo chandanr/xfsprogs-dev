@@ -124,22 +124,22 @@ bool xfs_verify_magic16(struct xfs_buf *bp, __be16 dmagic);
 #define LIBXFS_B_LOGRECOVERY	(1ULL << 14)
 #define LIBXFS_B_SALVAGE	(1ULL << 15)	/* Return the buffer even if the verifiers fail. */
 #define LIBXFS_B_VER_FAIL	(1ULL << 16)
+#define LIBXFS_B_TRYLOCK	(1ULL << 17)
+#define LIBXFS_B_UNMAPPED	(1ULL << 18)
 
-#define _XBF_INODES LIBXFS_B_INODES
+#define XBF_READ		LIBXFS_B_READ
+#define XBF_WRITE		LIBXFS_B_WRITE
+#define XBF_ASYNC		LIBXFS_B_ASYNC
+#define XBF_DONE		LIBXFS_B_UPTODATE
+#define XBF_STALE		LIBXFS_B_STALE
+#define XBF_WRITE_FAIL		LIBXFS_B_WRITE_FAIL
+#define XBF_TRYLOCK		LIBXFS_B_TRYLOCK
+#define XBF_UNMAPPED		LIBXFS_B_UNMAPPED
+#define XBF_WRITE_FAIL		LIBXFS_B_WRITE_FAIL
 
-/* chandan: Fix the dummy values assigned below */
-/* buffer management */
-#define XBF_TRYLOCK			0
-#define XBF_UNMAPPED			0
-#define XBF_DONE			0
-#define XBF_ASYNC			0
-#define XBF_WRITE_FAIL			0
-#define XBF_STALE			LIBXFS_B_STALE
-#define XFS_BUF_UNDELAYWRITE(bp)	((bp)->b_flags &= ~LIBXFS_B_DIRTY)
-
-/* buffer type flags for write callbacks */
-#define _XBF_DQUOTS	0 /* dquot buffer */
-#define _XBF_LOGRECOVERY	0 /* log recovery buffer */
+#define _XBF_INODES		LIBXFS_B_INODES
+#define _XBF_DQUOTS		LIBXFS_B_DQUOTS
+#define _XBF_LOGRECOVERY	LIBXFS_B_LOGRECOVERY
 
 typedef unsigned int xfs_buf_flags_t;
 
@@ -178,8 +178,6 @@ int libxfs_buf_priority(struct xfs_buf *bp);
 
 extern struct cache	*libxfs_bcache;
 extern struct cache_operations	libxfs_bcache_operations;
-
-#define LIBXFS_GETBUF_TRYLOCK	(1 << 0)
 
 int libxfs_buf_read_map(struct xfs_buftarg *btp, struct xfs_buf_map *maps,
 			int nmaps, int flags, struct xfs_buf **bpp,
