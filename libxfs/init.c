@@ -636,6 +636,17 @@ void xfs_reinit_percpu_counters(struct xfs_mount *mp)
 	percpu_counter_set(&mp->m_frextents, mp->m_sb.sb_frextents);
 }
 
+void
+xfs_freesb(
+	struct xfs_mount *mp)
+{
+	struct xfs_buf *bp = mp->m_sb_bp;
+
+	xfs_buf_lock(bp);
+	mp->m_sb_bp = NULL;
+	xfs_buf_relse(bp);
+}
+
 /*
  * Mount structure initialization, provides a filled-in xfs_mount_t
  * such that the numerous XFS_* macros can be used.  If dev is zero,
@@ -665,6 +676,16 @@ libxfs_mount(
 	mp->m_finobt_nores = true;
 	xfs_set_inode32(mp);
 	mp->m_sb = *sb;
+
+	/*
+	 * chandan: TODO: Invoke xfs_freesb() when one of the later steps fails.
+	 */
+	error = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
+			SECTOR_SIZE, BTOBB(sb->sb_sectsize), &mp->m_sb_bp,
+			&xfs_sb_buf_ops);
+	if (error)
+		return NULL;
+
 	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_KERNEL);
 	sbp = &mp->m_sb;
 	spin_lock_init(&mp->m_sb_lock);
@@ -921,6 +942,8 @@ libxfs_umount(
 
 	kmem_free(mp->m_attr_geo);
 	kmem_free(mp->m_dir_geo);
+
+	xfs_freesb(mp);
 
 	kmem_free(mp->m_rtdev_targp);
 	if (mp->m_logdev_targp != mp->m_ddev_targp)
