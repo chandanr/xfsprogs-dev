@@ -217,6 +217,8 @@
 
 #define xfs_buf_read_map		libxfs_buf_read_map
 
+#define xfs_rw_bdev	libxfs_rw_bdev
+
 /* Please keep this list alphabetized. */
 
 #endif /* __LIBXFS_API_DEFS_H__ */

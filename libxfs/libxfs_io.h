@@ -16,6 +16,11 @@ struct xfs_mount;
 struct xfs_perag;
 struct libxfs_init;
 
+enum req_op {
+	REQ_OP_READ,
+	REQ_OP_WRITE,
+};
+
 /*
  * IO verifier callbacks need the xfs_mount pointer, so we have to behave
  * somewhat like the kernel now for userspace IO in terms of having buftarg
@@ -227,6 +232,8 @@ extern int	libxfs_readbufr(struct xfs_buftarg *, xfs_daddr_t, struct xfs_buf *, 
 extern int	libxfs_readbufr_map(struct xfs_buftarg *, struct xfs_buf *, int);
 
 extern int	libxfs_device_zero(struct xfs_buftarg *, xfs_daddr_t, uint);
+extern int libxfs_rw_bdev(struct xfs_buftarg *target, sector_t sector,
+		unsigned int count, char *data, int op);
 
 extern int libxfs_bhash_size;
 

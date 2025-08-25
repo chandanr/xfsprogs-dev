@@ -2023,3 +2023,34 @@ xfs_buf_stale(
 	 */
 	bp->b_flags &= ~LIBXFS_B_DELWRI_Q
 }
+
+int
+libxfs_rw_bdev(
+	struct xfs_buftarg	*target,
+	sector_t		sector,
+	unsigned int		count,
+	char			*data,
+	int			op)
+{
+	xfs_off_t		start_offset;
+	size_t			size;
+	int			error = 0;
+
+	start_offset = LIBXFS_BBTOOFF64(sector);
+
+	if (op == REQ_OP_READ) {
+		error = pread(target->bt_bdev_fd, data, count, start_offset);
+	} else if (op == REQ_OP_WRITE) {
+		error = pwrite(target->bt_bdev_fd, data, count, start_offset);
+	} else {
+		ASSERT(0);
+	}
+
+	if (error != -1 && error < count) {
+		fprintf(stderr, "libxfs_rw_bdev: Short %s\n",
+				op == REQ_OP_READ ? "read" : "write");
+		error = 0;
+	}
+
+	return error;
+}

@@ -119,9 +119,6 @@ xlog_align(
 	return BBTOB(blk_no & ((xfs_daddr_t)log->l_sectBBsize - 1));
 }
 
-/* TODO: chandan: Implement this function */
-#define xfs_rw_bdev(...) (0)
-
 static int
 xlog_do_io(
 	struct xlog		*log,
