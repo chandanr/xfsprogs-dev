@@ -1390,7 +1390,12 @@ xlog_ioend_work(
 	struct xlog		*log = iclog->ic_log;
 	int			error;
 
+#ifdef __kernel__
 	error = blk_status_to_errno(iclog->ic_bio.bi_status);
+#else
+	error = 0;
+#endif
+
 #ifdef DEBUG
 	/* treat writes with injected CRC errors as failed */
 	if (iclog->ic_fail_crc)
@@ -1406,7 +1411,9 @@ xlog_ioend_work(
 	}
 
 	xlog_state_done_syncing(iclog);
+#ifdef __kernel__
 	bio_uninit(&iclog->ic_bio);
+#endif
 
 	/*
 	 * Drop the lock to signal that we are done. Nothing references the
@@ -1876,6 +1883,7 @@ xlog_map_iclog_data(
 	return 0;
 }
 
+#ifdef __kernel__
 STATIC void
 xlog_write_iclog(
 	struct xlog		*log,
@@ -1970,6 +1978,31 @@ xlog_write_iclog(
 
 	submit_bio(&iclog->ic_bio);
 }
+#else
+STATIC void
+xlog_write_iclog(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	uint64_t		bno,
+	unsigned int		count)
+{
+	xfs_off_t start_offset;
+	int error;
+
+	ASSERT(bno < log->l_logBBsize);
+
+	down(&iclog->ic_sema);
+
+	start_offset = LIBXFS_BBTOOFF64(log->l_logBBstart + bno);
+
+	error = pwrite(log->l_targ->bt_bdev_fd, iclog->ic_data, count,
+			start_offset);
+	if (error != count)
+		ASSERT(0);
+
+	xlog_ioend_work(&iclog->ic_end_io_work);
+}
+#endif
 
 /*
  * We need to bump cycle number for the part of the iclog that is
