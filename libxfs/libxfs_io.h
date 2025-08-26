@@ -285,6 +285,12 @@ xfs_buf_delwri_queue(struct xfs_buf *bp, struct list_head *buffer_list)
 	return true;
 }
 
+static inline int
+xfs_readonly_buftarg(struct xfs_buftarg *btp)
+{
+	return 0;
+}
+
 int xfs_buf_delwri_submit(struct list_head *buffer_list);
 void xfs_buf_delwri_cancel(struct list_head *list);
 
