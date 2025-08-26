@@ -493,12 +493,6 @@ def scan_interval(string):
 		return timedelta(seconds = float(string[:-1]))
 	return timedelta(seconds = int(string))
 
-def utcnow():
-	'''Create a representation of the time right now, in UTC.'''
-
-	dt = datetime.utcnow()
-	return dt.replace(tzinfo = timezone.utc)
-
 def enable_automatic_media_scan(args):
 	'''Decide if we enable media scanning automatically.'''
 	already_enabled = args.x
@@ -515,7 +509,7 @@ def enable_automatic_media_scan(args):
 	else:
 		try:
 			last_run = p.stat().st_mtime
-			now = utcnow().timestamp()
+			now = datetime.now(timezone.utc).timestamp()
 			res = last_run + interval.total_seconds() < now
 		except FileNotFoundError:
 			res = True
