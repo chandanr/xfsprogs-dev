@@ -25,10 +25,6 @@
  * TODO: chandan: Can we get cpp to eliminate references to current
  * entirely?
  */
-struct task_struct {
-	void *journal_info;
-};
-
 static struct task_struct ts;
 static struct task_struct *current = &ts;
 
