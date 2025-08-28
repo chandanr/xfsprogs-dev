@@ -136,6 +136,28 @@ workqueue_create(
 	return workqueue_create_bound(wq, wq_ctx, nr_workers, 0);
 }
 
+struct workqueue *
+alloc_workqueue(
+	const char		*fmt,
+	unsigned int		flags,
+	int			max_active,
+	...)
+{
+	struct workqueue	*wq;
+
+	wq = calloc(1, sizeof(*wq));
+	if (!wq)
+		return NULL;
+
+	error = workqueue_create(wq, NULL, 1);
+	if (error) {
+		free(wq);
+		return NULL;
+	}
+
+	return wq;
+}
+
 /*
  * Create a work item consisting of a function and some arguments and schedule
  * the work item to be run via the thread pool.  Returns zero or a negative

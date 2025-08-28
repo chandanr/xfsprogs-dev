@@ -45,7 +45,8 @@ struct workqueue {
 	pthread_cond_t		queue_full;
 };
 
-
+struct workqueue *alloc_workqueue(const char *fmt, unsigned int flags,
+		int max_active, ...);
 int workqueue_create(struct workqueue *wq, void *wq_ctx,
 		unsigned int nr_workers);
 int workqueue_create_bound(struct workqueue *wq, void *wq_ctx,
