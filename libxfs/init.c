@@ -8,6 +8,7 @@
 #include "init.h"
 
 #include "libxfs_priv.h"
+#include "libxlog/xfs_log.h"
 #include "libxlog_priv.h"
 
 #include "libxfs.h"
@@ -661,6 +662,7 @@ libxfs_mount(
 {
 	struct xfs_buf		*bp;
 	struct xfs_sb		*sbp;
+	struct xfs_inode	*rip;
 	xfs_daddr_t		d;
 	int			error;
 
@@ -816,6 +818,47 @@ libxfs_mount(
 		exit(1);
 	}
 	xfs_set_perag_data_loaded(mp);
+
+	error = xfs_log_mount(mp, mp->m_logdev_targp,
+			XFS_FSB_TO_DADDR(mp, sbp->sb_logstart),
+			XFS_FSB_TO_BB(mp, sbp->sb_logblocks));
+	if (error) {
+		fprintf(stderr, _("%s: Log initialization failed\n"),
+			progname);
+		exit(1);
+	}
+
+	/*
+	 * Get and sanity-check the root inode.
+	 * Save the pointer to it in the mount structure.
+	 */
+	error = xfs_iget(mp, NULL, sbp->sb_rootino, XFS_IGET_UNTRUSTED,
+			 XFS_ILOCK_EXCL, &rip);
+	if (error) {
+		xfs_warn(mp,
+			"Failed to read root inode 0x%llx, error %d",
+			sbp->sb_rootino, -error);
+		exit(1);
+	}
+
+	ASSERT(rip != NULL);
+
+	if (XFS_IS_CORRUPT(mp, !S_ISDIR(VFS_I(rip)->i_mode))) {
+		xfs_warn(mp, "corrupted root inode %llu: not a directory",
+			(unsigned long long)rip->i_ino);
+		xfs_iunlock(rip, XFS_ILOCK_EXCL);
+		error = -EFSCORRUPTED;
+		exit(1);
+	}
+	mp->m_rootip = rip;	/* save it */
+
+	xfs_iunlock(rip, XFS_ILOCK_EXCL);
+
+	error = xfs_log_mount_finish(mp);
+	if (error) {
+		xfs_warn(mp, "log mount finish failed");
+		exit(1);
+	}
 
 	return mp;
 }
