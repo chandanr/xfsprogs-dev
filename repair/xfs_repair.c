@@ -4,6 +4,7 @@
  * All Rights Reserved.
  */
 
+#include "libfrog/workqueue.h"
 #include "libxfs.h"
 #include "libxlog.h"
 #include <sys/resource.h>
@@ -1037,8 +1038,11 @@ main(int argc, char **argv)
 	snprintf(vfs_sb.s_id, sizeof(vfs_sb.s_id), "%s", fs_name);
 	memset(&xfs_m, 0, sizeof(xfs_mount_t));
 	xfs_m.m_super = &vfs_sb;
-	mp = libxfs_mount(&xfs_m, &psb, &x, 0);
 
+	mp->m_sync_workqueue = alloc_workqueue("xfs-sync/%s", 0, 0);
+	ASSERT(mp->m_sync_workqueue != NULL);
+
+	mp = libxfs_mount(&xfs_m, &psb, &x, 0);
 	if (!mp)  {
 		fprintf(stderr,
 			_("%s: cannot repair this filesystem.  Sorry.\n"),

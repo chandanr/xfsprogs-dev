@@ -163,7 +163,7 @@ typedef struct xfs_mount {
 	 */
 	atomic64_t		m_allocbt_blks;
 	spinlock_t		m_perag_lock;	/* lock for m_perag_tree */
-
+	struct workqueue	*m_sync_workqueue;
 } xfs_mount_t;
 
 #define M_IGEO(mp)		(&(mp)->m_ino_geo)
