@@ -313,6 +313,8 @@ xfs_trans_switch_context(
 struct xfs_ail {
 	struct xlog		*ail_log;
 	struct task_struct	*ail_task;
+	pthread_cond_t		ail_cond;
+	pthread_mutex_t		ail_cond_mutex;
 	struct list_head	ail_head;
 	xfs_lsn_t		ail_target;
 	xfs_lsn_t		ail_target_prev;

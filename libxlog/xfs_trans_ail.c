@@ -663,8 +663,10 @@ xfsaild(
 		if (!xfs_ail_min(ailp) &&
 		    ailp->ail_target == ailp->ail_target_prev &&
 		    list_empty(&ailp->ail_buf_list)) {
+			ailp->ail_task->wakeup = false;
 			spin_unlock(&ailp->ail_lock);
-			schedule();
+			schedule(ailp->ail_task, &ailp->ail_mutex,
+					&ailp->ail_cond);
 			tout = 0;
 			continue;
 		}
@@ -718,7 +720,7 @@ xfs_ail_push(
 	xfs_trans_ail_copy_lsn(ailp, &ailp->ail_target, &threshold_lsn);
 	smp_wmb();
 
-	wake_up_process(ailp->ail_task);
+	wake_up_process(ailp->ail_task, &ailp->ail_cond);
 }
 
 /*
@@ -746,7 +748,7 @@ xfs_ail_push_all_sync(
 	spin_lock(&ailp->ail_lock);
 	while (xfs_ail_max(ailp) != NULL) {
 		prepare_to_wait(&ailp->ail_empty, &wait, TASK_UNINTERRUPTIBLE);
-		wake_up_process(ailp->ail_task);
+		wake_up_process(ailp->ail_task, &ailp->ail_cond);
 		spin_unlock(&ailp->ail_lock);
 		schedule();
 		spin_lock(&ailp->ail_lock);
@@ -909,6 +911,7 @@ xfs_trans_ail_init(
 	xfs_mount_t	*mp)
 {
 	struct xfs_ail	*ailp;
+	int		error;
 
 	ailp = kmem_zalloc(sizeof(struct xfs_ail), KM_MAYFAIL);
 	if (!ailp)
@@ -921,8 +924,17 @@ xfs_trans_ail_init(
 	INIT_LIST_HEAD(&ailp->ail_buf_list);
 	init_waitqueue_head(&ailp->ail_empty);
 
-	ailp->ail_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
-				mp->m_super->s_id);
+	error = pthread_cond_init(&ailp->ail_cond, NULL);
+	ASSERT(error == 0);
+
+	error = pthread_mutex_init(&ailp->ail_cond_mutex, NULL);
+	ASSERT(error == 0);
+
+	ailp->ail_task = calloc(1, sizeof(struct task_struct));
+	ASSERT(ailp->ail_task != NULL);
+
+	ailp->ail_task.thread = kthread_run(xfsaild, ailp, "xfsaild/%s",
+			mp->m_super->s_id);
 	if (IS_ERR(ailp->ail_task))
 		goto out_free_ailp;
 
