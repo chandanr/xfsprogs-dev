@@ -622,12 +622,17 @@ xlog_wait(
 	spinlock_t		*lock)
 		__releases(lock)
 {
-	DECLARE_WAITQUEUE(wait, current);
+	struct task_struct ts = {
+		.thread = pthread_self(),
+		.wakeup = false,
+	};
+
+	DECLARE_WAITQUEUE(wait, &ts);
 
 	add_wait_queue_exclusive(wq, &wait);
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	spin_unlock(lock);
-	schedule();
+	schedule(&ts, &wq->cond_mutex, &wq->cond);
 	remove_wait_queue(wq, &wait);
 }
 
