@@ -18,6 +18,7 @@
 #include "xfs_trace.h"
 #include "xfs_errortag.h"
 #include "xfs_log.h"
+#include <bits/pthreadtypes.h>
 
 #ifdef DEBUG
 /*
@@ -743,14 +744,19 @@ void
 xfs_ail_push_all_sync(
 	struct xfs_ail  *ailp)
 {
-	DEFINE_WAIT(wait);
+	struct task_struct ts = {
+		.thread	      = pthread_self();
+		.wakeup	      = false;
+	};
+
+	DEFINE_WAIT(wait, ts);
 
 	spin_lock(&ailp->ail_lock);
 	while (xfs_ail_max(ailp) != NULL) {
 		prepare_to_wait(&ailp->ail_empty, &wait, TASK_UNINTERRUPTIBLE);
 		wake_up_process(ailp->ail_task, &ailp->ail_cond);
 		spin_unlock(&ailp->ail_lock);
-		schedule();
+		schedule(ts, ailp->ail_empty.cond_mutex, ailp->ail_empty.cond);
 		spin_lock(&ailp->ail_lock);
 	}
 	spin_unlock(&ailp->ail_lock);
