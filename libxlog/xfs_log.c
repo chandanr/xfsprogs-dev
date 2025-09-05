@@ -203,9 +203,17 @@ STATIC void
 xlog_grant_head_init(
 	struct xlog_grant_head	*head)
 {
+	int			error;
+
 	xlog_assign_grant_head(&head->grant, 1, 0);
 	INIT_LIST_HEAD(&head->waiters);
 	spin_lock_init(&head->lock);
+
+	error = pthread_mutex_init(&cond_mutex, NULL);
+	ASSERT(error == 0);
+
+	error = pthread_cond_init(&cond, NULL);
+	ASSERT(error == 0);
 }
 
 STATIC void
@@ -294,6 +302,11 @@ xlog_grant_head_wait(
 	int			need_bytes) __releases(&head->lock)
 					    __acquires(&head->lock)
 {
+	struct task_struct ts = {
+		.thread = pthread_self();
+		.wakeup = false;
+	};
+
 	list_add_tail(&tic->t_queue, &head->waiters);
 
 	do {
@@ -307,7 +320,7 @@ xlog_grant_head_wait(
 		XFS_STATS_INC(log->l_mp, xs_sleep_logspace);
 
 		trace_xfs_log_grant_sleep(log, tic);
-		schedule();
+		schedule(&ts, &head->cond_mutex, &head->cond);
 		trace_xfs_log_grant_wake(log, tic);
 
 		spin_lock(&head->lock);
