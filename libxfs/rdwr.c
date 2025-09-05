@@ -1598,10 +1598,6 @@ xfs_buf_iowait(
 {
 	ASSERT(!(bp->b_flags & XBF_ASYNC));
 
-	trace_xfs_buf_iowait(bp, _RET_IP_);
-	wait_for_completion(&bp->b_iowait);
-	trace_xfs_buf_iowait_done(bp, _RET_IP_);
-
 	if (bp->b_error && bp->b_flags & LIBXFS_B_VER_FAIL &&
 		bp->b_flags & LIBXFS_B_SALVAGE)
 		return 0;
