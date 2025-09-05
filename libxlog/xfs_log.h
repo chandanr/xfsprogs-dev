@@ -387,6 +387,8 @@ struct xlog_grant_head {
 	spinlock_t		lock ____cacheline_aligned_in_smp;
 	struct list_head	waiters;
 	atomic64_t		grant;
+	pthread_mutex_t		cond_mutex;
+	pthread_cond_t		cond;
 };
 
 /*
