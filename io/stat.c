@@ -112,7 +112,7 @@ print_extended_info(int verbose)
 	}
 
 	printf(_("fsxattr.xflags = 0x%x "), fsx.fsx_xflags);
-	printxattr(fsx.fsx_xflags, verbose, 0, file->name, 1, 1);
+	print_xflags(fsx.fsx_xflags, verbose, 0, file->name, 1, 1);
 	printf(_("fsxattr.projid = %u\n"), fsx.fsx_projid);
 	printf(_("fsxattr.extsize = %u\n"), fsx.fsx_extsize);
 	printf(_("fsxattr.cowextsize = %u\n"), fsx.fsx_cowextsize);

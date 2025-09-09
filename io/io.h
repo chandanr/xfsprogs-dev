@@ -78,7 +78,7 @@ extern int		openfile(char *, struct xfs_fsop_geom *, int, mode_t,
 extern int		addfile(char *, int , struct xfs_fsop_geom *, int,
 				struct fs_path *);
 extern int		closefile(void);
-extern void		printxattr(uint, int, int, const char *, int, int);
+extern void		print_xflags(uint, int, int, const char *, int, int);
 
 extern unsigned int	recurse_all;
 extern unsigned int	recurse_dir;
