@@ -16,6 +16,7 @@
 #include <sys/param.h>
 #include <sys/sysmacros.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <inttypes.h>
 #include <malloc.h>
 #include <getopt.h>
@@ -199,6 +200,25 @@ struct fsxattr {
 	__u32		fsx_projid;	/* project identifier (get/set) */
 	__u32		fsx_cowextsize;	/* cow extsize field value (get/set) */
 	unsigned char	fsx_pad[8];
+};
+#endif
+
+/*
+ * Use FILE_ATTR_SIZE_VER0 (linux/fs.h) instead of build system
+ * HAVE_FILE_GETATTR as this header could be included in other places where
+ * HAVE_FILE_GETATTR is not defined (e.g. xfstests's conftest.c in ./configure)
+ */
+#ifndef FILE_ATTR_SIZE_VER0
+/*
+ * We need to define file_attr if it's missing to know how to convert it to
+ * fsxattr
+ */
+struct file_attr {
+	__u32	fa_xflags;
+	__u32	fa_extsize;
+	__u32	fa_nextents;
+	__u32	fa_projid;
+	__u32	fa_cowextsize;
 };
 #endif
 
