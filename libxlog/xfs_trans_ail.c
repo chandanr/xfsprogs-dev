@@ -935,7 +935,7 @@ xfs_trans_ail_init(
 	ailp->ail_task = calloc(1, sizeof(struct task_struct));
 	ASSERT(ailp->ail_task != NULL);
 
-	ailp->ail_task.thread = kthread_run(xfsaild, ailp, "xfsaild/%s",
+	ailp->ail_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
 			mp->m_super->s_id);
 	if (IS_ERR(ailp->ail_task))
 		goto out_free_ailp;
