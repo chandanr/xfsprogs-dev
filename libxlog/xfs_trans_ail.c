@@ -597,7 +597,6 @@ out_done:
 #define kthread_run(...) (NULL)
 #define kthread_stop(...)
 #define kthread_should_stop() (0)
-#define schedule_timeout(tout)
 #define try_to_freeze()
 #define smp_wmb()
 
