@@ -7,6 +7,10 @@ struct task_struct {
 	void		*journal_info;
 };
 
+#define set_freezable()
+#define set_current_state(...)
+#define try_to_freeze()
+
 static inline void
 schedule(
 	struct task_struct	*ts,

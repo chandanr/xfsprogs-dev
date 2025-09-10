@@ -592,9 +592,7 @@ out_done:
 	return tout;
 }
 
-#define set_freezable()
-#define set_current_state(...)
-#define try_to_freeze()
+
 #define smp_wmb()
 
 static int
