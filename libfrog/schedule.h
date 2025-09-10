@@ -26,4 +26,23 @@ schedule(
 	}
 }
 
+#define msecs_to_jiffies(msecs) (msecs)
+
+static inline void
+schedule_timeout(
+	signed long	msecs)
+{
+	struct timespec ts;
+	int		error;
+
+	ts.tv_sec = msecs / 1000;
+	ts.tv_nsec = (msecs % 1000) * 1000 * 1000;
+
+	error = nanosleep(&ts, NULL);
+	if (error == -1 && errno == EINTR)
+		error = 0;
+
+	return error;
+}
+
 #endif	/* _SCHEDULE_H */
