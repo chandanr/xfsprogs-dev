@@ -4,6 +4,7 @@
 struct task_struct {
 	pthread_t	thread;
 	bool		wakeup;
+	void		*journal_info;
 };
 
 static inline void
