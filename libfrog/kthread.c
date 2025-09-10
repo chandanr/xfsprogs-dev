@@ -2,12 +2,12 @@
 
 struct task_struct *
 kthread_run(
-	threadfn_t threadfn,
-	void *data,
+	threadfn_t		threadfn,
+	void			*data,
 	...)
 {
-	struct task_struct *ts;
-	int error;
+	struct task_struct	*ts;
+	int			error;
 
 	ts = calloc(1, sizeof(*ts));
 	if (ts == NULL)
