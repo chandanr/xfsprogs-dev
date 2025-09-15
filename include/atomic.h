@@ -121,6 +121,9 @@ atomic64_set(atomic64_t *a, int64_t v)
 
 #define __smp_mb()		cmm_smp_mb()
 
+#define smp_rmb()		cmm_rmb()
+#define smp_wmb()		cmm_wmb()
+
 /* from compiler_types.h */
 /*
  * __unqual_scalar_typeof(x) - Declare an unqualified scalar type, leaving
