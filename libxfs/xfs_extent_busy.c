@@ -613,6 +613,10 @@ xfs_extent_busy_flush(
 	unsigned		busy_gen,
 	uint32_t		alloc_flags)
 {
+	struct task_struct ts = {
+		.thread	      = pthread_self();
+		.wakeup	      = false;
+	};
 	DEFINE_WAIT		(wait);
 	int			error;
 
@@ -637,7 +641,7 @@ xfs_extent_busy_flush(
 		prepare_to_wait(&pag->pagb_wait, &wait, TASK_KILLABLE);
 		if  (busy_gen != READ_ONCE(pag->pagb_gen))
 			break;
-		schedule();
+		schedule(&ts, &pag->pagb_wait.cond_mutex, &pag->pagb_wait.cond);
 	} while (1);
 
 	finish_wait(&pag->pagb_wait, &wait);
@@ -648,6 +652,10 @@ void
 xfs_extent_busy_wait_all(
 	struct xfs_mount	*mp)
 {
+	struct task_struct ts = {
+		.thread	      = pthread_self();
+		.wakeup	      = false;
+	};
 	struct xfs_perag	*pag;
 	DEFINE_WAIT		(wait);
 	xfs_agnumber_t		agno;
@@ -657,7 +665,8 @@ xfs_extent_busy_wait_all(
 			prepare_to_wait(&pag->pagb_wait, &wait, TASK_KILLABLE);
 			if  (RB_EMPTY_ROOT(&pag->pagb_tree))
 				break;
-			schedule();
+			schedule(&ts, &pag->pagb_wait.cond_mutex,
+					&pag->pagb_wait.cond);
 		} while (1);
 		finish_wait(&pag->pagb_wait, &wait);
 	}

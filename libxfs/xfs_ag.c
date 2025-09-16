@@ -380,16 +380,16 @@ xfs_initialize_perag(
 #ifdef __KERNEL__
 		/* Place kernel structure only init below this point. */
 		spin_lock_init(&pag->pag_ici_lock);
-		spin_lock_init(&pag->pagb_lock);
 		spin_lock_init(&pag->pag_state_lock);
 		INIT_DELAYED_WORK(&pag->pag_blockgc_work, xfs_blockgc_worker);
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
 		xfs_defer_drain_init(&pag->pag_intents_drain);
-		init_waitqueue_head(&pag->pagb_wait);
 		init_waitqueue_head(&pag->pag_active_wq);
+#endif /* __KERNEL__ */
+		spin_lock_init(&pag->pagb_lock);
+		init_waitqueue_head(&pag->pagb_wait);
 		pag->pagb_count = 0;
 		pag->pagb_tree = RB_ROOT;
-#endif /* __KERNEL__ */
 
 		error = xfs_buf_hash_init(pag);
 		if (error)
