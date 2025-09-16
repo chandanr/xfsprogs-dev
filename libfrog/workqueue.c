@@ -144,6 +144,7 @@ alloc_workqueue(
 	...)
 {
 	struct workqueue	*wq;
+	int			error;
 
 	wq = calloc(1, sizeof(*wq));
 	if (!wq)
