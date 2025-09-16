@@ -750,7 +750,7 @@ xfs_ail_push_all_sync(
 		prepare_to_wait(&ailp->ail_empty, &wait, TASK_UNINTERRUPTIBLE);
 		wake_up_process(ailp->ail_task, &ailp->ail_cond);
 		spin_unlock(&ailp->ail_lock);
-		schedule(ts, ailp->ail_empty.cond_mutex, ailp->ail_empty.cond);
+		schedule(&ts, &ailp->ail_empty.cond_mutex, &ailp->ail_empty.cond);
 		spin_lock(&ailp->ail_lock);
 	}
 	spin_unlock(&ailp->ail_lock);
