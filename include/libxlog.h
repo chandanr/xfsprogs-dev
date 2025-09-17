@@ -13,13 +13,15 @@
 #include "libfrog/pseudo_percpu.h"
 #include "libfrog/refcount.h"
 
+/*
+ * The following macros are used in libxlog/xfs_trans.h. Hence they must be
+ * defined before including the libxlog/xfs_trans.h.
+ */
 #define memalloc_nofs_save() (0);
 #define memalloc_nofs_restore(a)
-
 #define memalloc_noreclaim_save() (0)
 #define memalloc_noreclaim_restore(a) \
 	((a) = (a));
-
 #define lockdep_assert_held(a)
 
 #include "xfs_trans.h"
