@@ -821,9 +821,8 @@ libxfs_mount(
 	}
 	xfs_set_perag_data_loaded(mp);
 
-	error = xfs_log_mount(mp, mp->m_logdev_targp,
-			XFS_FSB_TO_DADDR(mp, sbp->sb_logstart),
-			XFS_FSB_TO_BB(mp, sbp->sb_logblocks));
+	error = libxlog_mount(mp, sbp, mp->m_logdev_targp,
+			LIBXLOG_INIT_PHASE_1);
 	if (error) {
 		fprintf(stderr, _("%s: Log initialization failed\n"),
 			progname);
@@ -856,7 +855,8 @@ libxfs_mount(
 
 	xfs_iunlock(rip, XFS_ILOCK_EXCL);
 
-	error = xfs_log_mount_finish(mp);
+	error = libxlog_mount(mp, sbp, mp->m_logdev_targp,
+			LIBXLOG_INIT_PHASE_2);
 	if (error) {
 		xfs_warn(mp, "log mount finish failed");
 		exit(1);
