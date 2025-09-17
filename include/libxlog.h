@@ -7,11 +7,11 @@
 
 #include "libxlog_api_defs.h"
 #include "platform_defs.h"
-#include "ksemaphore.h"
 #include "libfrog/pseudo_percpu.h"
 #include "libfrog/refcount.h"
 #include "xfs.h"
 
+#include "sem.h"
 #define memalloc_nofs_save() (0);
 #define memalloc_nofs_restore(a)
 
