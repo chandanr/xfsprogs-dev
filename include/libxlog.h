@@ -27,6 +27,11 @@
 #include "xfs_inode_item.h"
 #include "xfs_buf_item.h"
 
+enum libxlog_init_phase {
+	LIBXLOG_INIT_PHASE_1,
+	LIBXLOG_INIT_PHASE_2,
+};
+
 struct xfs_kobj {
 	;
 };
@@ -67,5 +72,7 @@ xfs_trans_alloc_rollable(
 			0, 0, tpp);
 }
 
+int libxlog_mount(struct xfs_mount *mp, struct xfs_sb *sbp,
+		struct xfs_buftarg *log_target, enum libxlog_init_phase phase);
 
 #endif	/* LIBXLOG_H */
