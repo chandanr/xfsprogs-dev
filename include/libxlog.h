@@ -21,13 +21,6 @@
 
 #define lockdep_assert_held(a)
 
-/*
- * TODO: chandan: Can we get cpp to eliminate references to current
- * entirely?
- */
-static struct task_struct ts;
-static struct task_struct *current = &ts;
-
 #include "xfs_trans.h"
 #include "xfs_trans_quota.h"
 

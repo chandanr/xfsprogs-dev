@@ -44,6 +44,8 @@ int libxfs_ihash_size;		/* #buckets in icache */
 
 static int nextfakedev = -1;	/* device number to give to next fake device */
 
+struct task_struct current;
+
 /*
  * Checks whether a given device has a mounted, writable
  * filesystem, returns 1 if it does & fatal (just warns
