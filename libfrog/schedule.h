@@ -31,6 +31,15 @@ schedule(
 	}
 }
 
+static inline void
+io_schedule(
+	struct task_struct	*ts,
+	pthread_mutex_t		*mutex,
+	pthread_cond_t		*cond)
+{
+	schedule(ts, mutex, cond);
+}
+
 #define msecs_to_jiffies(msecs) (msecs)
 
 static inline void
