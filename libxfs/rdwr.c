@@ -207,7 +207,12 @@ static void
 xfs_buf_wait_unpin(
 	struct xfs_buf		*bp)
 {
-	DECLARE_WAITQUEUE	(wait, current);
+	struct task_struct ts = {
+		.thread = pthread_self();
+		.wakeup = false;
+	};
+
+	DECLARE_WAITQUEUE	(wait, &ts);
 
 	if (atomic_read(&bp->b_pin_count) == 0)
 		return;
@@ -217,7 +222,8 @@ xfs_buf_wait_unpin(
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		if (atomic_read(&bp->b_pin_count) == 0)
 			break;
-		io_schedule();
+		io_schedule(&ts, &bp->b_waiters.cond_mutex,
+				&bp->b_waiters.cond);
 	}
 	remove_wait_queue(&bp->b_waiters, &wait);
 	set_current_state(TASK_RUNNING);
