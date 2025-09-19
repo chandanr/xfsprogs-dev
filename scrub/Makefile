@@ -105,6 +105,10 @@ CFILES += unicrash.c
 LCFLAGS += -DHAVE_LIBICU $(LIBICU_CFLAGS)
 endif
 
+ifeq ($(STRERROR_R_RETURNS_STRING),yes)
+LCFLAGS += -DSTRERROR_R_RETURNS_STRING
+endif
+
 # Automatically trigger a media scan once per month
 XFS_SCRUB_ALL_AUTO_MEDIA_SCAN_INTERVAL=1mo
 

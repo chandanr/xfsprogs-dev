@@ -126,8 +126,12 @@ __str_out(
 	fprintf(stream, "%s%s: %s: ", stream_start(stream),
 			_(err_levels[level].string), descr);
 	if (error) {
-		strerror_r(error, buf, DESCR_BUFSZ);
-		fprintf(stream, _("%s."), buf);
+#ifdef STRERROR_R_RETURNS_STRING
+		fprintf(stream, _("%s."), strerror_r(error, buf, DESCR_BUFSZ));
+#else
+		if (strerror_r(error, buf, DESCR_BUFSZ) == 0)
+			fprintf(stream, _("%s."), buf);
+#endif
 	} else {
 		va_start(args, format);
 		vfprintf(stream, format, args);

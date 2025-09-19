@@ -301,3 +301,49 @@ syscall(__NR_file_getattr, 0, 0, 0, 0, 0);
        AC_MSG_RESULT(no))
     AC_SUBST(have_file_getattr)
   ])
+
+#
+# Check if strerror_r returns an int, as opposed to a char *, because there are
+# two versions of this function, with differences that are hard to detect.
+#
+# GNU strerror_r returns a pointer to a string on success, but the returned
+# pointer might point to a static buffer and not buf, so you have to use the
+# return value.  The declaration has the __warn_unused_result__ attribute to
+# enforce this.
+#
+# XSI strerror_r always writes to buf and returns 0 on success, -1 on error.
+#
+# How do you select a particular version?  By defining macros, of course!
+# _GNU_SOURCE always gets you the GNU version, and _POSIX_C_SOURCE >= 200112L
+# gets you the XSI version but only if _GNU_SOURCE isn't defined.
+#
+# The build system #defines _GNU_SOURCE unconditionally, so when compiling
+# against glibc we get the GNU version.  However, when compiling against musl,
+# the _GNU_SOURCE definition does nothing and we get the XSI version anyway.
+# Not definining _GNU_SOURCE breaks the build in many areas, so we'll create
+# yet another #define for just this weird quirk so that we can patch around it
+# in the one place we need it.
+#
+# Note that we have to force erroring out on the int conversion warnings
+# because C doesn't consider it a hard error to cast a char pointer to an int
+# even when CFLAGS contains -std=gnu11.
+AC_DEFUN([AC_STRERROR_R_RETURNS_STRING],
+  [AC_MSG_CHECKING([if strerror_r returns char *])
+    OLD_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS -Wall -Werror"
+    AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM([[
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <string.h>
+  ]], [[
+char buf[1024];
+puts(strerror_r(0, buf, sizeof(buf)));
+  ]])
+    ],
+       strerror_r_returns_string=yes
+       AC_MSG_RESULT(yes),
+       AC_MSG_RESULT(no))
+    CFLAGS="$OLD_CFLAGS"
+    AC_SUBST(strerror_r_returns_string)
+  ])
