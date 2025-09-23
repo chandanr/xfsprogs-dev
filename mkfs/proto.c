@@ -1425,7 +1425,7 @@ handle_hardlink(
 	if (dst_ino == 0)
 		return false;
 
-	error = libxfs_iget(mp, NULL, dst_ino, 0, &ip);
+	error = -libxfs_iget(mp, NULL, dst_ino, 0, &ip);
 	if (error)
 		fail(_("failed to get inode"), error);
 
