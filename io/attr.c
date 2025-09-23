@@ -261,7 +261,7 @@ chattr_callback(
 
 	attr.fa_xflags |= orflags;
 	attr.fa_xflags &= ~andflags;
-	error = xfrog_file_setattr(AT_FDCWD, path, stat, &attr,
+	error = xfrog_file_setattr(AT_FDCWD, path, stat->st_mode, &attr,
 				   AT_SYMLINK_NOFOLLOW);
 	if (error) {
 		fprintf(stderr, _("%s: cannot set flags on %s: %s\n"),
@@ -357,7 +357,7 @@ chattr_f(
 
 	attr.fa_xflags |= orflags;
 	attr.fa_xflags &= ~andflags;
-	error = xfrog_file_setattr(AT_FDCWD, name, &st, &attr,
+	error = xfrog_file_setattr(AT_FDCWD, name, st.st_mode, &attr,
 				   AT_SYMLINK_NOFOLLOW);
 	if (error) {
 		fprintf(stderr, _("%s: cannot set flags on %s: %s\n"),

@@ -85,7 +85,7 @@ int
 xfrog_file_setattr(
 	const int		dfd,
 	const char		*path,
-	const struct stat	*stat,
+	const mode_t		mode,
 	struct file_attr	*fa,
 	const unsigned int	at_flags)
 {
@@ -103,7 +103,7 @@ xfrog_file_setattr(
 		return error;
 #endif
 
-	if (SPECIAL_FILE(stat->st_mode)) {
+	if (SPECIAL_FILE(mode)) {
 		errno = EOPNOTSUPP;
 		return -1;
 	}

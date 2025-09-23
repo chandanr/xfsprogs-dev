@@ -188,8 +188,8 @@ rdump_fileattrs_path(
 			return 1;
 	}
 
-	ret = xfrog_file_setattr(destdir->fd, pbuf->path, NULL, &fa,
-			AT_SYMLINK_NOFOLLOW);
+	ret = xfrog_file_setattr(destdir->fd, pbuf->path, VFS_I(ip)->i_mode,
+			&fa, AT_SYMLINK_NOFOLLOW);
 	if (ret) {
 		if (errno == EOPNOTSUPP || errno == EPERM || errno == ENOTTY)
 			lost_mask |= LOST_FSXATTR;

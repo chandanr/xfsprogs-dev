@@ -157,7 +157,8 @@ clear_project(
 	fa.fa_projid = 0;
 	fa.fa_xflags &= ~FS_XFLAG_PROJINHERIT;
 
-	error = xfrog_file_setattr(dfd, path, stat, &fa, AT_SYMLINK_NOFOLLOW);
+	error = xfrog_file_setattr(dfd, path, stat->st_mode, &fa,
+			AT_SYMLINK_NOFOLLOW);
 	if (error) {
 		fprintf(stderr, _("%s: cannot clear project on %s: %s\n"),
 			progname, path, strerror(errno));
@@ -205,7 +206,8 @@ setup_project(
 	if (S_ISDIR(stat->st_mode))
 		fa.fa_xflags |= FS_XFLAG_PROJINHERIT;
 
-	error = xfrog_file_setattr(dfd, path, stat, &fa, AT_SYMLINK_NOFOLLOW);
+	error = xfrog_file_setattr(dfd, path, stat->st_mode, &fa,
+			AT_SYMLINK_NOFOLLOW);
 	if (error) {
 		fprintf(stderr, _("%s: cannot set project on %s: %s\n"),
 			progname, path, strerror(errno));
