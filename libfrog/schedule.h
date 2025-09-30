@@ -55,8 +55,6 @@ schedule_timeout(
 	error = nanosleep(&ts, NULL);
 	if (error == -1 && errno == EINTR)
 		error = 0;
-
-	return error;
 }
 
 #endif	/* _SCHEDULE_H */
