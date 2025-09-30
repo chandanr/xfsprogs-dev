@@ -47,5 +47,6 @@ void prepare_to_wait(struct wait_queue_head *wq_head,
 void finish_wait(struct wait_queue_head *wq_head,
 		struct wait_queue_entry *wq_entry);
 int wake_up_process(struct task_struct *ts,pthread_cond_t *cond);
+int wake_up(struct wait_queue_head *wq);
 
 #endif	/* _WAITQUEUE_H */
