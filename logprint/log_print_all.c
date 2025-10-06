@@ -78,7 +78,7 @@ xlog_recover_print_buffer(
 	xfs_daddr_t		blkno;
 	struct xfs_disk_dquot	*ddq;
 
-	f = (xfs_buf_log_format_t *)item->ri_buf[0].i_addr;
+	f = (xfs_buf_log_format_t *)item->ri_buf[0].iov_base;
 	printf("	");
 	ASSERT(f->blf_type == XFS_LI_BUF);
 	printf(_("BUF:  #regs:%d   start blkno:0x%llx   len:%d   bmap size:%d   flags:0x%x\n"),
@@ -87,8 +87,8 @@ xlog_recover_print_buffer(
 	num = f->blf_size-1;
 	i = 1;
 	while (num-- > 0) {
-		p = item->ri_buf[i].i_addr;
-		len = item->ri_buf[i].i_len;
+		p = item->ri_buf[i].iov_base;
+		len = item->ri_buf[i].iov_len;
 		i++;
 		if (blkno == 0) { /* super block */
 			struct xfs_dsb  *dsb = (struct xfs_dsb *)p;
@@ -185,7 +185,7 @@ xlog_recover_print_quotaoff(
 {
 	xfs_qoff_logformat_t	*qoff_f;
 
-	qoff_f = (xfs_qoff_logformat_t *)item->ri_buf[0].i_addr;
+	qoff_f = (xfs_qoff_logformat_t *)item->ri_buf[0].iov_base;
 
 	ASSERT(qoff_f);
 	printf(_("\tQUOTAOFF: #regs:%d   type:"), qoff_f->qf_size);
@@ -205,10 +205,10 @@ xlog_recover_print_dquot(
 	xfs_dq_logformat_t	*f;
 	struct xfs_disk_dquot	*d;
 
-	f = (xfs_dq_logformat_t *)item->ri_buf[0].i_addr;
+	f = (xfs_dq_logformat_t *)item->ri_buf[0].iov_base;
 	ASSERT(f);
 	ASSERT(f->qlf_len == 1);
-	d = (struct xfs_disk_dquot *)item->ri_buf[1].i_addr;
+	d = (struct xfs_disk_dquot *)item->ri_buf[1].iov_base;
 	printf(_("\tDQUOT: #regs:%d  blkno:%lld  boffset:%u id: %d\n"),
 	       f->qlf_size, (long long)f->qlf_blkno, f->qlf_boffset, f->qlf_id);
 	if (!print_quota)
@@ -288,21 +288,22 @@ xlog_recover_print_inode(
 	int			hasdata;
 	int			hasattr;
 
-	ASSERT(item->ri_buf[0].i_len == sizeof(struct xfs_inode_log_format_32) ||
-	       item->ri_buf[0].i_len == sizeof(struct xfs_inode_log_format));
-	f = xfs_inode_item_format_convert(item->ri_buf[0].i_addr, item->ri_buf[0].i_len, &f_buf);
+	ASSERT(item->ri_buf[0].iov_len == sizeof(struct xfs_inode_log_format_32) ||
+		item->ri_buf[0].iov_len == sizeof(struct xfs_inode_log_format));
+	f = xfs_inode_item_format_convert(item->ri_buf[0].iov_base,
+					  item->ri_buf[0].iov_len, &f_buf);
 
 	printf(_("	INODE: #regs:%d   ino:0x%llx  flags:0x%x   dsize:%d\n"),
-	       f->ilf_size, (unsigned long long)f->ilf_ino, f->ilf_fields,
-	       f->ilf_dsize);
+		f->ilf_size, (unsigned long long)f->ilf_ino, f->ilf_fields,
+		f->ilf_dsize);
 
 	/* core inode comes 2nd */
 	/* ASSERT len vs xfs_log_dinode_size() for V3 or V2 inodes */
-	ASSERT(item->ri_buf[1].i_len ==
+	ASSERT(item->ri_buf[1].iov_len ==
 			offsetof(struct xfs_log_dinode, di_next_unlinked) ||
-	       item->ri_buf[1].i_len == sizeof(struct xfs_log_dinode));
+	       item->ri_buf[1].iov_len == sizeof(struct xfs_log_dinode));
 	xlog_recover_print_inode_core((struct xfs_log_dinode *)
-				      item->ri_buf[1].i_addr);
+				      item->ri_buf[1].iov_base);
 
 	hasdata = (f->ilf_fields & XFS_ILOG_DFORK) != 0;
 	hasattr = (f->ilf_fields & XFS_ILOG_AFORK) != 0;
@@ -312,22 +313,22 @@ xlog_recover_print_inode(
 		ASSERT(f->ilf_size == 3 + hasattr);
 		printf(_("		DATA FORK EXTENTS inode data:\n"));
 		if (print_inode && print_data)
-			xlog_recover_print_data(item->ri_buf[2].i_addr,
-						item->ri_buf[2].i_len);
+			xlog_recover_print_data(item->ri_buf[2].iov_base,
+						item->ri_buf[2].iov_len);
 		break;
 	case XFS_ILOG_DBROOT:
 		ASSERT(f->ilf_size == 3 + hasattr);
 		printf(_("		DATA FORK BTREE inode data:\n"));
 		if (print_inode && print_data)
-			xlog_recover_print_data(item->ri_buf[2].i_addr,
-						item->ri_buf[2].i_len);
+			xlog_recover_print_data(item->ri_buf[2].iov_base,
+						item->ri_buf[2].iov_len);
 		break;
 	case XFS_ILOG_DDATA:
 		ASSERT(f->ilf_size == 3 + hasattr);
 		printf(_("		DATA FORK LOCAL inode data:\n"));
 		if (print_inode && print_data)
-			xlog_recover_print_data(item->ri_buf[2].i_addr,
-						item->ri_buf[2].i_len);
+			xlog_recover_print_data(item->ri_buf[2].iov_base,
+						item->ri_buf[2].iov_len);
 		break;
 	case XFS_ILOG_DEV:
 		ASSERT(f->ilf_size == 2 + hasattr);
@@ -353,24 +354,24 @@ xlog_recover_print_inode(
 			printf(_("		ATTR FORK EXTENTS inode data:\n"));
 			if (print_inode && print_data)
 				xlog_recover_print_data(
-					item->ri_buf[attr_index].i_addr,
-					item->ri_buf[attr_index].i_len);
+					item->ri_buf[attr_index].iov_base,
+					item->ri_buf[attr_index].iov_len);
 			break;
 		case XFS_ILOG_ABROOT:
 			ASSERT(f->ilf_size == 3 + hasdata);
 			printf(_("		ATTR FORK BTREE inode data:\n"));
 			if (print_inode && print_data)
 				xlog_recover_print_data(
-					item->ri_buf[attr_index].i_addr,
-					item->ri_buf[attr_index].i_len);
+					item->ri_buf[attr_index].iov_base,
+					item->ri_buf[attr_index].iov_len);
 			break;
 		case XFS_ILOG_ADATA:
 			ASSERT(f->ilf_size == 3 + hasdata);
 			printf(_("		ATTR FORK LOCAL inode data:\n"));
 			if (print_inode && print_data)
 				xlog_recover_print_data(
-					item->ri_buf[attr_index].i_addr,
-					item->ri_buf[attr_index].i_len);
+					item->ri_buf[attr_index].iov_base,
+					item->ri_buf[attr_index].iov_len);
 			break;
 		default:
 			xlog_panic("%s: illegal inode log flag", __FUNCTION__);
@@ -385,7 +386,7 @@ xlog_recover_print_icreate(
 {
 	struct xfs_icreate_log	*icl;
 
-	icl = (struct xfs_icreate_log *)item->ri_buf[0].i_addr;
+	icl = (struct xfs_icreate_log *)item->ri_buf[0].iov_base;
 
 	printf(_("	ICR:  #ag: %d  agbno: 0x%x  len: %d\n"
 		 "	      cnt: %d  isize: %d    gen: 0x%x\n"),
@@ -549,8 +550,8 @@ xlog_recover_print_item(
 */
 	printf(_(": cnt:%d total:%d "), item->ri_cnt, item->ri_total);
 	for (i=0; i<item->ri_cnt; i++) {
-		printf(_("a:0x%lx len:%d "),
-		       (long)item->ri_buf[i].i_addr, item->ri_buf[i].i_len);
+		printf(_("a:0x%lx len:%zu "),
+		       (long)item->ri_buf[i].iov_base, item->ri_buf[i].iov_len);
 	}
 	printf("\n");
 	xlog_recover_print_logitem(item);

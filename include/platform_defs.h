@@ -302,4 +302,9 @@ static inline bool __must_check __must_check_overflow(bool overflow)
 # define __nonstring
 #endif
 
+struct kvec {
+	void *iov_base;
+	size_t iov_len;
+};
+
 #endif	/* __XFS_PLATFORM_DEFS_H__ */

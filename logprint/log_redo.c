@@ -143,8 +143,8 @@ xlog_recover_print_efi(
 	int			i;
 	uint			src_len, dst_len;
 
-	src_f = (xfs_efi_log_format_t *)item->ri_buf[0].i_addr;
-	src_len = item->ri_buf[0].i_len;
+	src_f = (xfs_efi_log_format_t *)item->ri_buf[0].iov_base;
+	src_len = item->ri_buf[0].iov_len;
 	/*
 	 * An xfs_efi_log_format structure contains a variable length array
 	 * as the last field.
@@ -229,7 +229,7 @@ xlog_recover_print_efd(
 	const char		*item_name = "EFD?";
 	xfs_efd_log_format_t	*f;
 
-	f = (xfs_efd_log_format_t *)item->ri_buf[0].i_addr;
+	f = (xfs_efd_log_format_t *)item->ri_buf[0].iov_base;
 
 	switch (f->efd_type) {
 	case XFS_LI_EFD:	item_name = "EFD"; break;
@@ -355,8 +355,8 @@ xlog_recover_print_rui(
 	char				*src_f;
 	uint				src_len;
 
-	src_f = item->ri_buf[0].i_addr;
-	src_len = item->ri_buf[0].i_len;
+	src_f = item->ri_buf[0].iov_base;
+	src_len = item->ri_buf[0].iov_len;
 
 	xlog_print_trans_rui(&src_f, src_len, 0);
 }
@@ -406,7 +406,7 @@ xlog_recover_print_rud(
 {
 	char				*f;
 
-	f = item->ri_buf[0].i_addr;
+	f = item->ri_buf[0].iov_base;
 	xlog_print_trans_rud(&f, sizeof(struct xfs_rud_log_format));
 }
 
@@ -516,8 +516,8 @@ xlog_recover_print_cui(
 	char				*src_f;
 	uint				src_len;
 
-	src_f = item->ri_buf[0].i_addr;
-	src_len = item->ri_buf[0].i_len;
+	src_f = item->ri_buf[0].iov_base;
+	src_len = item->ri_buf[0].iov_len;
 
 	xlog_print_trans_cui(&src_f, src_len, 0);
 }
@@ -563,7 +563,7 @@ xlog_recover_print_cud(
 {
 	char				*f;
 
-	f = item->ri_buf[0].i_addr;
+	f = item->ri_buf[0].iov_base;
 	xlog_print_trans_cud(&f, sizeof(struct xfs_cud_log_format));
 }
 
@@ -667,8 +667,8 @@ xlog_recover_print_bui(
 	char				*src_f;
 	uint				src_len;
 
-	src_f = item->ri_buf[0].i_addr;
-	src_len = item->ri_buf[0].i_len;
+	src_f = item->ri_buf[0].iov_base;
+	src_len = item->ri_buf[0].iov_len;
 
 	xlog_print_trans_bui(&src_f, src_len, 0);
 }
@@ -707,7 +707,7 @@ xlog_recover_print_bud(
 {
 	char				*f;
 
-	f = item->ri_buf[0].i_addr;
+	f = item->ri_buf[0].iov_base;
 	xlog_print_trans_bud(&f, sizeof(struct xfs_bud_log_format));
 }
 
@@ -954,8 +954,8 @@ xlog_recover_print_attri(
 	unsigned int			new_value_len = 0;
 	int				region = 0;
 
-	src_f = (struct xfs_attri_log_format *)item->ri_buf[0].i_addr;
-	src_len = item->ri_buf[region].i_len;
+	src_f = (struct xfs_attri_log_format *)item->ri_buf[0].iov_base;
+	src_len = item->ri_buf[region].iov_len;
 
 	/*
 	 * An xfs_attri_log_format structure contains a attribute name and
@@ -996,17 +996,17 @@ xlog_recover_print_attri(
 	if (name_len > 0) {
 		region++;
 		printf(_("ATTRI:  name len:%u\n"), name_len);
-		print_or_dump((char *)item->ri_buf[region].i_addr,
+		print_or_dump((char *)item->ri_buf[region].iov_base,
 			       name_len);
-		name_ptr = item->ri_buf[region].i_addr;
+		name_ptr = item->ri_buf[region].iov_base;
 	}
 
 	if (new_name_len > 0) {
 		region++;
 		printf(_("ATTRI:  newname len:%u\n"), new_name_len);
-		print_or_dump((char *)item->ri_buf[region].i_addr,
+		print_or_dump((char *)item->ri_buf[region].iov_base,
 			       new_name_len);
-		new_name_ptr = item->ri_buf[region].i_addr;
+		new_name_ptr = item->ri_buf[region].iov_base;
 	}
 
 	if (value_len > 0) {
@@ -1014,8 +1014,8 @@ xlog_recover_print_attri(
 
 		region++;
 		printf(_("ATTRI:  value len:%u\n"), value_len);
-		print_or_dump((char *)item->ri_buf[region].i_addr, len);
-		value_ptr = item->ri_buf[region].i_addr;
+		print_or_dump((char *)item->ri_buf[region].iov_base, len);
+		value_ptr = item->ri_buf[region].iov_base;
 	}
 
 	if (new_value_len > 0) {
@@ -1023,8 +1023,8 @@ xlog_recover_print_attri(
 
 		region++;
 		printf(_("ATTRI:  newvalue len:%u\n"), new_value_len);
-		print_or_dump((char *)item->ri_buf[region].i_addr, len);
-		new_value_ptr = item->ri_buf[region].i_addr;
+		print_or_dump((char *)item->ri_buf[region].iov_base, len);
+		new_value_ptr = item->ri_buf[region].iov_base;
 	}
 
 	if (src_f->alfi_attr_filter & XFS_ATTR_PARENT)
@@ -1065,7 +1065,7 @@ xlog_recover_print_attrd(
 {
 	struct xfs_attrd_log_format	*f;
 
-	f = (struct xfs_attrd_log_format *)item->ri_buf[0].i_addr;
+	f = (struct xfs_attrd_log_format *)item->ri_buf[0].iov_base;
 
 	printf(_("	ATTRD:  #regs: %d	id: 0x%llx\n"),
 		f->alfd_size,
@@ -1156,8 +1156,8 @@ xlog_recover_print_xmi(
 	char				*src_f;
 	uint				src_len;
 
-	src_f = item->ri_buf[0].i_addr;
-	src_len = item->ri_buf[0].i_len;
+	src_f = item->ri_buf[0].iov_base;
+	src_len = item->ri_buf[0].iov_len;
 
 	xlog_print_trans_xmi(&src_f, src_len, 0);
 }
@@ -1196,6 +1196,6 @@ xlog_recover_print_xmd(
 {
 	char				*f;
 
-	f = item->ri_buf[0].i_addr;
+	f = item->ri_buf[0].iov_base;
 	xlog_print_trans_xmd(&f, sizeof(struct xfs_xmd_log_format));
 }
