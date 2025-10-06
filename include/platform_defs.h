@@ -296,4 +296,10 @@ static inline bool __must_check __must_check_overflow(bool overflow)
 
 #define cmp_int(l, r)		((l > r) - (l < r))
 
+#if __has_attribute(__nonstring__)
+# define __nonstring                    __attribute__((__nonstring__))
+#else
+# define __nonstring
+#endif
+
 #endif	/* __XFS_PLATFORM_DEFS_H__ */

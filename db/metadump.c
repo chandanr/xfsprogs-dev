@@ -2989,7 +2989,7 @@ scan_ag(
 		if (metadump.obfuscate) {
 			struct xfs_sb *sb = iocur_top->data;
 			memset(sb->sb_fname, 'L',
-			       min(strlen(sb->sb_fname), sizeof(sb->sb_fname)));
+			       strnlen(sb->sb_fname, sizeof(sb->sb_fname)));
 			iocur_top->need_crc = 1;
 		}
 		if (write_buf(iocur_top))
