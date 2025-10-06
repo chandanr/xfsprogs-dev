@@ -4,6 +4,7 @@
 /* XFS agnostic helpers from xfsprogs/include/ */
 
 #include "bitops.h"
+#include "sem.h"
 #include "spinlock.h"
 #include "atomic.h"
 #include "list.h"
