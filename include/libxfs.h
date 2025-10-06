@@ -45,8 +45,6 @@ extern uint32_t crc32c_le(uint32_t crc, unsigned char const *p, size_t len);
 struct iomap;
 #include "xfs_cksum.h"
 
-#define __round_mask(x, y) ((__typeof__(x))((y)-1))
-#define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
 #define unlikely(x) (x)
 
 /*
@@ -340,16 +338,6 @@ bool libxfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
 
 #include "xfs_attr.h"
 #include "topology.h"
-
-#define min_t(type,x,y) \
-	({ type __x = (x); type __y = (y); __x < __y ? __x: __y; })
-#define max_t(type,x,y) \
-	({ type __x = (x); type __y = (y); __x > __y ? __x: __y; })
-
-#define __round_mask(x, y) ((__typeof__(x))((y)-1))
-#define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
-#define round_down(x, y) ((x) & ~__round_mask(x, y))
-#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 
 /*
  * Handling for kernel bitmap types.
