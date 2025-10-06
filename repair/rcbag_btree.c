@@ -72,7 +72,7 @@ rcbagbt_cmp_key_with_cur(
 	return 0;
 }
 
-STATIC int64_t
+STATIC int
 rcbagbt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
@@ -81,25 +81,19 @@ rcbagbt_cmp_two_keys(
 {
 	const struct rcbag_key		*kp1 = (const struct rcbag_key *)k1;
 	const struct rcbag_key		*kp2 = (const struct rcbag_key *)k2;
+	int				d;
 
 	ASSERT(mask == NULL);
 
-	if (kp1->rbg_startblock > kp2->rbg_startblock)
-		return 1;
-	if (kp1->rbg_startblock < kp2->rbg_startblock)
-		return -1;
+	d = cmp_int(kp1->rbg_startblock, kp2->rbg_startblock);
+	if (d)
+		return d;
 
-	if (kp1->rbg_blockcount > kp2->rbg_blockcount)
-		return 1;
-	if (kp1->rbg_blockcount < kp2->rbg_blockcount)
-		return -1;
+	d = cmp_int(kp1->rbg_blockcount, kp2->rbg_blockcount);
+	if (d)
+		return d;
 
-	if (kp1->rbg_ino > kp2->rbg_ino)
-		return 1;
-	if (kp1->rbg_ino < kp2->rbg_ino)
-		return -1;
-
-	return 0;
+	return cmp_int(kp1->rbg_ino, kp2->rbg_ino);
 }
 
 STATIC int

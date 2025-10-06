@@ -294,4 +294,6 @@ static inline bool __must_check __must_check_overflow(bool overflow)
 	__a > __b ? (__a - __b) : (__b - __a);	\
 })
 
+#define cmp_int(l, r)		((l > r) - (l < r))
+
 #endif	/* __XFS_PLATFORM_DEFS_H__ */

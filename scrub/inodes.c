@@ -197,8 +197,6 @@ bulkstat_the_rest(
 	return seen_mask;
 }
 
-#define cmp_int(l, r)		((l > r) - (l < r))
-
 /* Compare two bulkstat records by inumber. */
 static int
 compare_bstat(
