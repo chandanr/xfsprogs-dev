@@ -296,11 +296,7 @@ check_fs_free_space(
 		 * there while we try to make a per-AG reservation with the new
 		 * geometry.
 		 */
-		error = -libxfs_trans_alloc_empty(mp, &tp);
-		if (error)
-			do_error(
-	_("Cannot reserve resources for upgrade check, err=%d.\n"),
-					error);
+		tp = libxfs_trans_alloc_empty(mp);
 
 		error = -libxfs_ialloc_read_agi(pag, tp, 0, &agi_bp);
 		if (error)

@@ -95,9 +95,7 @@ rcbag_add(
 	int				has;
 	int				error;
 
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		do_error(_("allocating tx for refcount bag update\n"));
+	tp = libxfs_trans_alloc_empty(mp);
 
 	cur = rcbagbt_mem_cursor(mp, tp, &bag->xfbtree);
 	error = rcbagbt_lookup_eq(cur, rmap, &has);
@@ -217,9 +215,7 @@ rcbag_remove_ending_at(
 	int			has;
 	int			error;
 
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		do_error(_("allocating tx for refcount bag update\n"));
+	tp = libxfs_trans_alloc_empty(mp);
 
 	/* go to the right edge of the tree */
 	cur = rcbagbt_mem_cursor(mp, tp, &bag->xfbtree);

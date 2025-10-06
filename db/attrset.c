@@ -823,11 +823,7 @@ attr_list_f(
 		return 0;
 	}
 
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error) {
-		dbprintf(_("failed to allocate empty transaction\n"));
-		return 0;
-	}
+	tp = libxfs_trans_alloc_empty(mp);
 
 	error = -libxfs_iget(mp, NULL, iocur_top->ino, 0, &ip);
 	if (error) {

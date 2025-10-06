@@ -92,9 +92,7 @@ dqtype_to_inode(
 	xfs_ino_t		ret = NULLFSINO;
 	int			error;
 
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		return NULLFSINO;
+	tp = libxfs_trans_alloc_empty(mp);
 
 	if (xfs_has_metadir(mp)) {
 		error = -libxfs_dqinode_load_parent(tp, &dp);

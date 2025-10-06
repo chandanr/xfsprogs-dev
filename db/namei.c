@@ -94,9 +94,7 @@ path_navigate(
 	unsigned int		i;
 	int			error;
 
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		return error;
+	tp = libxfs_trans_alloc_empty(mp);
 
 	error = -libxfs_iget(mp, tp, ino, 0, &dp);
 	if (error)

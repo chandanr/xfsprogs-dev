@@ -1217,7 +1217,7 @@ check_file_parent_ptrs(
 	fscan->have_garbage = false;
 	fscan->nr_file_pptrs = 0;
 
-	libxfs_trans_alloc_empty(ip->i_mount, &tp);
+	tp = libxfs_trans_alloc_empty(ip->i_mount);
 	error = xattr_walk(tp, ip, examine_xattr, fscan);
 	if (tp)
 		libxfs_trans_cancel(tp);
@@ -1417,7 +1417,7 @@ try_erase_parent_ptrs(
 		do_error("init garbage pptr names failed: %s\n",
 				strerror(error));
 
-	libxfs_trans_alloc_empty(ip->i_mount, &tp);
+	tp = libxfs_trans_alloc_empty(ip->i_mount);
 	error = xattr_walk(tp, ip, erase_pptrs, &fscan);
 	if (tp)
 		libxfs_trans_cancel(tp);

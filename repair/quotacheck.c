@@ -437,9 +437,7 @@ quotacheck_verify(
 	if (!dquots || !chkd_flags)
 		return;
 
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		do_error(_("could not alloc transaction to open quota file\n"));
+	tp = libxfs_trans_alloc_empty(mp);
 
 	ino = get_quota_inode(type);
 	error = -libxfs_trans_metafile_iget(tp, ino, metafile_type, &ip);
@@ -679,9 +677,7 @@ discover_quota_inodes(
 	struct xfs_inode	*dp = NULL;
 	int			error, err2;
 
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		goto out;
+	tp = libxfs_trans_alloc_empty(mp);
 
 	error = -libxfs_dqinode_load_parent(tp, &dp);
 	if (error)
@@ -698,7 +694,6 @@ discover_quota_inodes(
 	libxfs_irele(dp);
 out_cancel:
 	libxfs_trans_cancel(tp);
-out:
 	if (error) {
 		switch (error) {
 		case EFSCORRUPTED:

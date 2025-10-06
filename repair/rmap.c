@@ -323,9 +323,7 @@ rmap_add_mem_rec(
 	int			error;
 
 	xfbt = &rmaps_for_group(isrt, agno)->ar_xfbtree;
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		do_error(_("allocating tx for in-memory rmap update\n"));
+	tp = libxfs_trans_alloc_empty(mp);
 
 	error = rmap_init_mem_cursor(mp, tp, isrt, agno, &rmcur);
 	if (error)

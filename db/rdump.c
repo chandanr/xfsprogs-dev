@@ -926,15 +926,10 @@ rdump_path(
 		set_cur_inode(mp->m_sb.sb_rootino);
 	}
 
-	ret = -libxfs_trans_alloc_empty(mp, &tp);
-	if (ret) {
-		dbprintf(_("allocating state: %s\n"), strerror(ret));
-		goto out_pbuf;
-	}
+	tp = libxfs_trans_alloc_empty(mp);
 
 	ret = rdump_file(tp, iocur_top->ino, destdir, pbuf);
 	libxfs_trans_cancel(tp);
-out_pbuf:
 	free(pbuf);
 	return ret;
 }

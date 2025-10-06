@@ -258,9 +258,7 @@ libxfs_metafile_iget(
 	struct xfs_trans	*tp;
 	int			error;
 
-	error = libxfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		return error;
+	tp = libxfs_trans_alloc_empty(mp);
 
 	error = libxfs_trans_metafile_iget(tp, ino, metafile_type, ipp);
 	libxfs_trans_cancel(tp);

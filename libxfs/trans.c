@@ -247,6 +247,22 @@ undo_blocks:
 	return error;
 }
 
+static inline struct xfs_trans *
+__libxfs_trans_alloc(
+	struct xfs_mount	*mp,
+	uint			flags)
+{
+	struct xfs_trans	*tp;
+
+	tp = kmem_cache_zalloc(xfs_trans_cache, 0);
+	tp->t_mountp = mp;
+	INIT_LIST_HEAD(&tp->t_items);
+	INIT_LIST_HEAD(&tp->t_dfops);
+	tp->t_highest_agno = NULLAGNUMBER;
+
+	return tp;
+}
+
 int
 libxfs_trans_alloc(
 	struct xfs_mount	*mp,
@@ -257,14 +273,8 @@ libxfs_trans_alloc(
 	struct xfs_trans	**tpp)
 
 {
-	struct xfs_trans	*tp;
+	struct xfs_trans	*tp = __libxfs_trans_alloc(mp, flags);
 	int			error;
-
-	tp = kmem_cache_zalloc(xfs_trans_cache, 0);
-	tp->t_mountp = mp;
-	INIT_LIST_HEAD(&tp->t_items);
-	INIT_LIST_HEAD(&tp->t_dfops);
-	tp->t_highest_agno = NULLAGNUMBER;
 
 	error = xfs_trans_reserve(tp, resp, blocks, rtextents);
 	if (error) {
@@ -290,14 +300,11 @@ libxfs_trans_alloc(
  * Note the zero-length reservation; this transaction MUST be cancelled
  * without any dirty data.
  */
-int
+struct xfs_trans *
 libxfs_trans_alloc_empty(
-	struct xfs_mount		*mp,
-	struct xfs_trans		**tpp)
+	struct xfs_mount		*mp)
 {
-	struct xfs_trans_res		resv = {0};
-
-	return xfs_trans_alloc(mp, &resv, 0, 0, XFS_TRANS_NO_WRITECOUNT, tpp);
+	return __libxfs_trans_alloc(mp, XFS_TRANS_NO_WRITECOUNT);
 }
 
 /*

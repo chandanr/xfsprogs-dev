@@ -174,13 +174,7 @@ print_rgresv_info(
 	xfs_filblks_t		used = 0;
 	int			error;
 
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error) {
-		dbprintf(
- _("Cannot alloc transaction to look up rtgroup %u rmap inode\n"),
-				rtg_rgno(rtg));
-		return;
-	}
+	tp = libxfs_trans_alloc_empty(mp);
 
 	error = -libxfs_rtginode_load_parent(tp);
 	if (error) {

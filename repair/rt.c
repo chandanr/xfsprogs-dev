@@ -301,10 +301,7 @@ try_load_sb_rtfile(
 	if (rtg->rtg_inodes[type])
 		goto out_rtg;
 
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		goto out_rtg;
-
+	tp = libxfs_trans_alloc_empty(mp);
 
 	error = -libxfs_rtginode_load(rtg, type, tp);
 	if (error)
@@ -497,9 +494,7 @@ discover_rtgroup_inodes(
 	int			error, err2;
 	int			i;
 
-	error = -libxfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		goto out;
+	tp = libxfs_trans_alloc_empty(mp);
 	if (xfs_has_rtgroups(mp) && mp->m_sb.sb_rgcount > 0) {
 		error = -libxfs_rtginode_load_parent(tp);
 		if (error)
@@ -516,7 +511,6 @@ discover_rtgroup_inodes(
 
 out_cancel:
 	libxfs_trans_cancel(tp);
-out:
 	if (xfs_has_rtgroups(mp) && error) {
 		/*
 		 * Old xfs_repair didn't complain if rtbitmaps didn't load
