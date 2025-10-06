@@ -11,4 +11,11 @@
 #define round_down(x, y) ((x) & ~__round_mask(x, y))
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 
+#define memalloc_nofs_save() (0);
+#define memalloc_nofs_restore(a)
+#define memalloc_noreclaim_save() (0)
+#define memalloc_noreclaim_restore(a) \
+	((a) = (a));
+#define lockdep_assert_held(a)
+
 #endif	/* __KERNEL_MISC_STAGE1_H__ */
