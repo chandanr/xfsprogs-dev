@@ -3,10 +3,37 @@
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include "libxfs_priv.h"
+#include "generic_headers.h"
 
-#include "libxfs.h"
-#include "libxlog.h"
+#include "platform_defs.h"
+
+#include "kernel_types.h"
+#include "kernel_misc_stage1.h"
+
+#include "xfsprogs_helpers.h"
+
+/* Header files from libfrog/ */
+#include "libfrog/radix-tree.h"
+#include "libfrog/rbtree.h"
+#include "libfrog/crc32c.h"
+#include "libfrog/schedule.h"
+#include "libfrog/waitqueue.h"
+#include "libfrog/workqueue.h"
+
+/* chandan: xfs/xfs_types.h declares xfs_verify_*() */
+#include "libxfs_api_defs.h"
+#include "libxlog_api_defs.h"
+
+/* XFS header files from xfsprogs/include/ */
+#include "xfs.h"		/* chandan: xfs/xfs_types.h */
+#include "xfs_arch.h"
+
+#include "kernel_misc_stage2.h"
+
+/* Header files from libxfs/ */
+#include "linux-err.h"
+#include "xfs_cksum.h"
+#include "libxfs_priv.h"
 
 #include "xfs_fs.h"
 #include "xfs_format.h"
@@ -23,12 +50,12 @@
 #include "xfs_extent_busy.h"
 #include "xfs_errortag.h"
 #include "xfs_trace.h"
+#include "xfs_trans.h"
+#include "xfs_buf_item.h"
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 #include "xfs_bmap.h"
 #include "xfs_inode.h"
-
-#include "libxlog.h"
 
 struct kmem_cache	*xfs_extfree_item_cache;
 
