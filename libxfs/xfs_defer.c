@@ -3,7 +3,41 @@
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
  */
+#include "generic_headers.h"
+
+#include "platform_defs.h"
+
+#include "kernel_types.h"
+#include "kernel_misc_stage1.h"
+
+#include "xfsprogs_helpers.h"
+
+/* Header files from libfrog/ */
+#include "libfrog/radix-tree.h"
+#include "libfrog/rbtree.h"
+#include "libfrog/crc32c.h"
+#include "libfrog/bio.h"
+#include "libfrog/pseudo_percpu.h"
+#include "libfrog/schedule.h"
+#include "libfrog/waitqueue.h"
+#include "libfrog/workqueue.h"
+#include "libfrog/delayed-work.h"
+
+/* chandan: xfs/xfs_types.h declares xfs_verify_*() */
+#include "libxfs_api_defs.h"
+#include "libxlog_api_defs.h"
+
+/* XFS header files from xfsprogs/include/ */
+#include "xfs.h"		/* chandan: xfs/xfs_types.h */
+#include "xfs_arch.h"
+
+#include "kernel_misc_stage2.h"
+
+/* Header files from libxfs/ */
+#include "linux-err.h"
+#include "xfs_cksum.h"
 #include "libxfs_priv.h"
+
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -11,8 +45,12 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
+#include "xfs_trans.h"
+#include "xfs_buf_item.h"
 #include "xfs_inode.h"
+#include "xfs_inode_item.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
 #include "xfs_rmap.h"
 #include "xfs_refcount.h"
 #include "xfs_bmap.h"
@@ -20,9 +58,6 @@
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
-
-#include "libxfs.h"
-#include "libxlog.h"
 
 static struct kmem_cache	*xfs_defer_pending_cache;
 

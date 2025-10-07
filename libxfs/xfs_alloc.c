@@ -16,9 +16,12 @@
 #include "libfrog/radix-tree.h"
 #include "libfrog/rbtree.h"
 #include "libfrog/crc32c.h"
+#include "libfrog/bio.h"
+#include "libfrog/pseudo_percpu.h"
 #include "libfrog/schedule.h"
 #include "libfrog/waitqueue.h"
 #include "libfrog/workqueue.h"
+#include "libfrog/delayed-work.h"
 
 /* chandan: xfs/xfs_types.h declares xfs_verify_*() */
 #include "libxfs_api_defs.h"

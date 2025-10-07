@@ -4,9 +4,40 @@
  * Copyright (C) 2010 Red Hat, Inc.
  * All Rights Reserved.
  */
+#include "generic_headers.h"
+
+#include "platform_defs.h"
+
+#include "kernel_types.h"
+#include "kernel_misc_stage1.h"
+
+#include "xfsprogs_helpers.h"
+
+/* Header files from libfrog/ */
+#include "libfrog/radix-tree.h"
+#include "libfrog/rbtree.h"
+#include "libfrog/crc32c.h"
+#include "libfrog/bio.h"
+#include "libfrog/pseudo_percpu.h"
+#include "libfrog/schedule.h"
+#include "libfrog/waitqueue.h"
+#include "libfrog/workqueue.h"
+#include "libfrog/delayed-work.h"
+
+/* chandan: xfs/xfs_types.h declares xfs_verify_*() */
+#include "libxfs_api_defs.h"
+#include "libxlog_api_defs.h"
+
+/* XFS header files from xfsprogs/include/ */
+#include "xfs.h"		/* chandan: xfs/xfs_types.h */
+#include "xfs_arch.h"
+
+#include "kernel_misc_stage2.h"
+
+/* Header files from libxfs/ */
+#include "linux-err.h"
+#include "xfs_cksum.h"
 #include "libxfs_priv.h"
-#include "libxfs.h"
-#include "libxlog.h"
 
 #include "xfs_fs.h"
 #include "xfs_shared.h"
