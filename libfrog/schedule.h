@@ -1,6 +1,12 @@
 #ifndef _SCHEDULE_H
 #define _SCHEDULE_H
 
+#define TASK_RUNNING		0
+#define TASK_KILLABLE		1
+#define TASK_FREEZABLE		2
+#define TASK_INTERRUPTIBLE	3
+#define TASK_UNINTERRUPTIBLE	4
+
 struct task_struct {
 	pthread_t	thread;
 	bool		wakeup;
