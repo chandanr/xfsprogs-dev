@@ -5,6 +5,7 @@
 
 #include "bitops.h"
 #include "sem.h"
+#include "rwsem.h"
 #include "spinlock.h"
 #include "atomic.h"
 #include "list.h"
