@@ -16,11 +16,6 @@ struct xfs_mount;
 struct xfs_perag;
 struct libxfs_init;
 
-enum req_op {
-	REQ_OP_READ,
-	REQ_OP_WRITE,
-};
-
 /*
  * IO verifier callbacks need the xfs_mount pointer, so we have to behave
  * somewhat like the kernel now for userspace IO in terms of having buftarg
