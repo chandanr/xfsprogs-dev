@@ -45,7 +45,6 @@ xfs_buftarg_trip_write(
 	pthread_mutex_unlock(&btp->lock);
 }
 
-void libxfs_buftarg_init(struct xfs_mount *mp, struct libxfs_init *xi);
 int libxfs_blkdev_issue_flush(struct xfs_buftarg *btp);
 
 #define LIBXFS_BBTOOFF64(bbs)	(((xfs_off_t)(bbs)) << BBSHIFT)
@@ -285,5 +284,33 @@ xfs_readonly_buftarg(struct xfs_buftarg *btp)
 int xfs_buf_delwri_submit(struct list_head *buffer_list);
 void xfs_buf_delwri_cancel(struct list_head *list);
 
+static inline int
+xfs_buf_incore(
+	struct xfs_buftarg	*target,
+	xfs_daddr_t		blkno,
+	size_t			numblks,
+	xfs_buf_flags_t		flags,
+	struct xfs_buf		**bpp)
+{
+	*bpp = NULL;
+	return -ENOENT;
+}
+
+#define xfs_buf_oneshot(bp)		((void) 0)
+
+#define xfs_buf_zero(bp, off, len) \
+	memset((bp)->b_addr + off, 0, len);
+
+void __xfs_buf_mark_corrupt(struct xfs_buf *bp, xfs_failaddr_t fa);
+#define xfs_buf_mark_corrupt(bp) __xfs_buf_mark_corrupt((bp), __this_address)
+
+/* no readahead, need to avoid set-but-unused var warnings. */
+#define xfs_buf_readahead(a,d,c,ops)		({	\
+	xfs_daddr_t __d = d;				\
+	__d = __d; /* no set-but-unused warning */	\
+})
+#define xfs_buf_readahead_map(a,b,c,ops)	((void) 0)	/* no readahead */
+
+#define xfs_sort					qsort
 
 #endif	/* __XFS_BUF_H__ */

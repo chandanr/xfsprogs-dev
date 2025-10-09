@@ -435,4 +435,6 @@ static inline bool xfs_sb_version_hassparseinodes(struct xfs_sb *sbp)
 		xfs_sb_has_incompat_feature(sbp, XFS_SB_FEAT_INCOMPAT_SPINODES);
 }
 
+void libxfs_buftarg_init(struct xfs_mount *mp, struct libxfs_init *xi);
+
 #endif	/* __LIBXFS_H__ */
