@@ -1,11 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.
- * All Rights Reserved.
- */
-
-#ifndef __LIBXFS_IO_H_
-#define __LIBXFS_IO_H_
+#ifndef __XFS_BUF_H__
+#define __XFS_BUF_H__
 
 /*
  * Kernel equivalent buffer based I/O interface
@@ -14,7 +8,6 @@
 struct xfs_buf;
 struct xfs_mount;
 struct xfs_perag;
-struct libxfs_init;
 
 /*
  * IO verifier callbacks need the xfs_mount pointer, so we have to behave
@@ -215,6 +208,7 @@ libxfs_buf_read(
 }
 
 int libxfs_readbuf_verify(struct xfs_buf *bp, const struct xfs_buf_ops *ops);
+
 struct xfs_buf *libxfs_getsb(struct xfs_mount *mp);
 extern void	libxfs_bcache_purge(void);
 extern void	libxfs_bcache_free(void);
@@ -291,4 +285,5 @@ xfs_readonly_buftarg(struct xfs_buftarg *btp)
 int xfs_buf_delwri_submit(struct list_head *buffer_list);
 void xfs_buf_delwri_cancel(struct list_head *list);
 
-#endif	/* __LIBXFS_IO_H__ */
+
+#endif	/* __XFS_BUF_H__ */
