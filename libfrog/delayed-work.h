@@ -21,4 +21,6 @@ int queue_delayed_work(struct workqueue *wq, struct delayed_work *dwork,
 #define INIT_DELAYED_WORK(dwork, func)	\
 	init_delayed_work((dwork), (func), 0, NULL)
 
+#define cancel_delayed_work_sync(work) do { } while(0)
+
 #endif	/* _DELAYED_WORK_H */
