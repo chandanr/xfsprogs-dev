@@ -28,15 +28,6 @@ struct xfs_kobj {
 	;
 };
 
-#define smp_rmb()
-
-/* TODO: chandan: implement waitqueues */
-#define wait_var_event(var, cond)
-#define DECLARE_WAITQUEUE(wait, current)
-#define add_wait_queue_exclusive(wq, waitp)
-#define remove_wait_queue(wq, waitp)
-#define __set_current_state(state)
-#define schedule()
 
 /*
  * #include "xfs_attr_item.h"
