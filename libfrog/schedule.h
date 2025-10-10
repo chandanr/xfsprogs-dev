@@ -15,6 +15,7 @@ struct task_struct {
 
 #define set_freezable()
 #define set_current_state(...)
+#define __set_current_state(...)
 #define try_to_freeze()
 
 static inline void
