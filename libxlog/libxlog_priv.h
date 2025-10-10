@@ -1,7 +1,6 @@
 #ifndef _LIBXLOG_PRIV_H
 #define _LIBXLOG_PRIV_H
 
-#define STATIC				static
 
 #define xfs_alert_tag(...)
 
