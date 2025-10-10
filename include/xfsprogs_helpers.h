@@ -9,6 +9,7 @@
 #include "spinlock.h"
 #include "atomic.h"
 #include "list.h"
+#include "hlist.h"
 #include "kmem.h"
 #include "cache.h"
 
