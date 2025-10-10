@@ -51,7 +51,7 @@ struct iomap;
  * This mirrors the kernel include for xfs_buf.h - it's implicitly included in
  * every files via a similar include in the kernel xfs_linux.h.
  */
-#include "libxfs_io.h"
+#include "xfs_buf.h"
 
 #include "xfs_bit.h"
 #include "xfs_sb.h"
