@@ -13,12 +13,6 @@
 #include "libfrog/pseudo_percpu.h"
 #include "libfrog/refcount.h"
 
-#include "xfs_trans.h"
-#include "xfs_trans_quota.h"
-
-#include "xfs_inode_item.h"
-#include "xfs_buf_item.h"
-
 enum libxlog_init_phase {
 	LIBXLOG_INIT_PHASE_1,
 	LIBXLOG_INIT_PHASE_2,
@@ -27,18 +21,6 @@ enum libxlog_init_phase {
 struct xfs_kobj {
 	;
 };
-
-
-/*
- * #include "xfs_attr_item.h"
- * #include "xfs_bmap_item.h"
- * #include "xfs_dquot_item.h"
- * #include "xfs_extfree_item.h"
- * #include "xfs_icreate_item.h"
- * #include "xfs_iunlink_item.h"
- * #include "xfs_refcount_item.h"
- * #include "xfs_rmap_item.h"
- */
 
 /*
  * Allocate a transaction that can be rolled.  Since userspace doesn't have
