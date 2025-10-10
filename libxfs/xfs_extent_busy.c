@@ -36,8 +36,6 @@
 #include "kernel_misc_stage2.h"
 
 /* Header files from libxfs/ */
-#include "linux-err.h"
-#include "xfs_cksum.h"
 #include "libxfs_priv.h"
 
 #include "xfs.h"

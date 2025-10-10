@@ -13,6 +13,7 @@
 #include "xfsprogs_helpers.h"
 
 /* Header files from libfrog/ */
+#include "libfrog/div64.h"
 #include "libfrog/radix-tree.h"
 #include "libfrog/rbtree.h"
 #include "libfrog/crc32c.h"
@@ -34,8 +35,6 @@
 #include "kernel_misc_stage2.h"
 
 /* Header files from libxfs/ */
-#include "linux-err.h"
-#include "xfs_cksum.h"
 #include "libxfs_priv.h"
 
 #include "xfs_fs.h"
@@ -54,7 +53,9 @@
 #include "xfs_bmap.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
+#include "xfs_icreate_item.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
 #include "xfs_rmap.h"
 #include "xfs_ag.h"
 

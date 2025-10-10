@@ -48,6 +48,7 @@
 #include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
+#include "xfs_log.h"
 
 /*
  * Each contiguous block has a header, so it is not just a simple pathlen
