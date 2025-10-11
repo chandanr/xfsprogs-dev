@@ -4506,7 +4506,7 @@ _("rgsize (%s) not a multiple of fs blk size (%d)\n"),
 		cfg->rgsize = cfg->rtblocks;
 		cfg->rgcount = 0;
 	} else if (cli->rtvol_concurrency > 0 ||
-		   (cli->data_concurrency == -1 && rtdev_is_solidstate(xi))) {
+		   (cli->rtvol_concurrency == -1 && rtdev_is_solidstate(xi))) {
 		calc_concurrency_rtgroup_geometry(cfg, cli, xi);
 	} else if (is_power_of_2(cfg->rtextblocks)) {
 		cfg->rgsize = calc_rgsize_extsize_power(cfg);
