@@ -27,6 +27,7 @@ typedef	int64_t	atomic64_t;
 #define atomic_sub(v, a)	uatomic_sub(a, v)
 #define atomic_inc(a)		uatomic_inc(a)
 #define atomic_dec(a)		uatomic_dec(a)
+#define atomic_add_return(v, a)	uatomic_add_return(a, v)
 #define atomic_inc_return(a)	uatomic_add_return(a, 1)
 #define atomic_dec_return(a)	uatomic_sub_return(a, 1)
 #define atomic_dec_and_test(a)	(atomic_dec_return(a) == 0)
