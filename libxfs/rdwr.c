@@ -1338,6 +1338,39 @@ libxfs_inode_alloc(
 	return ip;
 }
 
+void
+xfs_inode_free(
+	struct xfs_inode	*ip)
+{
+	/* asserts to verify all state is correct here */
+	ASSERT(atomic_read(&ip->i_pincount) == 0);
+	ASSERT(!ip->i_itemp || list_empty(&ip->i_itemp->ili_item.li_bio_list));
+	XFS_STATS_DEC(ip->i_mount, vn_active);
+
+	switch (ip->i_mode & S_IFMT) {
+	case S_IFREG:
+	case S_IFDIR:
+	case S_IFLNK:
+		xfs_idestroy_fork(&ip->i_df);
+		break;
+	}
+
+	xfs_ifork_zap_attr(ip);
+
+	if (ip->i_cowfp) {
+		xfs_idestroy_fork(ip->i_cowfp);
+		kmem_cache_free(xfs_ifork_cache, ip->i_cowfp);
+	}
+	if (ip->i_itemp) {
+		ASSERT(!test_bit(XFS_LI_IN_AIL,
+				 &ip->i_itemp->ili_item.li_flags));
+		xfs_inode_item_destroy(ip);
+		ip->i_itemp = NULL;
+	}
+
+	kmem_cache_free(xfs_inode_cache, ip);
+}
+
 int
 xfs_read_inode_from_disk(
 	struct xfs_trans	*tp,

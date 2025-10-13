@@ -135,6 +135,7 @@
 #define xfs_inobt_maxrecs		libxfs_inobt_maxrecs
 #define xfs_inobt_stage_cursor		libxfs_inobt_stage_cursor
 #define xfs_inode_alloc			libxfs_inode_alloc
+#define xfs_inode_free			libxfs_inode_free
 #define xfs_inode_from_disk		libxfs_inode_from_disk
 #define xfs_inode_from_disk_ts		libxfs_inode_from_disk_ts
 #define xfs_inode_to_disk		libxfs_inode_to_disk

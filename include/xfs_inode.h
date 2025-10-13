@@ -431,6 +431,7 @@ extern int	libxfs_iget(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
 extern void	libxfs_irele(struct xfs_inode *ip);
 extern struct xfs_inode *libxfs_inode_alloc(struct xfs_mount *mp,
 		xfs_ino_t ino);
+extern void xfs_inode_free(struct xfs_inode *ip);
 
 int		xfs_itruncate_extents_flags(struct xfs_trans **,
 				struct xfs_inode *, int, xfs_fsize_t, int);
