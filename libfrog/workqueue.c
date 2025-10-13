@@ -234,6 +234,14 @@ restart:
 	return 0;
 }
 
+void
+queue_work(
+	struct workqueue	*wq,
+	struct work_struct	*work)
+{
+	return;
+}
+
 /*
  * Wait for all pending work items to be processed and tear down the
  * workqueue thread pool.  Returns zero or a negative error code.

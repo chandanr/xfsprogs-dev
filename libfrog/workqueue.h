@@ -29,6 +29,8 @@ struct work_struct {
 	  (work)->wq_item.function = func;				       \
 	} while(0)
 
+#define destroy_workqueue workqueue_destroy
+
 struct workqueue {
 	void			*wq_ctx;
 	pthread_t		*threads;
