@@ -3,12 +3,19 @@
 
 #include "bitmask.h"
 
+void *__p_alloc_percpu(size_t size);
 #define alloc_percpu(type) ((typeof(type) *)__p_alloc_percpu(sizeof(type)))
 
 #define for_each_possible_cpu(cpu) for ((cpu) = 0; (cpu) < 1; (cpu)++)
 
 #define get_cpu() (0)
 #define put_cpu()
+
+static inline
+void free_percpu(void *ptr)
+{
+	free(ptr);
+}
 
 static inline
 void *per_cpu_ptr(void *arr, int cpu)
