@@ -3,9 +3,40 @@
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include "libxfs.h"
+#include "generic_headers.h"
+
+#include "platform_defs.h"
+
+#include "kernel_types.h"
+#include "kernel_misc_stage1.h"
+
+#include "xfsprogs_helpers.h"
+
+/* Header files from libfrog/ */
+#include "libfrog/div64.h"
+#include "libfrog/refcount.h"
+#include "libfrog/radix-tree.h"
+#include "libfrog/rbtree.h"
+#include "libfrog/crc32c.h"
+#include "libfrog/bio.h"
+#include "libfrog/pseudo_percpu.h"
+#include "libfrog/schedule.h"
+#include "libfrog/waitqueue.h"
+#include "libfrog/workqueue.h"
+#include "libfrog/delayed-work.h"
+
+/* chandan: xfs/xfs_types.h declares xfs_verify_*() */
+#include "libxfs_api_defs.h"
+#include "libxlog_api_defs.h"
+
+/* XFS header files from xfsprogs/include/ */
+#include "xfs.h"
+#include "xfs_arch.h"
+
+#include "kernel_misc_stage2.h"
+
+/* Header files from libxlog/ */
 #include "libxlog_priv.h"
-#include "libxlog.h"
 
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -1934,9 +1965,6 @@ xlog_recover_reorder_trans(
 	return error;
 }
 
-/* TODO: chandan: Implement this function */
-#define xfs_buf_readahead(...)
-
 void
 xlog_buf_readahead(
 	struct xlog		*log,
@@ -2847,9 +2875,6 @@ xlog_unpack_data(
 		}
 	}
 }
-
-/* TODO: chandan: Implement this function */
-#define xfs_hex_dump(...)
 
 /*
  * CRC check, unpack and process a log record.
