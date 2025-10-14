@@ -1,7 +1,7 @@
 #ifndef _KTHREAD_H
 #define _KTHREAD_H
 
-typedef void *(*)(void *) threadfn_t;
+typedef int (*threadfn_t)(void *);
 
 struct task_struct *kthread_run(threadfn_t threadfn, void *data, ...);
 
