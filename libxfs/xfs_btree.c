@@ -13,6 +13,7 @@
 #include "xfsprogs_helpers.h"
 
 /* Header files from libfrog/ */
+#include "libfrog/div64.h"
 #include "libfrog/radix-tree.h"
 #include "libfrog/rbtree.h"
 #include "libfrog/crc32c.h"
