@@ -1,4 +1,64 @@
-#include <pthread.h>
+#include "generic_headers.h"
+
+#include "platform_defs.h"
+
+#include "kernel_types.h"
+#include "kernel_misc_stage1.h"
+
+#include "xfsprogs_helpers.h"
+
+/* Header files from libfrog/ */
+#include "libfrog/div64.h"
+#include "libfrog/radix-tree.h"
+#include "libfrog/rbtree.h"
+#include "libfrog/crc32c.h"
+#include "libfrog/bio.h"
+#include "libfrog/pseudo_percpu.h"
+#include "libfrog/schedule.h"
+#include "libfrog/waitqueue.h"
+#include "libfrog/workqueue.h"
+#include "libfrog/delayed-work.h"
+
+/* chandan: xfs/xfs_types.h declares xfs_verify_*() */
+#include "libxfs_api_defs.h"
+#include "libxlog_api_defs.h"
+
+/* XFS header files from xfsprogs/include/ */
+#include "xfs.h"		/* chandan: xfs/xfs_types.h */
+#include "xfs_arch.h"
+
+#include "kernel_misc_stage2.h"
+
+/* Header files from libxfs/ */
+#include "libxfs_priv.h"
+
+#include "xfs_fs.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
+#include "xfs_bit.h"
+#include "xfs_sb.h"
+#include "xfs_mount.h"
+#include "xfs_defer.h"
+#include "xfs_dir2.h"
+#include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_trans.h"
+#include "xfs_alloc.h"
+#include "xfs_bmap.h"
+#include "xfs_bmap_btree.h"
+#include "xfs_errortag.h"
+#include "xfs_quota.h"
+#include "xfs_trans_quota.h"
+#include "xfs_trans_space.h"
+#include "xfs_trace.h"
+#include "xfs_attr_leaf.h"
+#include "xfs_rmap.h"
+#include "xfs_ag.h"
+#include "xfs_ag_resv.h"
+#include "xfs_refcount.h"
+#include "xfs_inode_item.h"
 
 static inline void
 xfs_lock_flags_assert(
@@ -33,6 +93,28 @@ xfs_ilock(
 	ASSERT(error == 0);
 }
 
+int
+xfs_ilock_nowait(
+	xfs_inode_t	*ip,
+	uint		lock_flags)
+{
+	trace_xfs_ilock_nowait(ip, lock_flags, _RET_IP_);
+
+	xfs_lock_flags_assert(lock_flags);
+
+	if (lock_flags & XFS_ILOCK_EXCL) {
+		if (pthread_rwlock_trywrlock(&ip->i_lock))
+			return 0;
+	} else if (lock_flags & XFS_ILOCK_SHARED) {
+		if (pthread_rwlock_tryrdlock(&ip->i_lock))
+			return 0;
+	} else {
+		ASSERT(0);
+	}
+
+	return 1;
+}
+
 void
 xfs_iunlock(
 	xfs_inode_t		*ip,
@@ -50,6 +132,81 @@ xfs_iunlock(
 	ASSERT(error == 0);
 }
 
+uint
+xfs_ilock_data_map_shared(
+	struct xfs_inode	*ip)
+{
+	uint			lock_mode = XFS_ILOCK_SHARED;
+
+	if (xfs_need_iread_extents(&ip->i_df))
+		lock_mode = XFS_ILOCK_EXCL;
+	xfs_ilock(ip, lock_mode);
+	return lock_mode;
+}
+
+uint
+xfs_ilock_attr_map_shared(
+	struct xfs_inode	*ip)
+{
+	uint			lock_mode = XFS_ILOCK_SHARED;
+
+	if (xfs_inode_has_attr_fork(ip) && xfs_need_iread_extents(&ip->i_af))
+		lock_mode = XFS_ILOCK_EXCL;
+	xfs_ilock(ip, lock_mode);
+	return lock_mode;
+}
+
+static inline uint
+xfs_lock_inumorder(
+	uint	lock_mode,
+	uint	subclass)
+{
+	return lock_mode;
+}
+
+void
+xfs_lock_two_inodes(
+	struct xfs_inode	*ip0,
+	uint			ip0_mode,
+	struct xfs_inode	*ip1,
+	uint			ip1_mode)
+{
+	int			attempts = 0;
+	struct xfs_log_item	*lp;
+
+	ASSERT(hweight32(ip0_mode) == 1);
+	ASSERT(hweight32(ip1_mode) == 1);
+	ASSERT(!(ip0_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)));
+	ASSERT(!(ip1_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)));
+	ASSERT(!(ip0_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)));
+	ASSERT(!(ip1_mode & (XFS_MMAPLOCK_SHARED|XFS_MMAPLOCK_EXCL)));
+	ASSERT(ip0->i_ino != ip1->i_ino);
+
+	if (ip0->i_ino > ip1->i_ino) {
+		swap(ip0, ip1);
+		swap(ip0_mode, ip1_mode);
+	}
+
+ again:
+	xfs_ilock(ip0, xfs_lock_inumorder(ip0_mode, 0));
+
+	/*
+	 * If the first lock we have locked is in the AIL, we must TRY to get
+	 * the second lock. If we can't get it, we must release the first one
+	 * and try again.
+	 */
+	lp = &ip0->i_itemp->ili_item;
+	if (lp && test_bit(XFS_LI_IN_AIL, &lp->li_flags)) {
+		if (!xfs_ilock_nowait(ip1, xfs_lock_inumorder(ip1_mode, 1))) {
+			xfs_iunlock(ip0, ip0_mode);
+			if ((++attempts % 5) == 0)
+				delay(1); /* Don't just spin the CPU */
+			goto again;
+		}
+	} else {
+		xfs_ilock(ip1, xfs_lock_inumorder(ip1_mode, 1));
+	}
+}
 
 /*
  * Look up the inode number specified and if it is not already marked XFS_ISTALE

@@ -445,4 +445,28 @@ xfs_itruncate_extents(
 	return xfs_itruncate_extents_flags(tpp, ip, whichfork, new_size, 0);
 }
 
+/*
+ * Flags for inode locking.
+ * Bit ranges:	1<<1  - 1<<16-1 -- iolock/ilock modes (bitfield)
+ *		1<<16 - 1<<32-1 -- lockdep annotation (integers)
+ */
+#define	XFS_IOLOCK_EXCL		(1u << 0)
+#define	XFS_IOLOCK_SHARED	(1u << 1)
+#define	XFS_ILOCK_EXCL		(1u << 2)
+#define	XFS_ILOCK_SHARED	(1u << 3)
+#define	XFS_MMAPLOCK_EXCL	(1u << 4)
+#define	XFS_MMAPLOCK_SHARED	(1u << 5)
+
+#define XFS_ILOCK_SHIFT		24
+#define	XFS_ILOCK_RTBITMAP	(6u << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_RTSUM		(7u << XFS_ILOCK_SHIFT)
+
+void xfs_ilock(xfs_inode_t *ip, uint lock_flags);
+int xfs_ilock_nowait(xfs_inode_t *ip, uint lock_flags);
+void xfs_iunlock(xfs_inode_t *ip, uint lock_flags);
+uint xfs_ilock_data_map_shared(struct xfs_inode *ip);
+uint xfs_ilock_attr_map_shared(struct xfs_inode *ip);
+void xfs_lock_two_inodes(struct xfs_inode *ip0, uint ip0_mode,
+		struct xfs_inode *ip1, uint ip1_mode);
+
 #endif /* __XFS_INODE_H__ */

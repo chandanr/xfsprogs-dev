@@ -189,17 +189,6 @@ extern int	libxfs_log_clear(struct xfs_buftarg *, char *, xfs_daddr_t,
 extern int	libxfs_log_header(char *, uuid_t *, int, int, int, xfs_lsn_t,
 				  xfs_lsn_t, libxfs_get_block_t *, void *);
 
-#define XFS_ILOCK_EXCL			0
-
-#define xfs_ilock(ip,mode)				((void) 0)
-#define xfs_ilock_data_map_shared(ip)			(0)
-#define xfs_ilock_attr_map_shared(ip)			(0)
-#define xfs_iunlock(ip,mode)				({	\
-	typeof(mode) __mode = mode;				\
-	__mode = __mode; /* no set-but-unused warning */	\
-})
-#define xfs_lock_two_inodes(ip0,mode0,ip1,mode1)	((void) 0)
-
 /*
  * Starting in Linux 4.15, the %p (raw pointer value) printk modifier
  * prints a hashed version of the pointer to avoid leaking kernel
