@@ -90,4 +90,8 @@ struct iomap;
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
+#define XFS_STATS_INC(mp, count)	do { (mp) = (mp); } while (0)
+#define XFS_STATS_DEC(mp, count, x)	do { (mp) = (mp); } while (0)
+#define XFS_STATS_ADD(mp, count, x)	do { (mp) = (mp); } while (0)
+
 #endif	/* __KERNEL_MISC_STAGE2_H__ */
