@@ -9,6 +9,7 @@
 #include "globals.h"
 #include "agheader.h"
 #include "incore.h"
+#include "list.h"
 #include "protos.h"
 #include "err_protos.h"
 #include "dinode.h"
@@ -27,16 +28,17 @@ static xfs_mount_t	*mp = NULL;
  * from the btree traversal.
  */
 struct aghdr_cnts {
-	xfs_agnumber_t	agno;
-	xfs_extlen_t	agffreeblks;
-	xfs_extlen_t	agflongest;
-	uint64_t	agfbtreeblks;
-	uint32_t	agicount;
-	uint32_t	agifreecount;
-	uint64_t	fdblocks;
-	uint64_t	usedblocks;
-	uint64_t	ifreecount;
-	uint32_t	fibtfreecount;
+	xfs_agnumber_t		agno;
+	xfs_extlen_t		agffreeblks;
+	xfs_extlen_t		agflongest;
+	uint64_t		agfbtreeblks;
+	uint32_t		agicount;
+	uint32_t		agifreecount;
+	uint64_t		fdblocks;
+	uint64_t		usedblocks;
+	uint64_t		ifreecount;
+	uint32_t		fibtfreecount;
+	struct work_struct	work;
 };
 
 void
@@ -2577,11 +2579,9 @@ validate_agi(
  */
 static void
 scan_ag(
-	struct workqueue*wq,
-	xfs_agnumber_t	agno,
-	void		*arg)
+	struct work_struct *work)
 {
-	struct aghdr_cnts *agcnts = arg;
+	struct aghdr_cnts *agcnts = container_of(work, struct aghdr_cnts, work);
 	struct xfs_agf	*agf;
 	struct xfs_buf	*agfbuf = NULL;
 	int		agf_dirty = 0;
@@ -2590,10 +2590,13 @@ scan_ag(
 	int		agi_dirty = 0;
 	struct xfs_sb	*sb = NULL;
 	struct xfs_buf	*sbbuf = NULL;
+	xfs_agnumber_t	agno;
 	int		sb_dirty = 0;
 	int		status;
 	char		*objname = NULL;
 	int		error;
+
+	agno = agcnts->agno;
 
 	sb = (struct xfs_sb *)calloc(BBTOB(XFS_FSS_TO_BB(mp, 1)), 1);
 	if (!sb) {
@@ -2766,8 +2769,11 @@ scan_ags(
 
 	create_work_queue(&wq, mp, scan_threads);
 
-	for (i = 0; i < mp->m_sb.sb_agcount; i++)
-		queue_work(&wq, scan_ag, i, &agcnts[i]);
+	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
+		agcnts[i].agno = i;
+		INIT_WORK(&agcnts[i].work, scan_ag);
+		queue_work(&wq, &agcnts[i].work);
+	}
 
 	destroy_work_queue(&wq);
 

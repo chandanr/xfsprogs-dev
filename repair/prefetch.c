@@ -8,6 +8,7 @@
 #include "agheader.h"
 #include "incore.h"
 #include "dir2.h"
+#include "list.h"
 #include "protos.h"
 #include "err_protos.h"
 #include "dinode.h"
@@ -963,7 +964,7 @@ start_inode_prefetch(
  */
 static void
 prefetch_ag_range(
-	struct workqueue	*work,
+	struct xfs_mount	*mp,
 	xfs_agnumber_t		start_ag,
 	xfs_agnumber_t		end_ag,
 	bool			dirs_only,
@@ -979,28 +980,34 @@ prefetch_ag_range(
 		if (i + 1 < end_ag)
 			pf_args[(~i) & 1] = start_inode_prefetch(i + 1,
 						dirs_only, pf_args[i & 1]);
-		func(work, i, pf_args[i & 1]);
+
+		pf_args[i & 1]->mp = mp;
+		pf_args[i & 1]->wait_for_inode_prefetch = true;
+
+		func(&(pf_args[i & 1]->work));
 	}
 }
 
 struct pf_work_args {
-	xfs_agnumber_t	start_ag;
-	xfs_agnumber_t	end_ag;
-	bool		dirs_only;
-	void		(*func)(struct workqueue *, xfs_agnumber_t, void *);
+	struct work		work;
+	struct xfs_mount	*mp;
+	xfs_agnumber_t		start_ag;
+	xfs_agnumber_t		end_ag;
+	bool			dirs_only;
+	void			(*func)(struct work *);
 };
 
 static void
 prefetch_ag_range_work(
-	struct workqueue	*work,
-	xfs_agnumber_t		unused,
-	void			*args)
+	struct workqueue	*work)
 {
-	struct pf_work_args *wargs = args;
+	struct pf_work_args	*wargs;
 
-	prefetch_ag_range(work, wargs->start_ag, wargs->end_ag,
+	wargs = container_of(work, struct pf_work_args, work);
+
+	prefetch_ag_range(wargs->mp, wargs->start_ag, wargs->end_ag,
 			  wargs->dirs_only, wargs->func);
-	free(args);
+	free(wargs);
 }
 
 /*
@@ -1018,7 +1025,6 @@ do_inode_prefetch(
 {
 	int			i;
 	struct workqueue	queue;
-	struct workqueue	*queues;
 	int			queues_started = 0;
 
 	/*
@@ -1028,11 +1034,24 @@ do_inode_prefetch(
 	 * CPU to maximise parallelism of the queue to be processed.
 	 */
 	if (check_cache && !libxfs_bcache_overflowed()) {
-		queue.wq_ctx = mp;
+		struct prefetch_args *pf_args;
+
+		pf_args = calloc(mp->m_sb.sb_agcount, sizeof(*pf_args));
+		ASSERT(pf_args != NULL);
+
 		create_work_queue(&queue, mp, platform_nproc());
-		for (i = 0; i < mp->m_sb.sb_agcount; i++)
-			queue_work(&queue, func, i, NULL);
+
+		for (i = 0; i < mp->m_sb.sb_agcount; i++) {
+			INIT_WORK(&pf_args[i].work, func);
+			pf_args[i].mp = mp;
+			pf_args[i].wait_for_inode_prefetch = false;
+			queue_work(&queue, &pf_args[i].work);
+		}
+
 		destroy_work_queue(&queue);
+
+		free(pf_args);
+
 		return;
 	}
 
@@ -1041,47 +1060,38 @@ do_inode_prefetch(
 	 * directly after each AG is queued.
 	 */
 	if (!stride) {
-		queue.wq_ctx = mp;
-		prefetch_ag_range(&queue, 0, mp->m_sb.sb_agcount,
+		prefetch_ag_range(mp, 0, mp->m_sb.sb_agcount,
 				  dirs_only, func);
 		return;
 	}
 
-	/*
-	 * create one worker thread for each segment of the volume
-	 */
-	queues = malloc(thread_count * sizeof(struct workqueue));
+	create_work_queue(&queue, mp, platform_nproc());
 	for (i = 0; i < thread_count; i++) {
 		struct pf_work_args *wargs;
 
 		wargs = malloc(sizeof(struct pf_work_args));
+
+		INIT_WORK(&wargs->work, prefetch_ag_range_work);
+		wargs->mp = mp;
 		wargs->start_ag = i * stride;
 		wargs->end_ag = min((i + 1) * stride,
 				    mp->m_sb.sb_agcount);
 		wargs->dirs_only = dirs_only;
 		wargs->func = func;
-
-		create_work_queue(&queues[i], mp, 1);
-		queue_work(&queues[i], prefetch_ag_range_work, 0, wargs);
-		queues_started++;
+		queue_work(&queue, &wargs->work);
 
 		if (wargs->end_ag >= mp->m_sb.sb_agcount)
 			break;
 	}
 
-	/*
-	 * wait for workers to complete
-	 */
-	for (i = 0; i < queues_started; i++)
-		destroy_work_queue(&queues[i]);
-	free(queues);
+	destroy_work_queue(&queue);
 }
 
 void
 wait_for_inode_prefetch(
 	prefetch_args_t		*args)
 {
-	if (args == NULL)
+	if (args->wait_for_inode_prefetch == false)
 		return;
 
 	pthread_mutex_lock(&args->lock);

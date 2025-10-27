@@ -4,7 +4,9 @@
  * All Rights Reserved.
  */
 
+#include "libfrog/workqueue.h"
 #include "libxfs.h"
+#include "list.h"
 #include "threads.h"
 #include "threads.h"
 #include "prefetch.h"
@@ -18,6 +20,7 @@
 #include "dinode.h"
 #include "progress.h"
 #include "versions.h"
+#include "xfs/xfs_types.h"
 
 static struct cred		zerocr;
 static struct fsxattr 		zerofsx;
@@ -3113,29 +3116,32 @@ check_for_orphaned_inodes(
 
 static void
 do_dir_inode(
-	struct workqueue	*wq,
-	xfs_agnumber_t		agno,
-	void			*arg)
+	struct work_struct	*work)
 {
-	struct ino_tree_node	*irec = arg;
+	struct ino_tree_node	*irec;
 	int			i;
+
+	irec = container_of(work, struct ino_tree_node, work);
 
 	for (i = 0; i < XFS_INODES_PER_CHUNK; i++)  {
 		if (inode_isadir(irec, i))
-			process_dir_inode(wq->wq_ctx, agno, irec, i);
+			process_dir_inode(irec->mp, irec->agno, irec, i);
 	}
 }
 
 static void
 traverse_function(
-	struct workqueue	*wq,
-	xfs_agnumber_t		agno,
-	void			*arg)
+	struct work		*work)
 {
 	struct ino_tree_node	*irec;
-	prefetch_args_t		*pf_args = arg;
+	prefetch_args_t		*pf_args;
 	struct workqueue	lwq;
 	struct xfs_mount	*mp = wq->wq_ctx;
+	xfs_agnumber_t		agno;
+
+	pf_args = container_of(work, struct prefetch_args, work);
+	mp = pf_args->mp;
+	agno = pf_args->agno;
 
 	wait_for_inode_prefetch(pf_args);
 
@@ -3167,7 +3173,10 @@ traverse_function(
 #endif
 		}
 
-		queue_work(&lwq, do_dir_inode, agno, irec);
+		INIT_WORK(&irec->work, do_dir_inode);
+		irec->mp = mp;
+		irec->agno = agno;
+		queue_work(&lwq, &irec->work);
 	}
 	destroy_work_queue(&lwq);
 	cleanup_inode_prefetch(pf_args);

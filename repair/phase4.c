@@ -4,7 +4,9 @@
  * All Rights Reserved.
  */
 
+#include "libfrog/workqueue.h"
 #include "libxfs.h"
+#include "list.h"
 #include "threads.h"
 #include "prefetch.h"
 #include "avl.h"
@@ -20,6 +22,7 @@
 #include "progress.h"
 #include "slab.h"
 #include "rmap.h"
+#include "xfs_mount.h"
 
 bool collect_rmaps;
 
@@ -155,36 +158,44 @@ _("unable to finish adding attr/data fork reverse-mapping data for AG %u.\n"),
 	}
 }
 
+struct rmap_data_args {
+	struct work_struct	work;
+	struct xfs_mount	*mp;
+	xfs_agnumber_t		agno;
+};
+
 static void
 check_rmap_btrees(
-	struct workqueue*wq,
-	xfs_agnumber_t	agno,
-	void		*arg)
+	struct work_struct	*work)
 {
-	int		error;
+	struct rmap_data_args	*arg;
+	int			error;
 
-	error = rmap_add_fixed_ag_rec(wq->wq_ctx, agno);
+	arg = container_of(work, struct rmap_data_args, work);
+
+	error = rmap_add_fixed_ag_rec(arg->mp, arg->agno);
 	if (error)
 		do_error(
-_("unable to add AG %u metadata reverse-mapping data.\n"), agno);
+_("unable to add AG %u metadata reverse-mapping data.\n"), arg->agno);
 
-	error = rmap_fold_raw_recs(wq->wq_ctx, agno);
+	error = rmap_fold_raw_recs(arg->mp, arg->agno);
 	if (error)
 		do_error(
-_("unable to merge AG %u metadata reverse-mapping data.\n"), agno);
+_("unable to merge AG %u metadata reverse-mapping data.\n"), arg->agno);
 
-	rmaps_verify_btree(wq->wq_ctx, agno);
+	rmaps_verify_btree(arg->mp, arg->agno);
 }
 
 static void
 compute_ag_refcounts(
-	struct workqueue*wq,
-	xfs_agnumber_t	agno,
-	void		*arg)
+	struct work_struct	*work)
 {
-	int		error;
+	struct rmap_data_args	*arg;
+	int			error;
 
-	error = compute_refcounts(wq->wq_ctx, agno);
+	arg = container_of(work, struct rmap_data_args, work);
+
+	error = compute_refcounts(arg->mp, arg->agno);
 	if (error)
 		do_error(
 _("%s while computing reference count records.\n"),
@@ -193,13 +204,14 @@ _("%s while computing reference count records.\n"),
 
 static void
 process_inode_reflink_flags(
-	struct workqueue	*wq,
-	xfs_agnumber_t		agno,
-	void			*arg)
+	struct work_struct	*work)
 {
+	struct rmap_data_args	*arg;
 	int			error;
 
-	error = fix_inode_reflink_flags(wq->wq_ctx, agno);
+	arg = container_of(work, struct rmap_data_args, work);
+
+	error = fix_inode_reflink_flags(arg->mp, arg->agno);
 	if (error)
 		do_error(
 _("%s while fixing inode reflink flags.\n"),
@@ -208,42 +220,67 @@ _("%s while fixing inode reflink flags.\n"),
 
 static void
 check_refcount_btrees(
-	struct workqueue	*wq,
-	xfs_agnumber_t		agno,
-	void			*arg)
+	struct work_struct	*work)
 {
-	check_refcounts(wq->wq_ctx, agno);
+	struct rmap_data_args	*arg;
+
+	arg = container_of(work, struct rmap_data_args, work);
+
+	check_refcounts(arg->mp, arg->agno);
 }
 
 static void
 process_rmap_data(
 	struct xfs_mount	*mp)
 {
+	struct rmap_data_args	*args = NULL;
 	struct workqueue	wq;
 	xfs_agnumber_t		i;
 
 	if (!rmap_needs_work(mp))
-		return;
+		goto out;
+
+	args = calloc(mp->m_sb.sb_agcount, sizeof(*args));
+	if (!args) {
+		do_abort(_("no memory for rmap data workqueue args\n"));
+	}
 
 	create_work_queue(&wq, mp, platform_nproc());
-	for (i = 0; i < mp->m_sb.sb_agcount; i++)
-		queue_work(&wq, check_rmap_btrees, i, NULL);
+	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
+		INIT_WORK(&args[i].work, check_rmap_btrees);
+		args[i].agno = i;
+		args[i].mp = mp;
+		queue_work(&wq, &args[i].work);
+	}
 	destroy_work_queue(&wq);
 
 	if (!xfs_has_reflink(mp))
-		return;
+		goto out;
 
 	create_work_queue(&wq, mp, platform_nproc());
-	for (i = 0; i < mp->m_sb.sb_agcount; i++)
-		queue_work(&wq, compute_ag_refcounts, i, NULL);
+	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
+		INIT_WORK(&args[i].work, compute_ag_refcounts);
+		queue_work(&wq, &args[i].work);
+	}
 	destroy_work_queue(&wq);
 
 	create_work_queue(&wq, mp, platform_nproc());
 	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
-		queue_work(&wq, process_inode_reflink_flags, i, NULL);
-		queue_work(&wq, check_refcount_btrees, i, NULL);
+		INIT_WORK(&args[i].work, process_inode_reflink_flags);
+		queue_work(&wq, &args[i].work);
 	}
 	destroy_work_queue(&wq);
+
+	/* chandan: Reduced parallelism; Check if this can be fixed. */
+	create_work_queue(&wq, mp, platform_nproc());
+	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
+		INIT_WORK(&args[i].work, check_refcount_btrees);
+		queue_work(&wq, &args[i].work);
+	}
+	destroy_work_queue(&wq);
+
+out:
+	free(args);
 }
 
 void

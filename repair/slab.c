@@ -192,15 +192,14 @@ struct qsort_slab {
 	struct xfs_slab		*slab;
 	struct xfs_slab_hdr	*hdr;
 	int			(*compare_fn)(const void *, const void *);
+	struct work_struct	work;
 };
 
 static void
 qsort_slab_helper(
-	struct workqueue	*wq,
-	xfs_agnumber_t		agno,
-	void			*arg)
+	struct work_struct	*work)
 {
-	struct qsort_slab	*qs = arg;
+	struct qsort_slab	*qs = constainer_of(work, struct qsort_slab, work);
 
 	qsort(slab_ptr(qs->slab, qs->hdr, 0), qs->hdr->sh_inuse,
 			qs->slab->s_item_sz, qs->compare_fn);
@@ -241,7 +240,8 @@ qsort_slab(
 		qs->slab = slab;
 		qs->hdr = hdr;
 		qs->compare_fn = compare_fn;
-		queue_work(&wq, qsort_slab_helper, 0, qs);
+		INIT_WORK(&qs.work, qsort_slab_helper);
+		queue_work(&wq, &qs.work);
 		hdr = hdr->sh_next;
 	}
 	destroy_work_queue(&wq);

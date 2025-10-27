@@ -13,6 +13,7 @@ extern int 	do_prefetch;
 #define PF_THREAD_COUNT	4
 
 typedef struct prefetch_args {
+	struct work		work;
 	pthread_mutex_t		lock;
 	pthread_t		queuing_thread;
 	pthread_t		io_threads[PF_THREAD_COUNT];
@@ -28,7 +29,9 @@ typedef struct prefetch_args {
 	volatile int		inode_bufs_queued;
 	volatile xfs_fsblock_t	last_bno_read;
 	sem_t			ra_count;
+	bool			wait_for_inode_prefetch;
 	struct prefetch_args	*next_args;
+	struct xfs_mount	*mp;
 } prefetch_args_t;
 
 

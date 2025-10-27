@@ -17,6 +17,7 @@
 #include "progress.h"
 #include "bmap.h"
 #include "threads.h"
+#include "xfs/xfs_types.h"
 
 static void
 process_agi_unlinked(
@@ -58,19 +59,25 @@ process_agi_unlinked(
 
 static void
 process_ag_func(
-	struct workqueue	*wq,
-	xfs_agnumber_t 		agno,
-	void			*arg)
+	struct work		*work)
 {
+	struct prefetch_args_t	*pf_args;
+	struct xfs_mount	*mp;
+	xfs_agnumber_t		agno;
+
+	pf_args = container_of(work, struct prefetch_args, work);
+	mp = pf_args->mp;
+	agno = pf_args->agno;
+
 	/*
 	 * turn on directory processing (inode discovery) and
 	 * attribute processing (extra_attr_check)
 	 */
-	wait_for_inode_prefetch(arg);
+	wait_for_inode_prefetch(pf_args);
 	do_log(_("        - agno = %d\n"), agno);
-	process_aginodes(wq->wq_ctx, arg, agno, 1, 0, 1);
+	process_aginodes(mp, pf_args, agno, 1, 0, 1);
 	blkmap_free_final();
-	cleanup_inode_prefetch(arg);
+	cleanup_inode_prefetch(pf_args);
 }
 
 static void
@@ -80,15 +87,22 @@ process_ags(
 	do_inode_prefetch(mp, ag_stride, process_ag_func, false, false);
 }
 
+struct uncertain_aginodes_arg {
+	struct work		work;
+	struct xfs_mount	*mp;
+	xfs_agnumber_t		agno;
+	int			count;
+};
+
 static void
 do_uncertain_aginodes(
-	struct workqueue	*wq,
-	xfs_agnumber_t		agno,
-	void			*arg)
+	struct work			*work)
 {
-	int			*count = arg;
+	struct uncertain_aginodes_arg	*arg;
 
-	*count = process_uncertain_aginodes(wq->wq_ctx, agno);
+	arg = container_of(work, struct uncertain_aginodes_arg, work);
+
+	arg->count = process_uncertain_aginodes(arg->mp, arg->agno);
 
 #ifdef XR_INODE_TRACE
 	fprintf(stderr,
@@ -101,12 +115,12 @@ do_uncertain_aginodes(
 
 void
 phase3(
-	struct xfs_mount *mp,
-	int		scan_threads)
+	struct xfs_mount		*mp,
+	int				scan_threads)
 {
-	int			i, j;
-	int			*counts;
-	struct workqueue	wq;
+	struct uncertain_aginodes_arg	*args;
+	int				i, j;
+	struct workqueue		wq;
 
 	do_log(_("Phase 3 - for each AG...\n"));
 	if (!no_modify)
@@ -146,8 +160,8 @@ phase3(
 	do_log(_("        - process newly discovered inodes...\n"));
 	set_progress_msg(PROG_FMT_NEW_INODES, (uint64_t) glob_agcount);
 
-	counts = calloc(sizeof(*counts), mp->m_sb.sb_agcount);
-	if (!counts) {
+	args = malloc(mp->m_sb.sb_agcount * sizeof(*args));
+	if (!args) {
 		do_abort(_("no memory for uncertain inode counts\n"));
 		return;
 	}
@@ -158,22 +172,26 @@ phase3(
 		 * inodes
 		 */
 		j = 0;
-		memset(counts, 0, mp->m_sb.sb_agcount * sizeof(*counts));
+		memset(args, 0, mp->m_sb.sb_agcount * sizeof(*args));
 
 		create_work_queue(&wq, mp, scan_threads);
 
-		for (i = 0; i < mp->m_sb.sb_agcount; i++)
-			queue_work(&wq, do_uncertain_aginodes, i, &counts[i]);
+		for (i = 0; i < mp->m_sb.sb_agcount; i++) {
+			INIT_WORK(&args[i].work, do_uncertain_aginodes);
+			args[i].mp = mp;
+			args[i].agno = i;
+			queue_work(&wq, &args[i].work);
+		}
 
 		destroy_work_queue(&wq);
 
 		/* tally up the counts */
 		for (i = 0; i < mp->m_sb.sb_agcount; i++)
-			j += counts[i];
+			j += args[i].count;
 
 	} while (j != 0);
 
-	free(counts);
+	free(args);
 
 	print_final_rpt();
 }

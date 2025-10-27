@@ -282,6 +282,9 @@ typedef struct ino_tree_node  {
 	} ino_un;
 	uint8_t			*ftypes;	/* phases 3,6 */
 	pthread_mutex_t		lock;
+	struct work_struct	work;
+	struct xfs_mount	*mp;
+	xfs_agnumber_t		agno;
 } ino_tree_node_t;
 
 #define INOS_PER_IREC	(sizeof(uint64_t) * NBBY)

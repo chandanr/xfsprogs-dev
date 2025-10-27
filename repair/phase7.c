@@ -81,20 +81,29 @@ update_inode_nlinks(
 	libxfs_irele(ip);
 }
 
+struct link_updates_arg {
+	struct work_struct	work;
+	struct xfs_mount	*mp;
+	xfs_agnumber_t		agno;
+};
+
 /*
  * for each ag, look at each inode 1 at a time. If the number of
  * links is bad, reset it, log the inode core, commit the transaction
  */
 static void
 do_link_updates(
-	struct workqueue	*wq,
-	xfs_agnumber_t		agno,
-	void			*arg)
+	struct work		*work)
 {
-	struct xfs_mount	*mp = wq->wq_ctx;
+	struct link_updates_arg *arg;
+	struct xfs_mount	*mp;
 	ino_tree_node_t		*irec;
 	int			j;
 	uint32_t		nrefs;
+
+	arg = container_of(work, struct link_updates_arg, work);
+	mp = arg->mp;
+	agno = arg->agno;
 
 	for (irec = findfirst_inode_rec(agno); irec;
 	     irec = next_ino_rec(irec)) {
@@ -114,7 +123,7 @@ do_link_updates(
 			ASSERT(no_modify || nrefs > 0);
 
 			if (get_inode_disk_nlinks(irec, j) != nrefs)
-				update_inode_nlinks(wq->wq_ctx, ino + j, nrefs);
+				update_inode_nlinks(mp, ino + j, nrefs);
 			quotacheck_adjust(mp, ino + j);
 		}
 	}
@@ -128,6 +137,7 @@ phase7(
 	int			scan_threads)
 {
 	struct workqueue	wq;
+	struct link_updates_arg *args;
 	int			agno;
 	int			ret;
 
@@ -138,15 +148,25 @@ phase7(
 
 	set_progress_msg(PROGRESS_FMT_CORR_LINK, (uint64_t) glob_agcount);
 
+	args = calloc(mp->m_sb.sb_agcount, sizeof(*args));
+	if (!args) {
+		do_abort(_("no memory for link updates workqueue args\n"));
+	}
+
 	ret = quotacheck_setup(mp);
 	if (ret)
 		do_error(_("unable to set up quotacheck, err=%d\n"), ret);
 	create_work_queue(&wq, mp, scan_threads);
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++)
-		queue_work(&wq, do_link_updates, agno, NULL);
+	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+		args[agno].agno = agno;
+		INIT_WORK(&args[i].work, do_link_updates);
+		queue_work(&wq, &args[i].work);
+	}
 
 	destroy_work_queue(&wq);
+
+	free(args);
 
 	quotacheck_verify(mp, XFS_DQTYPE_USER);
 	quotacheck_verify(mp, XFS_DQTYPE_GROUP);
