@@ -51,10 +51,6 @@ workqueue_thread(void *arg)
 		wq->next_item = wi->next;
 		wq->item_count--;
 
-		if (wq->max_queued && wq->next_item) {
-			/* more work, wake up another worker */
-			pthread_cond_signal(&wq->wakeup);
-		}
 		wq->active_threads++;
 		pthread_mutex_unlock(&wq->lock);
 
