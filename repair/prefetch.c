@@ -1024,7 +1024,6 @@ do_inode_prefetch(
 {
 	int			i;
 	struct workqueue	queue;
-	struct workqueue	*queues;
 	int			queues_started = 0;
 
 	/*
@@ -1056,7 +1055,7 @@ do_inode_prefetch(
 	/*
 	 * create one worker thread for each segment of the volume
 	 */
-	queues = malloc(thread_count * sizeof(struct workqueue));
+	create_work_queue(&queue, mp, thread_count);
 	for (i = 0; i < thread_count; i++) {
 		struct pf_work_args *wargs;
 
@@ -1067,8 +1066,7 @@ do_inode_prefetch(
 		wargs->dirs_only = dirs_only;
 		wargs->func = func;
 
-		create_work_queue(&queues[i], mp, 1);
-		queue_work(&queues[i], prefetch_ag_range_work, 0, wargs);
+		queue_work(&queue, prefetch_ag_range_work, 0, wargs);
 		queues_started++;
 
 		if (wargs->end_ag >= mp->m_sb.sb_agcount)
@@ -1078,9 +1076,7 @@ do_inode_prefetch(
 	/*
 	 * wait for workers to complete
 	 */
-	for (i = 0; i < queues_started; i++)
-		destroy_work_queue(&queues[i]);
-	free(queues);
+	destroy_work_queue(&queue);
 }
 
 void
