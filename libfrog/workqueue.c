@@ -16,10 +16,11 @@
 
 /* Main processing thread */
 static void *
-workqueue_thread(void *arg)
+workqueue_thread(
+	void			*arg)
 {
 	struct workqueue	*wq = arg;
-	struct workqueue_item	*wi;
+	struct work_struct	*work;
 
 	/*
 	 * Loop pulling work from the passed in work queue.
@@ -47,8 +48,8 @@ workqueue_thread(void *arg)
 		if (wq->max_queued)
 			pthread_cond_broadcast(&wq->queue_full);
 
-		wi = wq->next_item;
-		wq->next_item = wi->next;
+		work = wq->next_item;
+		wq->next_item = work->next;
 		wq->item_count--;
 
 		if (wq->max_queued && wq->next_item) {
@@ -58,8 +59,7 @@ workqueue_thread(void *arg)
 		wq->active_threads++;
 		pthread_mutex_unlock(&wq->lock);
 
-		(wi->function)(wi->queue, wi->index, wi->arg);
-		free(wi);
+		(work->function)(work);
 
 		pthread_mutex_lock(&wq->lock);
 		wq->active_threads--;
@@ -164,39 +164,28 @@ alloc_workqueue(
  * the work item to be run via the thread pool.  Returns zero or a negative
  * error code.
  */
-int
-workqueue_add(
+void
+queue_work(
 	struct workqueue	*wq,
-	workqueue_func_t	func,
-	uint32_t		index,
-	void			*arg)
+	struct work_struct	*work)
 {
-	struct workqueue_item	*wi;
 	int			ret;
 
 	assert(!wq->terminated);
 
 	if (wq->thread_count == 0) {
-		func(wq, index, arg);
-		return 0;
+		work->function(work);
+		return;
 	}
 
-	wi = malloc(sizeof(struct workqueue_item));
-	if (!wi)
-		return -errno;
-
-	wi->function = func;
-	wi->index = index;
-	wi->arg = arg;
-	wi->queue = wq;
-	wi->next = NULL;
+	work->next = NULL;
 
 	/* Now queue the new work structure to the work queue. */
 	pthread_mutex_lock(&wq->lock);
 restart:
 	if (wq->next_item == NULL) {
 		assert(wq->item_count == 0);
-		wq->next_item = wi;
+		wq->next_item = work;
 	} else {
 		/* throttle on a full queue if configured */
 		if (wq->max_queued && wq->item_count == wq->max_queued) {
@@ -208,9 +197,9 @@ restart:
 			 */
 			goto restart;
 		}
-		wq->last_item->next = wi;
+		wq->last_item->next = work;
 	}
-	wq->last_item = wi;
+	wq->last_item = work;
 	wq->item_count++;
 
 	if (wq->active_threads == wq->thread_count - 1) {
@@ -218,28 +207,20 @@ restart:
 		ret = -pthread_cond_signal(&wq->wakeup);
 		if (ret) {
 			pthread_mutex_unlock(&wq->lock);
-			return ret;
+			assert(0);
+			return;
 		}
 	} else if (wq->active_threads < wq->thread_count) {
 		/* Multiple threads are idle, wake everyone */
 		ret = -pthread_cond_broadcast(&wq->wakeup);
 		if (ret) {
 			pthread_mutex_unlock(&wq->lock);
-			return ret;
+			assert(0);
+			return;
 		}
 	}
 
 	pthread_mutex_unlock(&wq->lock);
-
-	return 0;
-}
-
-void
-queue_work(
-	struct workqueue	*wq,
-	struct work_struct	*work)
-{
-	return;
 }
 
 /*

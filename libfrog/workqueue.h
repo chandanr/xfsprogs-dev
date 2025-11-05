@@ -9,24 +9,18 @@
 #include <pthread.h>
 
 struct workqueue;
+struct work_struct;
 
-typedef void workqueue_func_t(struct workqueue *wq, uint32_t index, void *arg);
-
-struct workqueue_item {
-	struct workqueue	*queue;
-	struct workqueue_item	*next;
-	workqueue_func_t	*function;
-	void			*arg;
-	uint32_t		index;
-};
+typedef void workqueue_func_t(struct work_struct *);
 
 struct work_struct {
-	struct workqueue_item wq_item;
+	struct work_struct	*next;
+	workqueue_func_t	*function;
 };
 
-#define INIT_WORK(work, func)                                                  \
-	do {								       \
-	  (work)->wq_item.function = func;				       \
+#define INIT_WORK(work, func)			\
+	do {					\
+		(work)->function = func;	\
 	} while(0)
 
 #define destroy_workqueue workqueue_destroy
@@ -34,8 +28,8 @@ struct work_struct {
 struct workqueue {
 	void			*wq_ctx;
 	pthread_t		*threads;
-	struct workqueue_item	*next_item;
-	struct workqueue_item	*last_item;
+	struct work_struct	*next_item;
+	struct work_struct	*last_item;
 	pthread_mutex_t		lock;
 	pthread_cond_t		wakeup;
 	unsigned int		item_count;
@@ -53,8 +47,7 @@ int workqueue_create(struct workqueue *wq, void *wq_ctx,
 		unsigned int nr_workers);
 int workqueue_create_bound(struct workqueue *wq, void *wq_ctx,
 		unsigned int nr_workers, unsigned int max_queue);
-int workqueue_add(struct workqueue *wq, workqueue_func_t fn,
-		uint32_t index, void *arg);
+void queue_work(struct workqueue *wq, struct work_struct *work);
 int workqueue_terminate(struct workqueue *wq);
 void workqueue_destroy(struct workqueue *wq);
 

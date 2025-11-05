@@ -14,13 +14,6 @@ create_work_queue(
 	unsigned int		nworkers);
 
 void
-queue_work(
-	struct workqueue	*wq,
-	workqueue_func_t	func,
-	xfs_agnumber_t 		agno,
-	void			*arg);
-
-void
 destroy_work_queue(
 	struct workqueue	*wq);
 
