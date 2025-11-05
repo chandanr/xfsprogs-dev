@@ -56,6 +56,10 @@ workqueue_thread(
 			/* more work, wake up another worker */
 			pthread_cond_signal(&wq->wakeup);
 		}
+
+		if (wq->item_count == 0)
+			pthread_cond_signal(&wq->queue_empty);
+
 		wq->active_threads++;
 		pthread_mutex_unlock(&wq->lock);
 
@@ -88,9 +92,12 @@ workqueue_create_bound(
 	err = -pthread_cond_init(&wq->queue_full, NULL);
 	if (err)
 		goto out_wake;
+	err = -pthread_cond_init(&wq->queue_empty, NULL);
+	if (err)
+		goto out_queue_full;
 	err = -pthread_mutex_init(&wq->lock, NULL);
 	if (err)
-		goto out_cond;
+		goto out_queue_empty;
 
 	wq->wq_ctx = wq_ctx;
 	wq->thread_count = nr_workers;
@@ -120,7 +127,9 @@ workqueue_create_bound(
 	return err;
 out_mutex:
 	pthread_mutex_destroy(&wq->lock);
-out_cond:
+out_queue_empty:
+	pthread_cond_destroy(&wq->queue_empty);
+out_queue_full:
 	pthread_cond_destroy(&wq->queue_full);
 out_wake:
 	pthread_cond_destroy(&wq->wakeup);
@@ -220,6 +229,21 @@ restart:
 		}
 	}
 
+	pthread_mutex_unlock(&wq->lock);
+}
+
+void
+flush_workqueue(
+	struct workqueue	*wq)
+{
+	pthread_mutex_lock(&wq->lock);
+
+	if (wq->item_count == 0)
+		goto out;
+
+	pthread_cond_wait(&wq->queue_empty, &wq->lock);
+
+out:
 	pthread_mutex_unlock(&wq->lock);
 }
 

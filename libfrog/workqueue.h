@@ -39,6 +39,7 @@ struct workqueue {
 	bool			terminated;
 	int			max_queued;
 	pthread_cond_t		queue_full;
+	pthread_cond_t		queue_empty;
 };
 
 struct workqueue *alloc_workqueue(const char *fmt, unsigned int flags,
@@ -48,6 +49,7 @@ int workqueue_create(struct workqueue *wq, void *wq_ctx,
 int workqueue_create_bound(struct workqueue *wq, void *wq_ctx,
 		unsigned int nr_workers, unsigned int max_queue);
 void queue_work(struct workqueue *wq, struct work_struct *work);
+void flush_workqueue(struct workqueue *wq);
 int workqueue_terminate(struct workqueue *wq);
 void workqueue_destroy(struct workqueue *wq);
 
