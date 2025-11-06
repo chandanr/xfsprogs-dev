@@ -22,4 +22,9 @@ int queue_delayed_work(struct workqueue *wq, struct delayed_work *dwork,
 
 #define cancel_delayed_work_sync(work) do { } while(0)
 
+static inline struct delayed_work *to_delayed_work(struct work_struct *work)
+{
+	return container_of(work, struct delayed_work, work);
+}
+
 #endif	/* _DELAYED_WORK_H */
