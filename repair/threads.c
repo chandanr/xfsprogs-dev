@@ -36,18 +36,3 @@ create_work_queue(
 		do_error(_("cannot create worker threads, error = [%d] %s\n"),
 				err, strerror(err));
 }
-
-void
-queue_work(
-	struct workqueue	*wq,
-	workqueue_func_t	func,
-	xfs_agnumber_t		agno,
-	void			*arg)
-{
-	int			err;
-
-	err = -workqueue_add(wq, func, agno, arg);
-	if (err)
-		do_error(_("cannot allocate worker item, error = [%d] %s\n"),
-				err, strerror(err));
-}
