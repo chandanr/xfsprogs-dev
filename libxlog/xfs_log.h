@@ -494,6 +494,8 @@ xlog_is_shutdown(struct xlog *log)
 	return test_bit(XLOG_IO_ERROR, &log->l_opstate);
 }
 
+#define wait_var_event(...)
+
 /*
  * Wait until the xlog_force_shutdown() has marked the log as shut down
  * so xlog_is_shutdown() will always return true.
