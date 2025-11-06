@@ -21,11 +21,11 @@ struct delayed_work_list {
 
 static void
 add_dwork_to_wq(
-	union sigval sigval)
+	union sigval		sigval)
 {
-	struct delayed_work *dwork, *next_dwork;
-	struct itimerspec its;
-	int error;
+	struct delayed_work	*dwork, *next_dwork;
+	struct itimerspec	its;
+	int			error;
 
 	error = pthread_mutex_lock(&delayed_work_list.mutex);
 	if (error) {
@@ -49,7 +49,7 @@ add_dwork_to_wq(
 				&its, NULL);
 		if (error == -1) {
 			perror("timer_settime");
-			goto out3;
+			goto out2;
 		}
 	}
 
@@ -59,17 +59,11 @@ add_dwork_to_wq(
 		goto out2;
 	}
 
-	error = workqueue_add(dwork->wq, dwork->func, dwork->index, dwork->arg);
-	if (error)
-		goto out2;
-
-	free(dwork);
+	queue_work(dwork->wq, &dwork->work);
 
 	return;
-out3:
-	error = pthread_mutex_unlock(&delayed_work_list.mutex);
 out2:
-	free(dwork);
+	error = pthread_mutex_unlock(&delayed_work_list.mutex);
 out1:
 	return;
 }
@@ -77,15 +71,15 @@ out1:
 
 int
 queue_delayed_work(
-	struct workqueue *wq,
-	struct delayed_work *dwork,
-	unsigned long delay)
+	struct workqueue	*wq,
+	struct delayed_work	*dwork,
+	unsigned long		delay)
 {
-	struct itimerspec its;
-	struct delayed_work *dwork_cur;
-	struct list_head *insert_after;
-	bool start_timer;
-	int error;
+	struct itimerspec	its;
+	struct delayed_work	*dwork_cur;
+	struct list_head	*insert_after;
+	bool			start_timer;
+	int			error;
 
 	dwork->wq = wq;
 	list_head_init(&dwork->list);
@@ -160,15 +154,11 @@ out1:
 
 void
 init_delayed_work(
-	struct delayed_work *dwork,
-	workqueue_func_t *func,
-	uint32_t index,
-	void *arg)
+	struct delayed_work	*dwork,
+	workqueue_func_t	*func)
 {
 	memset(dwork, 0, sizeof(*dwork));
-	dwork->func = func;
-	dwork->index = index;
-	dwork->arg = arg;
+	INIT_WORK(&dwork->work, func);
 }
 
 int
