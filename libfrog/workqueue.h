@@ -23,8 +23,6 @@ struct work_struct {
 		(work)->function = func;	\
 	} while(0)
 
-#define destroy_workqueue workqueue_destroy
-
 struct workqueue {
 	void			*wq_ctx;
 	pthread_t		*threads;
@@ -52,5 +50,6 @@ void queue_work(struct workqueue *wq, struct work_struct *work);
 void flush_workqueue(struct workqueue *wq);
 int workqueue_terminate(struct workqueue *wq);
 void workqueue_destroy(struct workqueue *wq);
+void destroy_workqueue(struct workqueue	*wq);
 
 #endif	/* __LIBFROG_WORKQUEUE_H__ */

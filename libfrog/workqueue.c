@@ -292,3 +292,16 @@ workqueue_destroy(
 	pthread_cond_destroy(&wq->queue_full);
 	memset(wq, 0, sizeof(*wq));
 }
+
+void
+destroy_workqueue(
+	struct workqueue	*wq)
+{
+	int			err;
+
+	err = -workqueue_terminate(wq);
+	if (err)
+		assert(0);
+
+	workqueue_destroy(wq);
+}

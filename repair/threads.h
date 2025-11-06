@@ -13,8 +13,4 @@ create_work_queue(
 	struct xfs_mount	*mp,
 	unsigned int		nworkers);
 
-void
-destroy_work_queue(
-	struct workqueue	*wq);
-
 #endif	/* _XFS_REPAIR_THREADS_H_ */

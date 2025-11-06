@@ -252,7 +252,7 @@ process_rmap_data(
 		args[i].mp = mp;
 		queue_work(&wq, &args[i].work);
 	}
-	destroy_work_queue(&wq);
+	destroy_workqueue(&wq);
 
 	if (!xfs_has_reflink(mp))
 		goto out;
@@ -262,14 +262,14 @@ process_rmap_data(
 		INIT_WORK(&args[i].work, compute_ag_refcounts);
 		queue_work(&wq, &args[i].work);
 	}
-	destroy_work_queue(&wq);
+	destroy_workqueue(&wq);
 
 	create_work_queue(&wq, mp, platform_nproc());
 	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
 		INIT_WORK(&args[i].work, process_inode_reflink_flags);
 		queue_work(&wq, &args[i].work);
 	}
-	destroy_work_queue(&wq);
+	destroy_workqueue(&wq);
 
 	/* chandan: Reduced parallelism; Check if this can be fixed. */
 	create_work_queue(&wq, mp, platform_nproc());
@@ -277,7 +277,7 @@ process_rmap_data(
 		INIT_WORK(&args[i].work, check_refcount_btrees);
 		queue_work(&wq, &args[i].work);
 	}
-	destroy_work_queue(&wq);
+	destroy_workqueue(&wq);
 
 out:
 	free(args);

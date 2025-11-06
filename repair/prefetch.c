@@ -1048,7 +1048,7 @@ do_inode_prefetch(
 			queue_work(&queue, &pf_args[i].work);
 		}
 
-		destroy_work_queue(&queue);
+		destroy_workqueue(&queue);
 
 		free(pf_args);
 
@@ -1084,7 +1084,7 @@ do_inode_prefetch(
 			break;
 	}
 
-	destroy_work_queue(&queue);
+	destroy_workqueue(&queue);
 }
 
 void

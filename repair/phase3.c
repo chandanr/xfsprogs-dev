@@ -183,7 +183,7 @@ phase3(
 			queue_work(&wq, &args[i].work);
 		}
 
-		destroy_work_queue(&wq);
+		destroy_workqueue(&wq);
 
 		/* tally up the counts */
 		for (i = 0; i < mp->m_sb.sb_agcount; i++)

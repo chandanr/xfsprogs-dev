@@ -51,16 +51,3 @@ queue_work(
 		do_error(_("cannot allocate worker item, error = [%d] %s\n"),
 				err, strerror(err));
 }
-
-void
-destroy_work_queue(
-	struct workqueue	*wq)
-{
-	int			err;
-
-	err = -workqueue_terminate(wq);
-	if (err)
-		do_error(_("cannot terminate worker item, error = [%d] %s\n"),
-				err, strerror(err));
-	workqueue_destroy(wq);
-}

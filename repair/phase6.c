@@ -3178,7 +3178,7 @@ traverse_function(
 		irec->agno = agno;
 		queue_work(&lwq, &irec->work);
 	}
-	destroy_work_queue(&lwq);
+	destroy_workqueue(&lwq);
 	cleanup_inode_prefetch(pf_args);
 }
 

@@ -164,7 +164,7 @@ phase7(
 		queue_work(&wq, &args[i].work);
 	}
 
-	destroy_work_queue(&wq);
+	destroy_workqueue(&wq);
 
 	free(args);
 

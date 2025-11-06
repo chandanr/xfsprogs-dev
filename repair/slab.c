@@ -244,7 +244,7 @@ qsort_slab(
 		queue_work(&wq, &qs.work);
 		hdr = hdr->sh_next;
 	}
-	destroy_work_queue(&wq);
+	destroy_workqueue(&wq);
 }
 
 /*
