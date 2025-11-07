@@ -1585,23 +1585,6 @@ xfs_buf_ioend(
 		xfs_buf_relse(bp);
 }
 
-static void
-xfs_buf_ioend_work(
-	struct work_struct	*work)
-{
-	struct xfs_buf		*bp =
-		container_of(work, struct xfs_buf, b_ioend_work);
-
-	xfs_buf_ioend(bp);
-}
-
-static void
-xfs_buf_ioend_async(
-	struct xfs_buf	*bp)
-{
-	INIT_WORK(&bp->b_ioend_work, xfs_buf_ioend_work);
-	queue_work(bp->b_mount->m_buf_workqueue, &bp->b_ioend_work);
-}
 
 STATIC void
 _xfs_buf_ioapply(
