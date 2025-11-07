@@ -5,4 +5,6 @@
 
 #define xfs_fs_writable(...) (true)
 
+#define xfs_buftarg_wait(targp)
+
 #endif	/* _LIBXLOG_PRIV_H */
