@@ -5,6 +5,8 @@
 
 #define xfs_fs_writable(...) (true)
 
+#define XFS_WQFLAGS(wqflags)   (wqflags)
+
 #define xfs_buftarg_wait(targp)
 
 #endif	/* _LIBXLOG_PRIV_H */
