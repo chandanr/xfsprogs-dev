@@ -9,4 +9,6 @@
 
 #define xfs_buftarg_wait(targp)
 
+#define evict_inodes(sb) cache_purge(libxfs_icache)
+
 #endif	/* _LIBXLOG_PRIV_H */
