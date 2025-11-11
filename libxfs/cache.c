@@ -4,19 +4,38 @@
  * All Rights Reserved.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <pthread.h>
+#include "generic_headers.h"
+
+#include "platform_defs.h"
+
+#include "kernel_types.h"
+#include "kernel_misc_stage1.h"
+
+#include "xfsprogs_helpers.h"
+
+#include "libfrog/bitmask.h"
+#include "libfrog/radix-tree.h"
+#include "libfrog/rbtree.h"
+#include "libfrog/crc32c.h"
+#include "libfrog/waitqueue.h"
+#include "libfrog/workqueue.h"
+
+#include "libxfs_api_defs.h"
+
+#include "xfs.h"
+#include "xfs_arch.h"
+
+#include "kernel_misc_stage2.h"
 
 #include "libxfs_priv.h"
+
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_bit.h"
+#include "xfs_ag.h"
 
 #define CACHE_DEBUG 1
 #undef CACHE_DEBUG
