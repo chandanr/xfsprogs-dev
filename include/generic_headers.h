@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <linux/types.h>
 #include <sys/xattr.h>
+#include <sys/stat.h>
 #include <uuid/uuid.h>
 
 #endif	/* __GENERIC_HEADERS_H__ */
