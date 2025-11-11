@@ -536,8 +536,10 @@ cache_node_put(
 
 	if (node->cn_count == 0) {
 		if (cache->zero_refcount_node_hook) {
+			int error;
 			error = cache->zero_refcount_node_hook(node);
 			ASSERT(error == 0);
+			error = error;
 		}
 		if (node->cn_flags & CN_FREE_IMMEDIATELY) {
 			hash = cache->c_hash + node->cn_hashidx;
