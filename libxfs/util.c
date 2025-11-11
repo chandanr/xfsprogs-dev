@@ -7,7 +7,6 @@
 #include "libxfs_priv.h"
 #include "libxfs.h"
 #include "libxlog.h"
-#include "libxfs_io.h"
 #include "init.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"

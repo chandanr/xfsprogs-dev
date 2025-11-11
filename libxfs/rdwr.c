@@ -7,7 +7,6 @@
 
 #include "cache.h"
 #include "libxfs_api_defs.h"
-#include "libxfs_io.h"
 #include "libxfs_priv.h"
 #include "init.h"
 #include "list.h"

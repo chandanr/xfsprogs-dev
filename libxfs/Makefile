@@ -21,7 +21,6 @@ PKGHFILES = xfs_fs.h \
 	xfs_log_format.h
 
 HFILES = \
-	libxfs_io.h \
 	libxfs_api_defs.h \
 	init.h \
 	libxfs_priv.h \
