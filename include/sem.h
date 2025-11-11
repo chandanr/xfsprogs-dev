@@ -16,6 +16,7 @@ sema_init(
 
 	error = pthread_mutex_init(&sem->mutex, NULL);
 	ASSERT(error == 0);
+	error = error;
 }
 
 static inline void
@@ -26,6 +27,7 @@ down(
 
 	error = pthread_mutex_lock(&sem->mutex);
 	ASSERT(error == 0);
+	error = error;
 }
 
 static inline void
@@ -36,6 +38,7 @@ up(
 
 	error = pthread_mutex_unlock(&sem->mutex);
 	ASSERT(error == 0);
+	error = error;
 }
 
 #endif	/* __SEM_H__ */

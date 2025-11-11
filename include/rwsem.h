@@ -15,6 +15,7 @@ init_rwsem(
 
 	error = pthread_rwlock_init(&sem->rwlock, NULL);
 	ASSERT(error == 0);
+	error = error;
 }
 
 static inline void
@@ -25,6 +26,7 @@ down_read(
 
 	error = pthread_rwlock_rdlock(&sem->rwlock);
 	ASSERT(error == 0);
+	error = error;
 }
 
 static inline void
@@ -35,6 +37,7 @@ down_write(
 
 	error = pthread_rwlock_wrlock(&sem->rwlock);
 	ASSERT(error == 0);
+	error = error;
 }
 
 static inline int
@@ -61,6 +64,7 @@ up_read(
 
 	error = pthread_rwlock_unlock(&sem->rwlock);
 	ASSERT(error == 0);
+	error = error;
 }
 
 static inline void
@@ -71,6 +75,7 @@ up_write(
 
 	error = pthread_rwlock_unlock(&sem->rwlock);
 	ASSERT(error == 0);
+	error = error;
 }
 
 #endif	/* __RWSEM_H__ */
