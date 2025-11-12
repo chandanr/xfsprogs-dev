@@ -665,6 +665,7 @@ libxfs_mount(
 	struct libxfs_init	*xi,
 	unsigned int		flags)
 {
+	struct fs_topology	ft;
 	struct xfs_buf		*bp;
 	struct xfs_sb		*sbp;
 	struct xfs_inode	*rip;
@@ -684,11 +685,13 @@ libxfs_mount(
 	xfs_set_inode32(mp);
 	mp->m_sb = *sb;
 
+	get_topology(xi, &ft, 1);
+
 	/*
 	 * chandan: TODO: Invoke xfs_freesb() when one of the later steps fails.
 	 */
 	error = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
-			SECTOR_SIZE, BTOBB(sb->sb_sectsize), &mp->m_sb_bp,
+			BTOBB(ft.psectorsize), 0, &mp->m_sb_bp,
 			&xfs_sb_buf_ops);
 	if (error)
 		return NULL;
