@@ -167,6 +167,7 @@ libxfs_getsb(
 }
 
 struct kmem_cache			*xfs_buf_cache;
+struct kmem_cache			*xfs_inode_cache;
 
 static struct cache_mru		xfs_buf_freelist =
 	{{&xfs_buf_freelist.cm_list, &xfs_buf_freelist.cm_list},
@@ -1149,13 +1150,6 @@ xfs_verify_magic16(
 		return false;
 	return dmagic == bp->b_ops->magic16[idx];
 }
-
-/*
- * Inode cache stubs.
- */
-
-struct kmem_cache		*xfs_inode_cache;
-extern struct kmem_cache	*xfs_ili_cache;
 
 static struct cache_mru		xfs_inode_freelist =
 	{{&xfs_inode_freelist.cm_list, &xfs_inode_freelist.cm_list},

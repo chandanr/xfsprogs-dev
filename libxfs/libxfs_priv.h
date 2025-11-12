@@ -64,6 +64,10 @@ struct xfs_buf_map;
 struct xfs_buf_log_item;
 struct xfs_buftarg;
 
+/* Zones used in libxfs allocations that aren't in shared header files */
+extern struct kmem_cache *xfs_buf_cache;
+extern struct kmem_cache *xfs_inode_cache;
+
 void xfs_verifier_error(struct xfs_buf *bp, int error,
 			xfs_failaddr_t failaddr);
 void xfs_inode_verifier_error(struct xfs_inode *ip, int error,
